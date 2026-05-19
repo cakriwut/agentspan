@@ -91,7 +91,7 @@ class TestToolDecorator:
             """Do something."""
             return x
 
-        assert my_func._tool_def.retry_policy == "fixed"
+        assert my_func._tool_def.retry_policy == "linear_backoff"
 
     def test_custom_retry_policy(self):
         @tool(retry_policy="exponential_backoff")

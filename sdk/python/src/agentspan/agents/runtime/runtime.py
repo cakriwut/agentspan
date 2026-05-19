@@ -70,7 +70,7 @@ def _default_task_def(
     response_timeout_seconds: int = 10,
     retry_count: int = 2,
     retry_delay_seconds: int = 2,
-    retry_policy: str = "fixed",
+    retry_policy: str = "linear_backoff",
 ) -> Any:
     """Create a TaskDef with standard retry policy for agent worker tasks.
 

@@ -60,7 +60,7 @@ _EXPECTED = {
     "_retry_fixed_tool": {"retryLogic": "FIXED", "retryCount": 4, "retryDelaySeconds": 7},
     "_retry_exponential_tool": {"retryLogic": "EXPONENTIAL_BACKOFF", "retryCount": 6, "retryDelaySeconds": 2},
     "_retry_linear_tool": {"retryLogic": "LINEAR_BACKOFF", "retryCount": 1, "retryDelaySeconds": 10},
-    "_retry_default_tool": {"retryLogic": "FIXED", "retryCount": 3, "retryDelaySeconds": 5},
+    "_retry_default_tool": {"retryLogic": "LINEAR_BACKOFF", "retryCount": 3, "retryDelaySeconds": 5},
 }
 
 
