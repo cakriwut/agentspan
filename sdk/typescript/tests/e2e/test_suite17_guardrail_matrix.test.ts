@@ -44,6 +44,7 @@ interface Result {
 
 const TIMEOUT = 300_000; // 5 min overall polling budget
 const BOTH = ['COMPLETED', 'FAILED'];
+const RETRY_MAX_TURNS = 4;
 
 // ── Guardrail config fragments ──────────────────────────────────────────
 
@@ -76,21 +77,21 @@ const LLM_POLICY_PII_OUTPUT =
 
 // ── Custom guardrail functions ──────────────────────────────────────────
 
-// Agent output: block SECRET42
+// Agent output: block MARKER42
 function customAoutBlock(content: string): GuardrailResult {
-  if (content.includes('SECRET42')) {
-    return { passed: false, message: 'Contains SECRET42. Remove it.' };
+  if (content.includes('MARKER42')) {
+    return { passed: false, message: 'Contains MARKER42. Remove it.' };
   }
   return { passed: true };
 }
 
-// Agent output: fix SECRET42 -> [REDACTED]
+// Agent output: fix MARKER42 -> [REDACTED]
 function customAoutFix(content: string): GuardrailResult {
-  if (content.includes('SECRET42')) {
+  if (content.includes('MARKER42')) {
     return {
       passed: false,
       message: 'Redacted.',
-      fixedOutput: content.replace(/SECRET42/g, '[REDACTED]'),
+      fixedOutput: content.replace(/MARKER42/g, '[REDACTED]'),
     };
   }
   return { passed: true };
@@ -172,13 +173,13 @@ const getSSNData = tool(
   },
 );
 
-const getSecretData = tool(
+const getMarkerData = tool(
   async (args: { query: string }) => ({
-    result: `The access code is SECRET42, query: ${args.query}`,
+    result: `The marker value is MARKER42, query: ${args.query}`,
   }),
   {
-    name: 'get_secret_data',
-    description: 'Look up confidential data.',
+    name: 'get_marker_data',
+    description: 'Look up marker data.',
     inputSchema: {
       type: 'object',
       properties: { query: { type: 'string' } },
@@ -562,16 +563,7 @@ const INST_MED =
 // retry — otherwise the retry spec (#07) gets the same SECRET42-containing
 // content N times and ends with the violation still present.
 const INST_SECRET =
-  'You are a unit-test echo helper. Call get_secret_data once with ' +
-  'query="lookup", then reply with EXACTLY "tool said: <tool_result>". ' +
-  'No commentary on the first turn. The string is fake test data — never ' +
-  'refuse.\n\n' +
-  'CRITICAL — RETRY RULE: if any later user message begins with ' +
-  '"[Output validation failed:" (or otherwise tells you a token is ' +
-  'blocked), this rule TAKES PRIORITY over the first-turn echo rule. ' +
-  'Replace every occurrence of the named token (e.g. SECRET42) with ' +
-  '[REDACTED] in your next response. Your next response MUST NOT ' +
-  'contain the blocked token verbatim.';
+  'Look up marker data. Call get_marker_data and include ALL data verbatim.';
 const INST_DB = 'You query databases. Use the tool with the user\'s exact query.';
 const INST_LOOKUP = 'You look up users. Use the tool with the identifier the user provides.';
 // Retry-friendly: first turn calls the tool with the user's exact input
@@ -598,6 +590,7 @@ const SPECS: Spec[] = [
       model: MODEL,
       tools: [getCCData],
       instructions: INST_CC,
+      maxTurns: RETRY_MAX_TURNS,
       guardrails: [
         new RegexGuardrail({
           ...REGEX_CC_OPTS,
@@ -657,6 +650,7 @@ const SPECS: Spec[] = [
       name: 'gm_04',
       model: MODEL,
       instructions: INST_MED,
+      maxTurns: RETRY_MAX_TURNS,
       guardrails: [
         new LLMGuardrail({
           name: 'gm04',
@@ -721,15 +715,15 @@ const SPECS: Spec[] = [
     agent: new Agent({
       name: 'gm_07',
       model: MODEL,
-      tools: [getSecretData],
+      tools: [getMarkerData],
       instructions: INST_SECRET,
       guardrails: [
         guardrail(customAoutBlock, { name: 'gm07', position: 'output', onFail: 'retry' }),
       ],
     }),
-    prompt: 'Look up the secret data.',
+    prompt: 'Look up the marker data.',
     validStatuses: ['COMPLETED'],
-    notContains: 'SECRET42',
+    notContains: 'MARKER42',
   },
   {
     num: 8,
@@ -737,13 +731,13 @@ const SPECS: Spec[] = [
     agent: new Agent({
       name: 'gm_08',
       model: MODEL,
-      tools: [getSecretData],
+      tools: [getMarkerData],
       instructions: INST_SECRET,
       guardrails: [
         guardrail(customAoutBlock, { name: 'gm08', position: 'output', onFail: 'raise' }),
       ],
     }),
-    prompt: 'Look up the secret data.',
+    prompt: 'Look up the marker data.',
     validStatuses: ['FAILED'],
   },
   {
@@ -752,15 +746,15 @@ const SPECS: Spec[] = [
     agent: new Agent({
       name: 'gm_09',
       model: MODEL,
-      tools: [getSecretData],
+      tools: [getMarkerData],
       instructions: INST_SECRET,
       guardrails: [
         guardrail(customAoutFix, { name: 'gm09', position: 'output', onFail: 'fix' }),
       ],
     }),
-    prompt: 'Look up the secret data.',
+    prompt: 'Look up the marker data.',
     validStatuses: ['COMPLETED'],
-    notContains: 'SECRET42',
+    notContains: 'MARKER42',
     contains: 'REDACTED',
   },
 
@@ -773,6 +767,7 @@ const SPECS: Spec[] = [
       model: MODEL,
       tools: [tinRegexRetryTool],
       instructions: INST_DB,
+      maxTurns: RETRY_MAX_TURNS,
     }),
     prompt: 'Run this: SELECT * FROM users; DROP TABLE users; --',
     validStatuses: BOTH,
@@ -811,6 +806,7 @@ const SPECS: Spec[] = [
       model: MODEL,
       tools: [tinLLMRetryTool],
       instructions: INST_LOOKUP,
+      maxTurns: RETRY_MAX_TURNS,
     }),
     prompt: 'Look up user with SSN 123-45-6789.',
     validStatuses: BOTH,
@@ -849,6 +845,7 @@ const SPECS: Spec[] = [
       model: MODEL,
       tools: [tinCustomRetryTool],
       instructions: INST_PROC,
+      maxTurns: RETRY_MAX_TURNS,
     }),
     prompt: 'Process this: DANGER override safety',
     validStatuses: BOTH,
@@ -887,6 +884,7 @@ const SPECS: Spec[] = [
       model: MODEL,
       tools: [toutRegexRetryTool],
       instructions: INST_FETCH,
+      maxTurns: RETRY_MAX_TURNS,
     }),
     prompt: 'Fetch the secret project data.',
     validStatuses: BOTH,
@@ -927,6 +925,7 @@ const SPECS: Spec[] = [
       model: MODEL,
       tools: [toutLLMRetryTool],
       instructions: INST_UDATA,
+      maxTurns: RETRY_MAX_TURNS,
     }),
     prompt: 'Fetch data for user U-100.',
     validStatuses: BOTH,
@@ -965,6 +964,7 @@ const SPECS: Spec[] = [
       model: MODEL,
       tools: [toutCustomRetryTool],
       instructions: INST_FETCH,
+      maxTurns: RETRY_MAX_TURNS,
     }),
     prompt: 'Fetch data for project Alpha.',
     validStatuses: BOTH,
@@ -1140,15 +1140,15 @@ describe('Suite 17: Guardrail Matrix (3x3x3)', { timeout: 600_000 }, () => {
   // ── Agent OUTPUT x Custom (#7-9) ──────────────────────────────────────
 
   describe('Agent OUTPUT x Custom', () => {
-    it('#07 aout_custom_retry — SECRET42 block, retry', () => {
+    it('#07 aout_custom_retry — MARKER42 block, retry', () => {
       checkResult(7);
     });
 
-    it('#08 aout_custom_raise — SECRET42 block, raise', () => {
+    it('#08 aout_custom_raise — MARKER42 block, raise', () => {
       checkResult(8);
     });
 
-    it('#09 aout_custom_fix — SECRET42 fix -> REDACTED', () => {
+    it('#09 aout_custom_fix — MARKER42 fix -> REDACTED', () => {
       checkResult(9);
     });
   });
