@@ -30,12 +30,9 @@ import lombok.RequiredArgsConstructor;
         exclude = {DataSourceAutoConfiguration.class, MongoAutoConfiguration.class, MongoDataAutoConfiguration.class})
 @EnableScheduling
 @ComponentScan(
-        basePackages = {
-            "com.netflix.conductor",
-            "io.orkes.conductor",
-            "org.conductoross.conductor",
-            "dev.agentspan.runtime"
-        },
+        // Conductor engine packages only — AgentSpan beans (dev.agentspan.runtime) are
+        // contributed by AgentSpanAutoConfiguration via the auto-configuration imports file.
+        basePackages = {"com.netflix.conductor", "io.orkes.conductor", "org.conductoross.conductor"},
         excludeFilters = @ComponentScan.Filter(type = FilterType.ASSIGNABLE_TYPE, classes = Join.class))
 @RequiredArgsConstructor
 public class AgentRuntime implements ApplicationRunner {
