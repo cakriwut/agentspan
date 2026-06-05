@@ -26,6 +26,7 @@ import org.springframework.test.util.ReflectionTestUtils;
 import dev.agentspan.runtime.context.*;
 import dev.agentspan.runtime.credentials.*;
 import dev.agentspan.runtime.model.credentials.ResolveRequest;
+import dev.agentspan.runtime.spi.CredentialStoreProvider;
 
 @ExtendWith(MockitoExtension.class)
 class WorkerCredentialsTest {

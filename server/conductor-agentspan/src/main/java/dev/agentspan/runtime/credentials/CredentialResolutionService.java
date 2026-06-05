@@ -11,6 +11,8 @@ import org.springframework.stereotype.Service;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import dev.agentspan.runtime.spi.CredentialStoreProvider;
+
 /**
  * Single authority for credential resolution across all call paths.
  *

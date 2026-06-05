@@ -17,6 +17,8 @@ import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.stereotype.Component;
 
+import dev.agentspan.runtime.spi.CredentialStoreProvider;
+
 /**
  * On startup, seeds the credential store from well-known LLM provider environment variables.
  *

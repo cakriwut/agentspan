@@ -19,6 +19,7 @@ import org.springframework.test.context.ActiveProfiles;
 
 import dev.agentspan.runtime.AgentRuntime;
 import dev.agentspan.runtime.model.credentials.CredentialMeta;
+import dev.agentspan.runtime.spi.CredentialStoreProvider;
 
 @SpringBootTest(classes = AgentRuntime.class, webEnvironment = SpringBootTest.WebEnvironment.NONE)
 @ActiveProfiles("test")

@@ -23,6 +23,7 @@ import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Component;
 
 import dev.agentspan.runtime.model.credentials.CredentialMeta;
+import dev.agentspan.runtime.spi.CredentialStoreProvider;
 
 /**
  * AES-256-GCM encrypted credential store backed by the credential SQLite/Postgres DB.

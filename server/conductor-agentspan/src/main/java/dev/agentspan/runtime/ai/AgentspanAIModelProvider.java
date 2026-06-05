@@ -223,7 +223,7 @@ public class AgentspanAIModelProvider extends AIModelProvider {
      * Resolve base URL: per-agent (from task input) &gt; credential store &gt; null.
      *
      * <p>The credential store is the single source of truth. Env-var-set base URLs are
-     * seeded into the store at startup by {@link CredentialEnvSeeder}, so
+     * seeded into the store at startup by the host's credential env-seeder, so
      * {@code System.getenv()} is never read directly here.</p>
      */
     @SuppressWarnings("unchecked")
@@ -246,7 +246,7 @@ public class AgentspanAIModelProvider extends AIModelProvider {
         if (envVarName == null) return null;
 
         // 2. Credential store — covers both env-var-seeded credentials (populated at startup
-        //    by CredentialEnvSeeder) and credentials added manually via the UI.
+        //    by the host's env-seeder) and credentials added manually via the UI.
         //    Direct System.getenv() is intentionally not used here: env vars are always
         //    seeded into the credential store at startup, so the store is the single
         //    source of truth and avoids bypassing external credential stores.

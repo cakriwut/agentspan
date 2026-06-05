@@ -3,7 +3,7 @@
  * Licensed under the MIT License. See LICENSE file in the project root for details.
  */
 
-package dev.agentspan.runtime.service.skill;
+package dev.agentspan.runtime.spi;
 
 public interface SkillPackageStore {
 

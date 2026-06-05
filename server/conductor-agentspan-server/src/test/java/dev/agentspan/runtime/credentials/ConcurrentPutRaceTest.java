@@ -17,6 +17,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
 
 import dev.agentspan.runtime.AgentRuntime;
+import dev.agentspan.runtime.spi.CredentialStoreProvider;
 
 /**
  * Regression test for Bug #3 — concurrent PUT on the same (user, name) was

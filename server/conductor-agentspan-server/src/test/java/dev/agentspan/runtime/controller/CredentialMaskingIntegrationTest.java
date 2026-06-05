@@ -23,9 +23,9 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 
 import dev.agentspan.runtime.AgentRuntime;
-import dev.agentspan.runtime.credentials.CredentialStoreProvider;
 import dev.agentspan.runtime.model.AgentExecutionDetail;
 import dev.agentspan.runtime.service.AgentService;
+import dev.agentspan.runtime.spi.CredentialStoreProvider;
 
 /**
  * Verifies that {@link CredentialMaskingResponseAdvice} activates on the right
@@ -33,7 +33,7 @@ import dev.agentspan.runtime.service.AgentService;
  * tracking is an enterprise feature).
  *
  * <p>Masking-correctness tests (redaction, tree-walk, JSON-escape handling) live
- * in the enterprise module where the real {@link dev.agentspan.runtime.credentials.CredentialOutputMasker}
+ * in the enterprise module where the real {@link dev.agentspan.runtime.credentials.NoOpSecretOutputMasker}
  * implementation is provided.</p>
  */
 @SpringBootTest(classes = AgentRuntime.class)

@@ -21,7 +21,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import dev.agentspan.runtime.context.RequestContextHolder;
-import dev.agentspan.runtime.credentials.CredentialOutputMasker;
+import dev.agentspan.runtime.spi.SecretOutputMasker;
 
 /**
  * Redacts disclosed credential values from execution-read response bodies.
@@ -35,7 +35,7 @@ import dev.agentspan.runtime.credentials.CredentialOutputMasker;
  *   <li>Extract {@code executionId} from the request URI.</li>
  *   <li>Get {@code userId} from the request-scoped {@link RequestContextHolder}.</li>
  *   <li>Serialize the response body to JSON.</li>
- *   <li>Run {@link CredentialOutputMasker#mask} over the JSON string — it looks up
+ *   <li>Run {@link SecretOutputMasker#mask} over the JSON string — it looks up
  *       the secrets disclosed during this execution and replaces literal
  *       occurrences of their plaintext with {@code ***NAME***}.</li>
  *   <li>Parse the masked JSON back to a {@link JsonNode} so Spring serializes it
@@ -65,10 +65,10 @@ public class CredentialMaskingResponseAdvice implements ResponseBodyAdvice<Objec
             + "|/api/workflow/([^/?]+)"
             + ")/?$");
 
-    private final CredentialOutputMasker masker;
+    private final SecretOutputMasker masker;
     private final ObjectMapper mapper;
 
-    public CredentialMaskingResponseAdvice(CredentialOutputMasker masker, ObjectMapper mapper) {
+    public CredentialMaskingResponseAdvice(SecretOutputMasker masker, ObjectMapper mapper) {
         this.masker = masker;
         this.mapper = mapper;
     }

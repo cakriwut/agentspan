@@ -19,7 +19,7 @@ import org.springframework.test.util.ReflectionTestUtils;
 import dev.agentspan.runtime.AgentRuntime;
 import dev.agentspan.runtime.context.RequestContext;
 import dev.agentspan.runtime.context.RequestContextHolder;
-import dev.agentspan.runtime.credentials.CredentialStoreProvider;
+import dev.agentspan.runtime.spi.CredentialStoreProvider;
 
 /**
  * Audit Gap B — per-user resolution of LLM provider API keys.

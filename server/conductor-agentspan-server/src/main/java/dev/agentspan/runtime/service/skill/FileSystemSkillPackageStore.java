@@ -17,6 +17,9 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
+import dev.agentspan.runtime.spi.SkillPackageStore;
+import dev.agentspan.runtime.spi.StoredSkillPackage;
+
 @Component
 @ConditionalOnProperty(
         prefix = "agentspan.skills.package-store",

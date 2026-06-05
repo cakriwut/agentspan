@@ -2,7 +2,7 @@
  * Copyright (c) 2025 AgentSpan
  * Licensed under the MIT License.
  */
-package dev.agentspan.runtime.credentials;
+package dev.agentspan.runtime.spi;
 
 import java.util.List;
 
@@ -11,9 +11,9 @@ import dev.agentspan.runtime.model.credentials.CredentialMeta;
 /**
  * Strategy interface for credential storage backends.
  *
- * <p>OSS ships {@link EncryptedDbCredentialStoreProvider}.
- * Enterprise module implements AWS SM, HashiCorp Vault, Azure KV, GCP SM, etc.
- * All implementations plug into the same {@link CredentialResolutionService} pipeline.</p>
+ * <p>The standalone server ships an encrypted-DB implementation; an embedding host
+ * (e.g. orkes-conductor) can supply AWS Secrets Manager, HashiCorp Vault, Azure KV,
+ * GCP SM, etc. All implementations plug into the same credential-resolution pipeline.</p>
  */
 public interface CredentialStoreProvider {
 

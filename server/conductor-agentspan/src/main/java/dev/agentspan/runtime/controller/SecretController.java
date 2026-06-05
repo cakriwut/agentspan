@@ -16,8 +16,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import dev.agentspan.runtime.context.RequestContextHolder;
-import dev.agentspan.runtime.credentials.CredentialStoreProvider;
 import dev.agentspan.runtime.model.credentials.CredentialMeta;
+import dev.agentspan.runtime.spi.CredentialStoreProvider;
 
 import lombok.RequiredArgsConstructor;
 
@@ -26,7 +26,7 @@ import lombok.RequiredArgsConstructor;
  *
  * <p>Mirrors {@code io.orkes.conductor.server.rest.SecretResource} (v1) and
  * {@code SecretResourceV2}. Auth: every endpoint requires a logged-in
- * session (login JWT or API key, set by {@link dev.agentspan.runtime.auth.AuthFilter}).</p>
+ * principal (the host's request filter populates the request context).</p>
  *
  * <p>The token-mediated worker fetch endpoint lives in {@link WorkerController}
  * at {@code POST /api/workers/secrets}.</p>

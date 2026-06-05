@@ -20,6 +20,9 @@ import com.netflix.conductor.common.utils.ExternalPayloadStorage;
 import com.netflix.conductor.common.utils.ExternalPayloadStorage.Operation;
 import com.netflix.conductor.common.utils.ExternalPayloadStorage.PayloadType;
 
+import dev.agentspan.runtime.spi.SkillPackageStore;
+import dev.agentspan.runtime.spi.StoredSkillPackage;
+
 @Component
 @ConditionalOnProperty(prefix = "agentspan.skills.package-store", name = "type", havingValue = "conductor-payload")
 public class ConductorPayloadSkillPackageStore implements SkillPackageStore {

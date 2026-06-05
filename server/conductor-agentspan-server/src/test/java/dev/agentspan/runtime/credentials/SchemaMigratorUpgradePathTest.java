@@ -22,6 +22,7 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 
 import dev.agentspan.runtime.AgentRuntime;
+import dev.agentspan.runtime.spi.CredentialStoreProvider;
 
 /**
  * Audit gap E — schema-migration upgrade path, full pipeline.

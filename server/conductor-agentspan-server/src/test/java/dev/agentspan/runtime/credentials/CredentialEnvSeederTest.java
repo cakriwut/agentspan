@@ -19,6 +19,7 @@ import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.test.context.ActiveProfiles;
 
 import dev.agentspan.runtime.AgentRuntime;
+import dev.agentspan.runtime.spi.CredentialStoreProvider;
 
 /**
  * Integration test for CredentialEnvSeeder — uses real DB, no mocks.

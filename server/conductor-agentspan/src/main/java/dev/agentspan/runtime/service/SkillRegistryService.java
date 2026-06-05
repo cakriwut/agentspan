@@ -48,9 +48,8 @@ import dev.agentspan.runtime.model.skill.SkillDetail;
 import dev.agentspan.runtime.model.skill.SkillFileContent;
 import dev.agentspan.runtime.model.skill.SkillFileEntry;
 import dev.agentspan.runtime.model.skill.SkillSummary;
-import dev.agentspan.runtime.service.skill.FileSystemSkillPackageStore;
-import dev.agentspan.runtime.service.skill.SkillPackageStore;
-import dev.agentspan.runtime.service.skill.StoredSkillPackage;
+import dev.agentspan.runtime.spi.SkillPackageStore;
+import dev.agentspan.runtime.spi.StoredSkillPackage;
 
 @Component
 public class SkillRegistryService {
@@ -110,22 +109,6 @@ public class SkillRegistryService {
         this.maxUncompressedBytes = maxUncompressedBytes;
         this.maxFileCount = maxFileCount;
         this.packageStore = packageStore;
-    }
-
-    public SkillRegistryService(
-            String storageDir,
-            long maxPackageBytes,
-            long maxPreviewBytes,
-            long maxUncompressedBytes,
-            int maxFileCount) {
-        this(
-                storageDir,
-                maxPackageBytes,
-                maxPreviewBytes,
-                maxUncompressedBytes,
-                maxFileCount,
-                new FileSystemSkillPackageStore(
-                        Path.of(storageDir).resolve("packages").toString()));
     }
 
     public synchronized SkillDetail register(String manifestJson, MultipartFile packageFile) {
