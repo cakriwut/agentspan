@@ -71,18 +71,36 @@ class CliConfig:
 # ── Validation ─────────────────────────────────────────────────────────
 
 
+def _executable_of(command: str) -> str:
+    """Return the executable token of *command*.
+
+    Accepts either a bare executable (``"gh"``) or a full command line
+    (``"gh repo list --limit 5"``) — LLMs frequently pass the latter — and
+    returns the first token. Falls back to whitespace splitting if the string
+    is not validly quoted.
+    """
+    if not command:
+        return command
+    try:
+        tokens = shlex.split(command)
+    except ValueError:
+        tokens = command.split()
+    return tokens[0] if tokens else command
+
+
 def _validate_cli_command(command: str, allowed_commands: List[str]) -> None:
     """Validate *command* against the whitelist.
 
-    Strips path prefix (``/usr/bin/git`` → ``git``) before checking.
-    Empty whitelist permits all commands.
+    Keys off the executable, so both a bare command (``git``) and a full command
+    line (``git status -s``) validate the same way. Strips path prefix
+    (``/usr/bin/git`` → ``git``) before checking. Empty whitelist permits all.
 
     Raises:
-        ValueError: If the command is not in the whitelist.
+        ValueError: If the executable is not in the whitelist.
     """
     if not allowed_commands:
         return  # no restrictions
-    base = os.path.basename(command)
+    base = os.path.basename(_executable_of(command))
     if base not in allowed_commands:
         raise ValueError(
             f"Command '{base}' is not allowed. "
@@ -125,8 +143,28 @@ def _make_cli_tool(
                 "stderr": "No command provided.",
             }
 
-        # Validate against whitelist
-        _validate_cli_command(command, allowed_commands)
+        # Models frequently pass the entire command line as `command`
+        # (e.g. "gh repo list --limit 5") rather than splitting executable/args.
+        # Tokenize so both styles work: validation keys off the executable and
+        # execution gets a proper argv.
+        try:
+            tokens = shlex.split(command)
+        except ValueError as e:
+            return {
+                "status": "error",
+                "stdout": "",
+                "stderr": f"Could not parse command: {e}",
+            }
+        if not tokens:
+            return {
+                "status": "error",
+                "stdout": "",
+                "stderr": "No command provided.",
+            }
+        executable = tokens[0]
+
+        # Validate against whitelist (on the executable)
+        _validate_cli_command(executable, allowed_commands)
 
         # Shell gate
         if shell and not allow_shell:
@@ -138,13 +176,16 @@ def _make_cli_tool(
         if not isinstance(args, list):
             args = [str(args)]
 
+        # Merge any args embedded in the command line with the explicit args list
+        argv = tokens[1:] + [str(a) for a in args]
+
         # Resolve working directory
         effective_cwd = cwd if cwd else working_dir
 
         try:
             if shell:
                 # Build a safe shell command string
-                cmd_str = command + " " + " ".join(shlex.quote(str(a)) for a in args)
+                cmd_str = " ".join(shlex.quote(str(a)) for a in [executable] + argv)
                 result = subprocess.run(
                     cmd_str,
                     shell=True,
@@ -155,7 +196,7 @@ def _make_cli_tool(
                 )
             else:
                 result = subprocess.run(
-                    [command] + [str(a) for a in args],
+                    [executable] + argv,
                     capture_output=True,
                     text=True,
                     timeout=timeout,
