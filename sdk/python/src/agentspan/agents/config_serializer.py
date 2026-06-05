@@ -68,14 +68,10 @@ class AgentConfigSerializer:
                     }
                 ],
             }
-            # Credentials must still be sent so the server includes them
-            # in the execution token for the passthrough worker to resolve.
+            # Declared credential names — wire-format key is "credentials"
+            # to match AgentConfig#credentials on the server (see note above).
             if hasattr(agent, "credentials") and agent.credentials:
-                from agentspan.agents.runtime.credentials.types import CredentialFile
-
-                stub["credentials"] = [
-                    c if isinstance(c, str) else c.env_var for c in agent.credentials
-                ]
+                stub["credentials"] = [c for c in agent.credentials if isinstance(c, str)]
             return stub
 
         # Strategy is emitted when the agent has any sub-agent declaration:
@@ -290,13 +286,10 @@ class AgentConfigSerializer:
                 "allowShell": cfg.allow_shell,
             }
 
-        # Agent-level credentials
+        # Agent-level declared credentials — wire key is "credentials" to
+        # match the server's AgentConfig#credentials field.
         if hasattr(agent, "credentials") and agent.credentials:
-            from agentspan.agents.runtime.credentials.types import CredentialFile
-
-            config["credentials"] = [
-                c if isinstance(c, str) else c.env_var for c in agent.credentials
-            ]
+            config["credentials"] = [c for c in agent.credentials if isinstance(c, str)]
 
         # Remove None values for cleaner JSON
         return {k: v for k, v in config.items() if v is not None}
@@ -341,8 +334,13 @@ class AgentConfigSerializer:
         if td.guardrails:
             result["guardrails"] = [self._serialize_guardrail(g) for g in td.guardrails]
 
-        # Credentials — must be in config so the server includes them in
-        # the execution token's declared_names (bounds credential resolution).
+        # Declared credential names — must land in config so the server can
+        # extract them into the execution token's declared_names list (bounds
+        # /api/workers/credentials resolution). The wire-format key is "credentials"
+        # because the server-side compiler (AgentService#collectCredentialsRecursive)
+        # reads `tool.config["credentials"]`. The SDK-facing parameter is named
+        # `credentials=` after the user-facing rename; only the wire key kept the
+        # old name to avoid a cross-language compiler/serializer fan-out.
         if td.credentials:
             cred_names = [c if isinstance(c, str) else c.env_var for c in td.credentials]
             if "config" not in result:

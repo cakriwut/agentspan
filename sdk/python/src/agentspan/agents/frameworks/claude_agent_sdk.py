@@ -186,49 +186,57 @@ def make_claude_agent_sdk_worker(
             "tool_call_count": 0,
             "tool_error_count": 0,
             "subagent_count": 0,
-            "tools_used": [],           # list of per-call dicts
-            "_tool_use_index": {},       # tool_use_id -> list index for O(1) lookup
-            "_active_subagents": [],     # stack of {"ref_name", "sub_exec_id", "tool_use_id"}
-            "_tool_target_exec": {},     # tool_use_id -> execution_id it was injected into
+            "tools_used": [],  # list of per-call dicts
+            "_tool_use_index": {},  # tool_use_id -> list index for O(1) lookup
+            "_active_subagents": [],  # stack of {"ref_name", "sub_exec_id", "tool_use_id"}
+            "_tool_target_exec": {},  # tool_use_id -> execution_id it was injected into
             "_pending_agent_calls": [],  # FIFO queue of deferred Agent tool PreToolUse data
-            "_agent_tool_map": {},       # tool_use_id -> {"ref_name", "sub_exec_id", "agent_id"}
+            "_agent_tool_map": {},  # tool_use_id -> {"ref_name", "sub_exec_id", "agent_id"}
             "last_tool_output": "",
             "last_progress_time": 0.0,
         }
 
-        # Resolve workflow-level credentials and inject into os.environ
-        _injected_cred_keys: List[str] = []
+        # Resolve workflow-level credentials — injection happens inside the
+        # invoke() closure under the shared inject_via_env lock so concurrent
+        # workers can't clobber each other's env. See
+        # docs/design/secret-injection-contract.md.
+        resolved_secrets: Dict[str, str] = {}
         try:
-            _injected_cred_keys = _inject_credentials(
-                task, execution_id, credential_names=_closure_cred_names or None,
+            resolved_secrets = _resolve_credentials(
+                task,
+                execution_id,
+                credential_names=_closure_cred_names or None,
             )
         except Exception as _cred_err:
             logger.warning("Failed to resolve credentials for Claude Agent SDK: %s", _cred_err)
 
         # Send initial IN_PROGRESS update so the server knows the worker has started
         _update_task_progress_nonblocking(
-            task_id, execution_id, metadata, server_url, auth_key, auth_secret,
+            task_id,
+            execution_id,
+            metadata,
+            server_url,
+            auth_key,
+            auth_secret,
         )
         metadata["last_progress_time"] = time.monotonic()
 
-        try:
-            # Build agentspan instrumentation hooks
+        from agentspan.agents.runtime.secret_injection import inject_via_env
+
+        def _invoke():
             agentspan_hooks = _build_agentspan_hooks(
                 task_id, execution_id, server_url, auth_key, auth_secret, metadata
             )
-
-            # Merge user hooks + agentspan hooks, then update options
             merged_options = _merge_hooks(options, agentspan_hooks)
-
-            # Override cwd if provided in task input
             if cwd:
                 if is_dataclass(merged_options) and not isinstance(merged_options, type):
                     merged_options = replace(merged_options, cwd=cwd)
                 else:
                     merged_options.cwd = cwd
+            return asyncio.run(_run_query(prompt, merged_options))
 
-            # Run the async query
-            result_output, token_usage = asyncio.run(_run_query(prompt, merged_options))
+        try:
+            result_output, token_usage = inject_via_env(resolved_secrets, _invoke)
 
             output_data: Dict[str, Any] = {
                 "result": result_output,
@@ -253,8 +261,6 @@ def make_claude_agent_sdk_worker(
                 status=TaskResultStatus.FAILED,
                 reason_for_incompletion=str(exc),
             )
-        finally:
-            _cleanup_credentials(_injected_cred_keys)
 
     return tool_worker
 
@@ -357,15 +363,19 @@ def _build_agentspan_hooks(
             # Agent tool spawns a subagent — defer injection to SubagentStart
             # so we produce a single SUB_WORKFLOW task instead of SIMPLE + SUB_WORKFLOW.
             if tool_name == "Agent" and tool_use_id:
-                metadata["_pending_agent_calls"].append({
-                    "tool_use_id": tool_use_id,
-                    "tool_input": truncated_input,
-                    "start_time": now_ms,
-                })
+                metadata["_pending_agent_calls"].append(
+                    {
+                        "tool_use_id": tool_use_id,
+                        "tool_input": truncated_input,
+                        "start_time": now_ms,
+                    }
+                )
                 _push_event_nonblocking(
                     execution_id,
                     {"type": "tool_call", "toolName": tool_name, "toolUseId": tool_use_id},
-                    server_url, auth_key, auth_secret,
+                    server_url,
+                    auth_key,
+                    auth_secret,
                 )
                 return {}
 
@@ -391,8 +401,13 @@ def _build_agentspan_hooks(
                 await loop.run_in_executor(
                     _EVENT_PUSH_POOL,
                     _inject_tool_task,
-                    target_exec, tool_name, tool_use_id,
-                    truncated_input, server_url, auth_key, auth_secret,
+                    target_exec,
+                    tool_name,
+                    tool_use_id,
+                    truncated_input,
+                    server_url,
+                    auth_key,
+                    auth_secret,
                 )
         except Exception as exc:
             logger.debug("PreToolUse hook error: %s", exc)
@@ -431,20 +446,30 @@ def _build_agentspan_hooks(
                 elif tool_output:
                     output_payload["result"] = tool_output
                 _complete_tool_task_nonblocking(
-                    execution_id, ref_name, "COMPLETED",
-                    output_payload, server_url, auth_key, auth_secret,
+                    execution_id,
+                    ref_name,
+                    "COMPLETED",
+                    output_payload,
+                    server_url,
+                    auth_key,
+                    auth_secret,
                 )
                 if sub_exec_id:
                     wf_output = {"result": tool_output} if tool_output else {}
                     _complete_workflow_nonblocking(
-                        sub_exec_id, server_url, auth_key, auth_secret,
+                        sub_exec_id,
+                        server_url,
+                        auth_key,
+                        auth_secret,
                         output_data=wf_output,
                     )
 
                 _push_event_nonblocking(
                     execution_id,
                     {"type": "tool_result", "toolName": tool_name, "toolUseId": tool_use_id},
-                    server_url, auth_key, auth_secret,
+                    server_url,
+                    auth_key,
+                    auth_secret,
                 )
             else:
                 # Regular tool — use the target execution from PreToolUse
@@ -453,7 +478,9 @@ def _build_agentspan_hooks(
                 _push_event_nonblocking(
                     target_exec,
                     {"type": "tool_result", "toolName": tool_name, "toolUseId": tool_use_id},
-                    server_url, auth_key, auth_secret,
+                    server_url,
+                    auth_key,
+                    auth_secret,
                 )
 
                 # Complete the injected DAG task
@@ -464,8 +491,13 @@ def _build_agentspan_hooks(
                     else:
                         output_payload2["stdout"] = tool_output
                     _complete_tool_task_nonblocking(
-                        target_exec, tool_use_id, "COMPLETED",
-                        output_payload2, server_url, auth_key, auth_secret,
+                        target_exec,
+                        tool_use_id,
+                        "COMPLETED",
+                        output_payload2,
+                        server_url,
+                        auth_key,
+                        auth_secret,
                     )
 
             # Throttled IN_PROGRESS task update
@@ -473,15 +505,21 @@ def _build_agentspan_hooks(
             if now - metadata["last_progress_time"] >= _PROGRESS_UPDATE_INTERVAL_S:
                 metadata["last_progress_time"] = now
                 _update_task_progress_nonblocking(
-                    task_id, execution_id, metadata,
-                    server_url, auth_key, auth_secret,
+                    task_id,
+                    execution_id,
+                    metadata,
+                    server_url,
+                    auth_key,
+                    auth_secret,
                 )
         except Exception as exc:
             logger.debug("PostToolUse hook error: %s", exc)
         return {}
 
     # -- PostToolUseFailure hook: capture tool errors --
-    async def _post_tool_use_failure(input_data: dict, tool_use_id: str | None, context: Any) -> dict:
+    async def _post_tool_use_failure(
+        input_data: dict, tool_use_id: str | None, context: Any
+    ) -> dict:
         try:
             tool_name = input_data.get("tool_name", "")
             error_msg = str(input_data.get("error", ""))[:_TOOL_OUTPUT_MAX_CHARS]
@@ -506,19 +544,28 @@ def _build_agentspan_hooks(
                 ref_name = agent_info["ref_name"]
                 sub_exec_id = agent_info["sub_exec_id"]
                 _complete_tool_task_nonblocking(
-                    execution_id, ref_name, "FAILED",
+                    execution_id,
+                    ref_name,
+                    "FAILED",
                     {"stderr": error_msg, "duration_ms": duration_ms},
-                    server_url, auth_key, auth_secret,
+                    server_url,
+                    auth_key,
+                    auth_secret,
                 )
                 if sub_exec_id:
                     _complete_workflow_nonblocking(
-                        sub_exec_id, server_url, auth_key, auth_secret,
+                        sub_exec_id,
+                        server_url,
+                        auth_key,
+                        auth_secret,
                         output_data={"error": error_msg},
                     )
                 _push_event_nonblocking(
                     execution_id,
                     {"type": "tool_error", "toolName": tool_name, "toolUseId": tool_use_id},
-                    server_url, auth_key, auth_secret,
+                    server_url,
+                    auth_key,
+                    auth_secret,
                 )
             else:
                 # Regular tool failure
@@ -527,14 +574,20 @@ def _build_agentspan_hooks(
                 _push_event_nonblocking(
                     target_exec,
                     {"type": "tool_error", "toolName": tool_name, "toolUseId": tool_use_id},
-                    server_url, auth_key, auth_secret,
+                    server_url,
+                    auth_key,
+                    auth_secret,
                 )
 
                 if tool_use_id:
                     _complete_tool_task_nonblocking(
-                        target_exec, tool_use_id, "FAILED",
+                        target_exec,
+                        tool_use_id,
+                        "FAILED",
                         {"stderr": error_msg, "duration_ms": duration_ms},
-                        server_url, auth_key, auth_secret,
+                        server_url,
+                        auth_key,
+                        auth_secret,
                     )
 
             # Throttled IN_PROGRESS task update
@@ -542,8 +595,12 @@ def _build_agentspan_hooks(
             if now - metadata["last_progress_time"] >= _PROGRESS_UPDATE_INTERVAL_S:
                 metadata["last_progress_time"] = now
                 _update_task_progress_nonblocking(
-                    task_id, execution_id, metadata,
-                    server_url, auth_key, auth_secret,
+                    task_id,
+                    execution_id,
+                    metadata,
+                    server_url,
+                    auth_key,
+                    auth_secret,
                 )
         except Exception as exc:
             logger.debug("PostToolUseFailure hook error: %s", exc)
@@ -553,21 +610,29 @@ def _build_agentspan_hooks(
     async def _subagent_start(input_data: dict, tool_use_id: str | None, context: Any) -> dict:
         try:
             agent_id = input_data.get("agent_id", "")
-            agent_name = input_data.get("agent_name", "") or input_data.get("agent_type", "") or "subagent"
+            agent_name = (
+                input_data.get("agent_name", "") or input_data.get("agent_type", "") or "subagent"
+            )
             metadata["subagent_count"] += 1
 
             # Pop the deferred Agent tool call (PreToolUse fires before SubagentStart)
             pending = metadata["_pending_agent_calls"]
             agent_call = pending.pop(0) if pending else None
             # Use the Agent tool's tool_use_id as ref_name so we produce one task
-            ref_name = (agent_call["tool_use_id"] if agent_call else None) or agent_id or f"subagent_{metadata['subagent_count'] - 1}"
+            ref_name = (
+                (agent_call["tool_use_id"] if agent_call else None)
+                or agent_id
+                or f"subagent_{metadata['subagent_count'] - 1}"
+            )
             # The actual prompt/args the user gave the subagent
             agent_input = agent_call["tool_input"] if agent_call else {}
 
             _push_event_nonblocking(
                 execution_id,
                 {"type": "subagent_start", "agentId": agent_id},
-                server_url, auth_key, auth_secret,
+                server_url,
+                auth_key,
+                auth_secret,
             )
 
             # Create a tracking sub-workflow and inject as SUB_WORKFLOW task
@@ -576,8 +641,11 @@ def _build_agentspan_hooks(
             sub_exec_id = await loop.run_in_executor(
                 _EVENT_PUSH_POOL,
                 lambda: _create_tracking_workflow(
-                    workflow_name, agent_input,
-                    server_url, auth_key, auth_secret,
+                    workflow_name,
+                    agent_input,
+                    server_url,
+                    auth_key,
+                    auth_secret,
                     parent_workflow_id=execution_id,
                 ),
             )
@@ -590,11 +658,13 @@ def _build_agentspan_hooks(
                 }
                 # Push onto active subagent stack so subsequent tool calls
                 # get injected into the sub-workflow
-                metadata["_active_subagents"].append({
-                    "ref_name": ref_name,
-                    "sub_exec_id": sub_exec_id,
-                    "tool_use_id": agent_call["tool_use_id"] if agent_call else None,
-                })
+                metadata["_active_subagents"].append(
+                    {
+                        "ref_name": ref_name,
+                        "sub_exec_id": sub_exec_id,
+                        "tool_use_id": agent_call["tool_use_id"] if agent_call else None,
+                    }
+                )
                 # Map the Agent tool's tool_use_id for PostToolUse completion
                 if agent_call:
                     metadata["_agent_tool_map"][agent_call["tool_use_id"]] = {
@@ -613,8 +683,13 @@ def _build_agentspan_hooks(
             await loop.run_in_executor(
                 _EVENT_PUSH_POOL,
                 lambda: _inject_tool_task(
-                    execution_id, workflow_name, ref_name,
-                    agent_input, server_url, auth_key, auth_secret,
+                    execution_id,
+                    workflow_name,
+                    ref_name,
+                    agent_input,
+                    server_url,
+                    auth_key,
+                    auth_secret,
                     task_type="SUB_WORKFLOW",
                     sub_workflow_param=sub_wf_param,
                 ),
@@ -631,7 +706,9 @@ def _build_agentspan_hooks(
             _push_event_nonblocking(
                 execution_id,
                 {"type": "subagent_stop", "agentId": agent_id},
-                server_url, auth_key, auth_secret,
+                server_url,
+                auth_key,
+                auth_secret,
             )
 
             # Pop the subagent from the active stack so subsequent tool calls
@@ -660,15 +737,23 @@ def _build_agentspan_hooks(
             injected = await loop.run_in_executor(
                 _EVENT_PUSH_POOL,
                 _inject_tool_task,
-                execution_id, "Notification", ref_name,
+                execution_id,
+                "Notification",
+                ref_name,
                 {"message": str(message)[:_TOOL_OUTPUT_MAX_CHARS]},
-                server_url, auth_key, auth_secret,
+                server_url,
+                auth_key,
+                auth_secret,
             )
             if injected:
                 _complete_tool_task_nonblocking(
-                    execution_id, ref_name, "COMPLETED",
+                    execution_id,
+                    ref_name,
+                    "COMPLETED",
                     {"message": str(message)[:_TOOL_OUTPUT_MAX_CHARS]},
-                    server_url, auth_key, auth_secret,
+                    server_url,
+                    auth_key,
+                    auth_secret,
                 )
         except Exception as exc:
             logger.debug("Notification hook error: %s", exc)
@@ -800,7 +885,9 @@ def _update_task_progress_nonblocking(
         except Exception as exc:
             logger.debug(
                 "Task progress update failed (task_id=%s, execution_id=%s): %s",
-                task_id, execution_id, exc,
+                task_id,
+                execution_id,
+                exc,
             )
 
     _EVENT_PUSH_POOL.submit(_do_update)
@@ -889,7 +976,9 @@ def _inject_tool_task(
     except Exception as exc:
         logger.debug(
             "Inject tool task failed (execution_id=%s, ref=%s): %s",
-            execution_id, ref_name, exc,
+            execution_id,
+            ref_name,
+            exc,
         )
         return False
 
@@ -922,7 +1011,9 @@ def _complete_tool_task_nonblocking(
         except Exception as exc:
             logger.debug(
                 "Complete tool task failed (execution_id=%s, ref=%s): %s",
-                execution_id, ref_name, exc,
+                execution_id,
+                ref_name,
+                exc,
             )
 
     _EVENT_PUSH_POOL.submit(_do_complete)
@@ -954,11 +1045,11 @@ def _complete_workflow_nonblocking(
         except Exception as exc:
             logger.debug(
                 "Complete workflow failed (execution_id=%s): %s",
-                workflow_execution_id, exc,
+                workflow_execution_id,
+                exc,
             )
 
     _EVENT_PUSH_POOL.submit(_do_complete)
-
 
 
 # ---------------------------------------------------------------------------
@@ -966,15 +1057,18 @@ def _complete_workflow_nonblocking(
 # ---------------------------------------------------------------------------
 
 
-def _inject_credentials(
-    task: Any, execution_id: str, credential_names: Optional[List[str]] = None,
-) -> List[str]:
-    """Resolve workflow-level credentials and inject into os.environ.
+def _resolve_credentials(
+    task: Any,
+    execution_id: str,
+    credential_names: Optional[List[str]] = None,
+) -> Dict[str, str]:
+    """Resolve workflow-level credentials for this task.
 
-    Returns list of env var keys that were injected (for cleanup).
+    Returns a name → plaintext dict. The caller is responsible for injecting
+    these via :func:`agentspan.agents.runtime.secret_injection.inject_via_env`
+    so the env mutation + invoke + restore happens atomically under the
+    shared process-wide lock. See ``docs/design/secret-injection-contract.md``.
     """
-    import os as _os
-
     from agentspan.agents.runtime._dispatch import (
         _extract_execution_token,
         _get_credential_fetcher,
@@ -982,34 +1076,20 @@ def _inject_credentials(
         _workflow_credentials_lock,
     )
 
-    injected_keys: List[str] = []
-    # Use directly-provided credential names first, fall back to workflow registry
     cred_names = list(credential_names) if credential_names else []
     if not cred_names:
         exec_id = execution_id or ""
         with _workflow_credentials_lock:
             cred_names = list(_workflow_credentials.get(exec_id, []))
-    if cred_names:
-        token = _extract_execution_token(task)
-        if token:
-            fetcher = _get_credential_fetcher()
-            resolved = fetcher.fetch(token, cred_names)
-            for k, v in resolved.items():
-                if isinstance(v, str):
-                    _os.environ[k] = v
-                    injected_keys.append(k)
-        else:
-            logger.warning(
-                "No execution token in task for Claude Agent SDK worker — "
-                "credentials %s will not be injected",
-                cred_names,
-            )
-    return injected_keys
-
-
-def _cleanup_credentials(injected_keys: List[str]) -> None:
-    """Remove previously injected credential env vars."""
-    import os as _os
-
-    for k in injected_keys:
-        _os.environ.pop(k, None)
+    if not cred_names:
+        return {}
+    token = _extract_execution_token(task)
+    if not token:
+        logger.warning(
+            "No execution token in task for Claude Agent SDK worker — "
+            "credentials %s will not be injected",
+            cred_names,
+        )
+        return {}
+    fetcher = _get_credential_fetcher()
+    return fetcher.fetch(token, cred_names)

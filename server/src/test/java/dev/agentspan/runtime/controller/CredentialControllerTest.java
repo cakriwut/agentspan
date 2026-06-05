@@ -19,8 +19,21 @@ import org.springframework.test.web.servlet.MockMvc;
 import dev.agentspan.runtime.AgentRuntime;
 
 /**
- * Integration test for CredentialController — real server, real DB, no mocks.
- * Uses MockMvc for HTTP layer but all services are real Spring beans.
+ * Conductor-parity contract for /api/secrets.
+ *
+ * Mirrors io.orkes.conductor.server.rest.SecretResource:
+ *   POST   /secrets              → List<String> of names
+ *   GET    /secrets              → Set<String> of names (Conductor parity; same set as POST in OSS)
+ *   GET    /secrets/{key}        → plaintext value (text/plain)
+ *   PUT    /secrets/{key}        → upsert; raw-string body; max 65535 chars
+ *   DELETE /secrets/{key}        → 200 OK (Conductor parity)
+ *   GET    /secrets/{key}/exists → boolean
+ *   GET    /secrets/v2           → CredentialMeta (name, partial, timestamps)
+ *
+ * Key-name validation (all {key} endpoints):
+ *   - Non-blank
+ *   - Pattern: [a-zA-Z0-9_-]+ (Conductor's ALLOWED_SECRET_NAME_PATTERN)
+ *   - Max length: 65535
  */
 @SpringBootTest(classes = AgentRuntime.class)
 @AutoConfigureMockMvc
@@ -30,79 +43,150 @@ class CredentialControllerTest {
     @Autowired
     private MockMvc mvc;
 
-    private static final String CRED_NAME = "_CONTROLLER_TEST_KEY";
+    private static final String KEY = "_CREDENTIAL_CTRL_TEST_KEY";
 
     @BeforeEach
     void cleanUp() throws Exception {
-        // Delete test credential if it exists
-        mvc.perform(delete("/api/credentials/" + CRED_NAME));
+        mvc.perform(delete("/api/secrets/" + KEY));
     }
 
-    @Test
-    void createAndListCredential() throws Exception {
-        // Create
-        mvc.perform(post("/api/credentials")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"name\":\"" + CRED_NAME + "\",\"value\":\"test-secret\"}"))
-                .andExpect(status().isCreated());
-
-        // List — should contain our credential
-        mvc.perform(get("/api/credentials"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$[?(@.name=='" + CRED_NAME + "')]").exists())
-                .andExpect(jsonPath("$[?(@.name=='" + CRED_NAME + "')].partial").value("test...cret"));
-    }
+    // ── CRUD ──────────────────────────────────────────────────────────
 
     @Test
-    void deleteCredential_returns204() throws Exception {
-        // Create first
-        mvc.perform(post("/api/credentials")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"name\":\"" + CRED_NAME + "\",\"value\":\"to-delete\"}"))
-                .andExpect(status().isCreated());
-
-        // Delete
-        mvc.perform(delete("/api/credentials/" + CRED_NAME)).andExpect(status().isNoContent());
-
-        // Verify gone — list should not contain it
-        mvc.perform(get("/api/credentials"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$[?(@.name=='" + CRED_NAME + "')]").doesNotExist());
-    }
-
-    @Test
-    void updateCredential_changesValue() throws Exception {
-        // Create
-        mvc.perform(post("/api/credentials")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"name\":\"" + CRED_NAME + "\",\"value\":\"original-value-here\"}"))
-                .andExpect(status().isCreated());
-
-        // Update
-        mvc.perform(put("/api/credentials/" + CRED_NAME)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"value\":\"updated-value-here\"}"))
+    void putCredential_createsAndReturnsValueOnGet() throws Exception {
+        mvc.perform(put("/api/secrets/" + KEY).contentType(MediaType.TEXT_PLAIN).content("plaintext-secret-value"))
                 .andExpect(status().isOk());
 
-        // Verify partial changed
-        mvc.perform(get("/api/credentials"))
+        mvc.perform(get("/api/secrets/" + KEY))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[?(@.name=='" + CRED_NAME + "')].partial").value("upda...here"));
+                .andExpect(content().contentTypeCompatibleWith(MediaType.TEXT_PLAIN))
+                .andExpect(content().string("plaintext-secret-value"));
     }
 
     @Test
-    void resolve_withoutToken_returns401() throws Exception {
-        mvc.perform(post("/api/credentials/resolve")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"names\":[\"GITHUB_TOKEN\"]}"))
-                .andExpect(status().isUnauthorized());
+    void putCredential_upserts_overwritingExistingValue() throws Exception {
+        mvc.perform(put("/api/secrets/" + KEY).contentType(MediaType.TEXT_PLAIN).content("v1"))
+                .andExpect(status().isOk());
+        mvc.perform(put("/api/secrets/" + KEY).contentType(MediaType.TEXT_PLAIN).content("v2"))
+                .andExpect(status().isOk());
+
+        mvc.perform(get("/api/secrets/" + KEY))
+                .andExpect(status().isOk())
+                .andExpect(content().string("v2"));
     }
 
     @Test
-    void resolve_withInvalidToken_returns401() throws Exception {
-        mvc.perform(post("/api/credentials/resolve")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"token\":\"garbage-token\",\"names\":[\"GITHUB_TOKEN\"]}"))
-                .andExpect(status().isUnauthorized());
+    void getCredential_missing_returns404() throws Exception {
+        mvc.perform(get("/api/secrets/" + KEY)).andExpect(status().isNotFound());
+    }
+
+    @Test
+    void deleteCredential_returns200_andSecretIsGone() throws Exception {
+        mvc.perform(put("/api/secrets/" + KEY).contentType(MediaType.TEXT_PLAIN).content("to-delete"))
+                .andExpect(status().isOk());
+
+        mvc.perform(delete("/api/secrets/" + KEY)).andExpect(status().isOk());
+
+        mvc.perform(get("/api/secrets/" + KEY)).andExpect(status().isNotFound());
+    }
+
+    @Test
+    void putCredential_emptyValue_returns400() throws Exception {
+        mvc.perform(put("/api/secrets/" + KEY).contentType(MediaType.TEXT_PLAIN).content(""))
+                .andExpect(status().isBadRequest());
+    }
+
+    // ── Key-name validation (all {key} endpoints) ──────────────────────
+
+    @Test
+    void invalidKey_containsSlash_returns400() throws Exception {
+        // Slashes are outside [a-zA-Z0-9_-]+ — path traversal guard
+        mvc.perform(put("/api/secrets/bad%2Fkey")
+                        .contentType(MediaType.TEXT_PLAIN)
+                        .content("v"))
+                .andExpect(status().isBadRequest());
+        mvc.perform(get("/api/secrets/bad%2Fkey")).andExpect(status().isBadRequest());
+        mvc.perform(delete("/api/secrets/bad%2Fkey")).andExpect(status().isBadRequest());
+        mvc.perform(get("/api/secrets/bad%2Fkey/exists")).andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void invalidKey_containsSpecialChars_returns400() throws Exception {
+        mvc.perform(put("/api/secrets/bad%40key")
+                        .contentType(MediaType.TEXT_PLAIN)
+                        .content("v"))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void validKey_allowsAlphanumericUnderscoreDash() throws Exception {
+        String valid = "Valid_Key-123";
+        try {
+            mvc.perform(put("/api/secrets/" + valid)
+                            .contentType(MediaType.TEXT_PLAIN)
+                            .content("v"))
+                    .andExpect(status().isOk());
+        } finally {
+            mvc.perform(delete("/api/secrets/" + valid));
+        }
+    }
+
+    // ── List ──────────────────────────────────────────────────────────
+
+    @Test
+    void postListNames_returnsStringArray_containingCreatedSecret() throws Exception {
+        mvc.perform(put("/api/secrets/" + KEY).contentType(MediaType.TEXT_PLAIN).content("v"))
+                .andExpect(status().isOk());
+
+        mvc.perform(post("/api/secrets"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[?(@=='" + KEY + "')]").exists());
+    }
+
+    @Test
+    void getList_returnsSet_containingCreatedSecret() throws Exception {
+        mvc.perform(put("/api/secrets/" + KEY).contentType(MediaType.TEXT_PLAIN).content("v"))
+                .andExpect(status().isOk());
+
+        mvc.perform(get("/api/secrets"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[?(@=='" + KEY + "')]").exists());
+    }
+
+    // ── Exists ────────────────────────────────────────────────────────
+
+    @Test
+    void exists_trueWhenPresent_falseWhenAbsent() throws Exception {
+        mvc.perform(get("/api/secrets/" + KEY + "/exists"))
+                .andExpect(status().isOk())
+                .andExpect(content().string("false"));
+
+        mvc.perform(put("/api/secrets/" + KEY).contentType(MediaType.TEXT_PLAIN).content("v"))
+                .andExpect(status().isOk());
+
+        mvc.perform(get("/api/secrets/" + KEY + "/exists"))
+                .andExpect(status().isOk())
+                .andExpect(content().string("true"));
+    }
+
+    // ── /v2 (richer metadata) ──────────────────────────────────────────
+
+    @Test
+    void v2List_returnsCredentialMeta_withFullShape() throws Exception {
+        mvc.perform(put("/api/secrets/" + KEY)
+                        .contentType(MediaType.TEXT_PLAIN)
+                        .content("plaintext-with-decent-length"))
+                .andExpect(status().isOk());
+
+        mvc.perform(get("/api/secrets/v2"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[?(@.name=='" + KEY + "')]").exists())
+                .andExpect(jsonPath("$[?(@.name=='" + KEY + "')].partial").exists())
+                .andExpect(jsonPath("$[?(@.name=='" + KEY + "')].created_at").exists())
+                .andExpect(jsonPath("$[?(@.name=='" + KEY + "')].updated_at").exists())
+                // Plaintext MUST NOT appear in v2 response
+                .andExpect(content()
+                        .string(org.hamcrest.Matchers.not(
+                                org.hamcrest.Matchers.containsString("plaintext-with-decent-length"))));
     }
 }

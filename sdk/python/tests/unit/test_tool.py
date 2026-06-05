@@ -837,23 +837,7 @@ class TestCircuitBreakerReset:
 
 
 class TestToolCredentialParams:
-    """@tool decorator: isolated and credentials params."""
-
-    def test_isolated_defaults_to_true(self):
-        @tool
-        def my_tool(x: str) -> str:
-            """A tool."""
-            return x
-
-        assert my_tool._tool_def.isolated is True
-
-    def test_isolated_false(self):
-        @tool(isolated=False)
-        def my_tool(x: str) -> str:
-            """A tool."""
-            return x
-
-        assert my_tool._tool_def.isolated is False
+    """@tool decorator: credentials param."""
 
     def test_credentials_defaults_to_empty_list(self):
         @tool
@@ -872,31 +856,8 @@ class TestToolCredentialParams:
         assert "GITHUB_TOKEN" in my_tool._tool_def.credentials
         assert "GH_TOKEN" in my_tool._tool_def.credentials
 
-    def test_credentials_with_credential_file(self):
-        from agentspan.agents.runtime.credentials.types import CredentialFile
-
-        cf = CredentialFile("KUBECONFIG", ".kube/config")
-
-        @tool(credentials=["GITHUB_TOKEN", cf])
-        def my_tool(x: str) -> str:
-            """A tool."""
-            return x
-
-        creds = my_tool._tool_def.credentials
-        assert "GITHUB_TOKEN" in creds
-        assert cf in creds
-
-    def test_isolated_false_with_credentials(self):
-        @tool(isolated=False, credentials=["OPENAI_API_KEY"])
-        def my_tool(x: str) -> str:
-            """A tool."""
-            return x
-
-        assert my_tool._tool_def.isolated is False
-        assert "OPENAI_API_KEY" in my_tool._tool_def.credentials
-
     def test_existing_params_still_work_alongside_new_params(self):
-        @tool(name="custom_name", approval_required=True, isolated=False, credentials=["KEY"])
+        @tool(name="custom_name", approval_required=True, credentials=["KEY"])
         def my_tool(x: str) -> str:
             """A tool."""
             return x
@@ -904,5 +865,4 @@ class TestToolCredentialParams:
         td = my_tool._tool_def
         assert td.name == "custom_name"
         assert td.approval_required is True
-        assert td.isolated is False
         assert "KEY" in td.credentials

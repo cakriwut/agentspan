@@ -33,7 +33,7 @@ import com.netflix.conductor.tasks.http.providers.RestTemplateProvider;
 public class CredentialAwareHttpTask extends HttpTask {
 
     private static final Logger log = LoggerFactory.getLogger(CredentialAwareHttpTask.class);
-    private static final Pattern PLACEHOLDER = Pattern.compile("#\\{(\\w+)}");
+    private static final Pattern PLACEHOLDER = Pattern.compile("#\\{([\\w.]+)}");
 
     private final ExecutionTokenService tokenService;
     private final CredentialResolutionService resolutionService;
@@ -72,7 +72,7 @@ public class CredentialAwareHttpTask extends HttpTask {
         try {
             super.start(workflow, task, executor);
         } finally {
-            // Restore placeholder headers so resolved secrets are never persisted.
+            // Restore placeholder headers so resolved credentials are never persisted.
             if (originalHeaders != null && httpRequest instanceof Map<?, ?> reqMap) {
                 ((Map<String, Object>) reqMap).put("headers", originalHeaders);
             }

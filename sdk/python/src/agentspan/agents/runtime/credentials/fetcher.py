@@ -3,7 +3,7 @@
 
 """WorkerCredentialFetcher — resolves credentials for a Conductor task.
 
-Credentials are ALWAYS resolved from the server via POST /api/credentials/resolve.
+Credentials are ALWAYS resolved from the server via POST /api/workers/credentials.
 There is no env var fallback. If the execution token is missing or credentials
 are not stored on the server, the tool fails with a non-retryable error.
 """
@@ -89,7 +89,9 @@ class WorkerCredentialFetcher:
         execution_token: str,
         names: List[str],
     ) -> Dict[str, str]:
-        url = f"{self._server_url}/credentials/resolve"
+        # Server endpoint was renamed to /workers/secrets (Conductor parity);
+        # the SDK keeps the credentials terminology on the user-facing side.
+        url = f"{self._server_url}/workers/secrets"
         headers: Dict[str, str] = {"Content-Type": "application/json"}
         if self._api_key:
             headers["Authorization"] = f"Bearer {self._api_key}"
@@ -128,4 +130,3 @@ class WorkerCredentialFetcher:
             raise CredentialNotFoundError(missing)
 
         return resolved
-

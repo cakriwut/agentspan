@@ -164,7 +164,7 @@ def _get_credential_fetcher():
     """Return the module-level WorkerCredentialFetcher, creating it on first call.
 
     The fetcher is initialized from AgentConfig.from_env() so it picks up
-    AGENTSPAN_SERVER_URL, AGENTSPAN_API_KEY, AGENTSPAN_CREDENTIAL_STRICT_MODE.
+    AGENTSPAN_SERVER_URL, AGENTSPAN_API_KEY, AGENTSPAN_SECRET_STRICT_MODE.
     """
     global _credential_fetcher
     if _credential_fetcher is None:
@@ -174,7 +174,7 @@ def _get_credential_fetcher():
         config = AgentConfig.from_env()
         _credential_fetcher = WorkerCredentialFetcher(
             server_url=config.server_url,
-            strict_mode=config.credential_strict_mode,
+            strict_mode=config.secret_strict_mode,
             api_key=config.api_key or config.auth_key,
         )
     return _credential_fetcher
@@ -210,17 +210,6 @@ def _get_credential_names_from_tool(tool_func) -> list:
     if tool_def is None:
         return []
     return list(getattr(tool_def, "credentials", []))
-
-
-def _is_isolated(tool_func) -> bool:
-    """Return the isolated flag from a @tool-decorated function's ToolDef.
-
-    Defaults to True (safe default) if no ToolDef is present.
-    """
-    tool_def = getattr(tool_func, "_tool_def", None)
-    if tool_def is None:
-        return True
-    return getattr(tool_def, "isolated", True)
 
 
 # Module-level registry: task_name -> {tool_name: tool_func}
@@ -418,27 +407,29 @@ def make_tool_worker(tool_func, tool_name, guardrails=None, tool_def=None, crede
                 credential_names = list(_closure_cred_names)
             else:
                 _td = _tool_def_registry.get(tool_name) or tool_def
-                raw_credentials = list(getattr(_td, "credentials", [])) if _td else _get_credential_names_from_tool(tool_func)
-                # Normalize: CredentialFile → env_var string, keep strings as-is
-                from agentspan.agents.runtime.credentials.types import CredentialFile
-                credential_names = [
-                    c.env_var if isinstance(c, CredentialFile) else c
-                    for c in raw_credentials
-                    if isinstance(c, (str, CredentialFile))
-                ]
+                raw_secrets = (
+                    list(getattr(_td, "credentials", []))
+                    if _td
+                    else _get_credential_names_from_tool(tool_func)
+                )
+                credential_names = [c for c in raw_secrets if isinstance(c, str)]
                 # Fallback: workflow-level credentials (for framework-extracted tools)
                 if not credential_names and task.workflow_instance_id:
                     with _workflow_credentials_lock:
-                        credential_names = list(_workflow_credentials.get(task.workflow_instance_id, []))
-            resolved_credentials = {}
+                        credential_names = list(
+                            _workflow_credentials.get(task.workflow_instance_id, [])
+                        )
+            resolved_secrets = {}
             if credential_names:
                 token = _extract_execution_token(task)
                 fetcher = _get_credential_fetcher()
                 try:
-                    resolved_credentials = fetcher.fetch(token, credential_names)
+                    resolved_secrets = fetcher.fetch(token, credential_names)
                 except Exception as cred_err:
                     # Credential errors are configuration issues — non-retryable.
-                    logger.error("Credential resolution failed for tool '%s': %s", tool_name, cred_err)
+                    logger.error(
+                        "Credential resolution failed for tool '%s': %s", tool_name, cred_err
+                    )
                     task_result.status = TaskResultStatus.FAILED_WITH_TERMINAL_ERROR
                     task_result.reason_for_incompletion = str(cred_err)
                     return task_result
@@ -458,37 +449,39 @@ def make_tool_worker(tool_func, tool_name, guardrails=None, tool_def=None, crede
                 else:
                     fn_kwargs[param_name] = None
 
-            # ── Credential injection ──────────────────────────────────────
-            # Inject credentials into os.environ for the tool to read.
-            # Conductor workers default to thread_count=1, so concurrent
-            # credential injection is not a risk. Clean up in finally block.
-            _injected_env_keys = []
-            if resolved_credentials:
-                for k, v in resolved_credentials.items():
-                    if isinstance(v, str):
-                        os.environ[k] = v
-                        _injected_env_keys.append(k)
+            # ── Secret injection ──────────────────────────────────────────
+            # Inject resolved credentials via the shared helper so the mutate +
+            # invoke + restore sequence is atomic under a process-wide lock.
+            # See docs/design/secret-injection-contract.md.
+            #
+            # Earlier the env-mutation here had no lock and a comment claiming
+            # "Conductor workers default to thread_count=1 so this is safe" —
+            # that was a workaround masquerading as a safety property. As soon
+            # as a user raises thread_count, the race bites. The helper makes
+            # the path correct regardless of worker config.
+            from agentspan.agents.runtime.credentials.accessor import (
+                clear_credential_context,
+                set_credential_context,
+            )
+            from agentspan.agents.runtime.secret_injection import inject_via_env
 
-                # Also set credential context for non-isolated tools using get_credential()
-                from agentspan.agents.runtime.credentials.accessor import (
-                    clear_credential_context,
-                    set_credential_context,
-                )
-                set_credential_context(resolved_credentials)
+            secret_env = {k: v for k, v in (resolved_secrets or {}).items() if isinstance(v, str)}
 
-            try:
-                result = _execute(
-                    fn_kwargs,
-                    execution_id=task.workflow_instance_id or "",
-                    agent_state=agent_state,
-                )
-            finally:
-                # Clean up injected env vars
-                for k in _injected_env_keys:
-                    os.environ.pop(k, None)
-                if resolved_credentials:
-                    from agentspan.agents.runtime.credentials.accessor import clear_credential_context
-                    clear_credential_context()
+            def _invoke_with_context():
+                # contextvars are async-task/thread scoped — safe to set without a lock
+                if resolved_secrets:
+                    set_credential_context(resolved_secrets)
+                try:
+                    return _execute(
+                        fn_kwargs,
+                        execution_id=task.workflow_instance_id or "",
+                        agent_state=agent_state,
+                    )
+                finally:
+                    if resolved_secrets:
+                        clear_credential_context()
+
+            result = inject_via_env(secret_env, _invoke_with_context)
 
             if isinstance(result, dict):
                 task_result.output_data = result

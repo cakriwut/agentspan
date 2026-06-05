@@ -93,4 +93,19 @@ class CredentialAwareHttpTaskTest {
 
         assertThat(resolved.get("Authorization")).isEqualTo("Basic admin:secret123");
     }
+
+    @Test
+    void resolveHeaders_dottedPathJsonExtraction() {
+        // Conductor-parity JSONPath: extract a field from a JSON-valued secret
+        storeProvider.set(USER_ID, "GCP_SVC", "{\"project_id\":\"my-proj-99\",\"client_email\":\"sa@x.iam\"}");
+
+        Map<String, String> headers = new LinkedHashMap<>();
+        headers.put("X-Project", "#{GCP_SVC.project_id}");
+        headers.put("X-Email", "#{GCP_SVC.client_email}");
+
+        Map<String, String> resolved = httpTask.resolveHeadersForUser(headers, USER_ID);
+
+        assertThat(resolved.get("X-Project")).isEqualTo("my-proj-99");
+        assertThat(resolved.get("X-Email")).isEqualTo("sa@x.iam");
+    }
 }

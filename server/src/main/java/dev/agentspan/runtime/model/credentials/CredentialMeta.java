@@ -14,7 +14,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 /**
- * Credential metadata returned in list and single-item responses.
+ * Secret metadata returned by {@code GET /api/secrets/v2}.
  * The plaintext value is NEVER included — only a partial display.
  */
 @Data

@@ -45,7 +45,7 @@ import okhttp3.OkHttpClient;
 public class CredentialAwareMcpService extends MCPService {
 
     private static final Logger log = LoggerFactory.getLogger(CredentialAwareMcpService.class);
-    private static final Pattern PLACEHOLDER = Pattern.compile("#\\{(\\w+)}");
+    private static final Pattern PLACEHOLDER = Pattern.compile("#\\{([\\w.]+)}");
 
     private final ExecutionTokenService tokenService;
     private final CredentialResolutionService resolutionService;

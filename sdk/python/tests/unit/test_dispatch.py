@@ -85,7 +85,10 @@ class TestCredentialExtraction:
         from agentspan.agents.runtime._dispatch import _extract_execution_token
 
         class FakeTask:
-            input_data = {"__agentspan_ctx__": {"execution_token": "token-from-input"}, "x": "hello"}
+            input_data = {
+                "__agentspan_ctx__": {"execution_token": "token-from-input"},
+                "x": "hello",
+            }
             workflow_input = {}
 
         token = _extract_execution_token(FakeTask())
@@ -170,7 +173,7 @@ class TestToolDefCredentialsSurvival:
         td = get_tool_def(simple_tool)
         assert td.credentials == []
 
-    def test_tool_worker_no_credentials_runs_directly(self):
+    def test_tool_worker_no_secrets_runs_directly(self):
         """Tool without credentials runs without subprocess isolation."""
         from agentspan.agents.runtime._dispatch import make_tool_worker
         from agentspan.agents.tool import tool, get_tool_def

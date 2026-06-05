@@ -40,7 +40,12 @@ class MockWorkflowRun:
     """Mock workflow run result."""
 
     def __init__(
-        self, output=None, variables=None, tasks=None, status="COMPLETED", execution_id="test-wf-123"
+        self,
+        output=None,
+        variables=None,
+        tasks=None,
+        status="COMPLETED",
+        execution_id="test-wf-123",
     ):
         self.output = output
         self.variables = variables or {}
@@ -2030,7 +2035,9 @@ class TestFrameworkCredentials:
                 output={"result": "ok"},
             )
 
-        with patch("agentspan.agents.frameworks.serializer.detect_framework", return_value="openai"):
+        with patch(
+            "agentspan.agents.frameworks.serializer.detect_framework", return_value="openai"
+        ):
             with patch(
                 "agentspan.agents.frameworks.serializer.serialize_agent",
                 return_value=({"name": "fw_agent"}, []),

@@ -94,4 +94,16 @@ class CredentialAwareMcpServiceTest {
 
         assertThat(resolved.get("Authorization")).isEqualTo("Basic admin:secret123");
     }
+
+    @Test
+    void resolveHeaders_dottedPathJsonExtraction() {
+        storeProvider.set(USER_ID, "BLOB", "{\"auth\":{\"oauth\":{\"client_id\":\"abc123\"}}}");
+
+        Map<String, String> headers = new LinkedHashMap<>();
+        headers.put("X-Client-Id", "#{BLOB.auth.oauth.client_id}");
+
+        Map<String, String> resolved = mcpService.resolveHeadersForUser(headers, USER_ID);
+
+        assertThat(resolved.get("X-Client-Id")).isEqualTo("abc123");
+    }
 }

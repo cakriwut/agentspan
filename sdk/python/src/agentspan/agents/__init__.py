@@ -136,10 +136,9 @@ from agentspan.agents.run import (
 from agentspan.agents.runtime.config import AgentConfig
 
 # Credential management
-from agentspan.agents.runtime.credentials.accessor import get_credential
+from agentspan.agents.runtime.credentials.accessor import get_secret
 from agentspan.agents.runtime.credentials.types import (
     CredentialAuthError,
-    CredentialFile,
     CredentialNotFoundError,
     CredentialRateLimitError,
     CredentialServiceError,
@@ -349,9 +348,8 @@ __all__ = [
     # Tracing
     "is_tracing_enabled",
     # Credentials
-    "get_credential",
+    "get_secret",
     "resolve_credentials",
-    "CredentialFile",
     "CredentialNotFoundError",
     "CredentialAuthError",
     "CredentialRateLimitError",

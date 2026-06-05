@@ -77,7 +77,6 @@ class ToolDef:
     tool_type: str = "worker"
     config: Dict[str, Any] = field(default_factory=dict)
     guardrails: List[Any] = field(default_factory=list)
-    isolated: bool = True
     credentials: List[Any] = field(default_factory=list)
     stateful: bool = False
     max_calls: Optional[int] = None
@@ -126,7 +125,6 @@ def tool(
     approval_required: bool = False,
     timeout_seconds: Optional[int] = None,
     guardrails: Optional[List[Any]] = None,
-    isolated: bool = True,
     credentials: Optional[List[Any]] = None,
     stateful: bool = False,
     max_calls: Optional[int] = None,
@@ -144,7 +142,6 @@ def tool(
     approval_required: bool = False,
     timeout_seconds: Optional[int] = None,
     guardrails: Optional[List[Any]] = None,
-    isolated: bool = True,
     credentials: Optional[List[Any]] = None,
     stateful: bool = False,
     max_calls: Optional[int] = None,
@@ -194,7 +191,6 @@ def tool(
             timeout_seconds=timeout_seconds,
             tool_type="worker",
             guardrails=list(guardrails) if guardrails else [],
-            isolated=isolated,
             credentials=list(credentials) if credentials else [],
             stateful=stateful,
             max_calls=max_calls,
@@ -970,7 +966,6 @@ def search_tool(
         tool_type="rag_search",
         config=config,
     )
-
 
 
 # ── Human interaction tool ──────────────────────────────────────────────

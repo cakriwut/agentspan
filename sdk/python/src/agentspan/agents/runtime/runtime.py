@@ -59,8 +59,7 @@ def _resolve_retry_logic(policy: str) -> str:
     if upper in _RETRY_POLICY_MAP.values():
         return upper
     raise ValueError(
-        f"Invalid retry_policy '{policy}'. "
-        f"Valid options: {', '.join(sorted(VALID_RETRY_POLICIES))}"
+        f"Invalid retry_policy '{policy}'. Valid options: {', '.join(sorted(VALID_RETRY_POLICIES))}"
     )
 
 
@@ -124,9 +123,7 @@ def _has_stateful_tools(agent: Any) -> bool:
     # (@tool / @worker_task) and ToolDef instances.  Plain strings (e.g.
     # built-in tool names) can never be stateful and must be skipped so
     # get_tool_def() does not raise TypeError.
-    resolvable = [
-        t for t in getattr(agent, "tools", []) if callable(t) or isinstance(t, ToolDef)
-    ]
+    resolvable = [t for t in getattr(agent, "tools", []) if callable(t) or isinstance(t, ToolDef)]
     for td in get_tool_defs(resolvable):
         if getattr(td, "stateful", False):
             return True
@@ -439,9 +436,7 @@ class AgentRuntime:
         with _workflow_credentials_lock:
             _workflow_credentials[execution_id] = list(credentials)
 
-    def _clear_workflow_credentials(
-        self, execution_id: str, credentials: Optional[List[str]]
-    ) -> None:
+    def _clear_workflow_credentials(self, execution_id: str, credentials: Optional[List[str]]) -> None:
         """Clear request-scoped credential names after execution completion."""
         if not credentials:
             return
@@ -488,7 +483,9 @@ class AgentRuntime:
                     from agentspan.agents.skill import create_skill_workers
 
                     workflow_name = self._deploy_via_server(nested, framework="skill")
-                    logger.info("Pre-deployed skill '%s' as workflow '%s'", nested.name, workflow_name)
+                    logger.info(
+                        "Pre-deployed skill '%s' as workflow '%s'", nested.name, workflow_name
+                    )
                     # Save for later registration with domain (run_id not known yet)
                     skills_to_register.append(nested)
                     td.config["workflowName"] = workflow_name
@@ -566,7 +563,9 @@ class AgentRuntime:
             required_workers = set(data["requiredWorkers"])
             logger.info(
                 "Started agent '%s' via server (execution_id=%s, requiredWorkers=%s)",
-                agent.name, execution_id, sorted(required_workers),
+                agent.name,
+                execution_id,
+                sorted(required_workers),
             )
         else:
             logger.info("Started agent '%s' via server (execution_id=%s)", agent.name, execution_id)
@@ -617,7 +616,9 @@ class AgentRuntime:
             required_workers = set(data["requiredWorkers"])
             logger.info(
                 "Started agent '%s' via server (execution_id=%s, requiredWorkers=%s)",
-                agent.name, execution_id, sorted(required_workers),
+                agent.name,
+                execution_id,
+                sorted(required_workers),
             )
         else:
             logger.info("Started agent '%s' via server (execution_id=%s)", agent.name, execution_id)
@@ -879,9 +880,7 @@ class AgentRuntime:
         # Start worker polling if needed
         if self._config.auto_start_workers and self._has_worker_tools(agent):
             with self._worker_start_lock:
-                worker_names = self._collect_worker_names(
-                    agent, required_workers=required_workers
-                )
+                worker_names = self._collect_worker_names(agent, required_workers=required_workers)
                 new_workers = worker_names - self._registered_tool_names
                 if new_workers:
                     logger.info(
@@ -901,9 +900,7 @@ class AgentRuntime:
                     # the fork() deadlock window of a full stop/restart cycle.
                     self._worker_manager.start()
 
-    def _collect_worker_names(
-        self, agent: Agent, *, required_workers: Optional[set] = None
-    ) -> set:
+    def _collect_worker_names(self, agent: Agent, *, required_workers: Optional[set] = None) -> set:
         """Collect all worker task names from an agent tree.
 
         When *required_workers* is provided (from the server's
@@ -1093,7 +1090,9 @@ class AgentRuntime:
         if agent.tools:
             tc = ToolRegistry()
             tc.register_tool_workers(
-                agent.tools, agent.name, domain=domain,
+                agent.tools,
+                agent.name,
+                domain=domain,
                 agent_stateful=getattr(agent, "stateful", False),
             )
             for t in agent.tools:
@@ -1303,7 +1302,9 @@ class AgentRuntime:
             )(wrapper)
             logger.debug("Registered skill worker '%s'", sw.name)
 
-    def _register_guardrail_worker(self, agent_name: str, guardrails: list, domain: "Optional[str]" = None) -> None:
+    def _register_guardrail_worker(
+        self, agent_name: str, guardrails: list, domain: "Optional[str]" = None
+    ) -> None:
         """Register guardrail workers for custom function guardrails.
 
         For server-side compilation, each custom guardrail is compiled as
@@ -1480,7 +1481,9 @@ class AgentRuntime:
             lease_extend_enabled=True,
         )(guardrail_worker)
 
-    def _register_stop_when_worker(self, agent_name: str, stop_when_fn, domain: "Optional[str]" = None) -> None:
+    def _register_stop_when_worker(
+        self, agent_name: str, stop_when_fn, domain: "Optional[str]" = None
+    ) -> None:
         """Register a stop_when worker."""
         from conductor.client.worker.worker_task import worker_task
 
@@ -1495,7 +1498,12 @@ class AgentRuntime:
                 logger.error("stop_when evaluation failed: %s", e)
                 return {"should_continue": True}
 
-        stop_when_worker.__annotations__ = {"result": object, "iteration": int, "messages": object, "return": object}
+        stop_when_worker.__annotations__ = {
+            "result": object,
+            "iteration": int,
+            "messages": object,
+            "return": object,
+        }
         worker_task(
             task_definition_name=task_name,
             task_def=_default_task_def(task_name),
@@ -1506,7 +1514,9 @@ class AgentRuntime:
             lease_extend_enabled=True,
         )(stop_when_worker)
 
-    def _register_gate_worker(self, agent_name: str, gate_fn, domain: "Optional[str]" = None) -> None:
+    def _register_gate_worker(
+        self, agent_name: str, gate_fn, domain: "Optional[str]" = None
+    ) -> None:
         """Register a callable gate worker for conditional sequential pipelines."""
         from conductor.client.worker.worker_task import worker_task
 
@@ -1532,7 +1542,9 @@ class AgentRuntime:
             lease_extend_enabled=True,
         )(gate_worker)
 
-    def _register_callback_worker(self, agent_name: str, position: str, callback_fn, domain: "Optional[str]" = None) -> None:
+    def _register_callback_worker(
+        self, agent_name: str, position: str, callback_fn, domain: "Optional[str]" = None
+    ) -> None:
         """Register a before_model or after_model callback worker."""
         from conductor.client.worker.worker_task import worker_task
 
@@ -1562,7 +1574,9 @@ class AgentRuntime:
             lease_extend_enabled=True,
         )(callback_worker)
 
-    def _register_termination_worker(self, agent_name: str, termination_cond, domain: "Optional[str]" = None) -> None:
+    def _register_termination_worker(
+        self, agent_name: str, termination_cond, domain: "Optional[str]" = None
+    ) -> None:
         """Register a termination condition worker."""
         from conductor.client.worker.worker_task import worker_task
 
@@ -1588,7 +1602,9 @@ class AgentRuntime:
             lease_extend_enabled=True,
         )(termination_worker)
 
-    def _register_check_transfer_worker(self, agent_name: str, domain: "Optional[str]" = None) -> None:
+    def _register_check_transfer_worker(
+        self, agent_name: str, domain: "Optional[str]" = None
+    ) -> None:
         """Register a check_transfer worker for hybrid handoff agents."""
         from conductor.client.worker.worker_task import worker_task
 
@@ -1616,7 +1632,9 @@ class AgentRuntime:
             lease_extend_enabled=True,
         )(check_transfer_worker)
 
-    def _register_hybrid_transfer_workers(self, agent: Agent, domain: "Optional[str]" = None) -> None:
+    def _register_hybrid_transfer_workers(
+        self, agent: Agent, domain: "Optional[str]" = None
+    ) -> None:
         """Register transfer_to_<name> no-op workers for hybrid agents (tools + sub-agents).
 
         The transfer tools are no-ops — the actual handoff is detected by
@@ -1764,7 +1782,9 @@ class AgentRuntime:
             lease_extend_enabled=True,
         )(handoff_check_worker)
 
-    def _register_swarm_transfer_workers(self, agent: Agent, domain: "Optional[str]" = None) -> None:
+    def _register_swarm_transfer_workers(
+        self, agent: Agent, domain: "Optional[str]" = None
+    ) -> None:
         """Register transfer_to_<name> workers for swarm agents.
 
         Each agent in the swarm gets transfer tools for its peers.
@@ -1831,7 +1851,9 @@ class AgentRuntime:
 
                 make_worker(tool_name, peer_name, is_unreachable)
 
-    def _register_manual_selection_worker(self, agent: Agent, domain: "Optional[str]" = None) -> None:
+    def _register_manual_selection_worker(
+        self, agent: Agent, domain: "Optional[str]" = None
+    ) -> None:
         """Register a process_selection worker for manual strategy."""
         from conductor.client.worker.worker_task import worker_task
 
@@ -2608,6 +2630,7 @@ class AgentRuntime:
         static_plan: Optional[Dict[str, Any]] = None
         if plan_kwarg is not None:
             from agentspan.agents.plans import coerce_plan
+
             static_plan = coerce_plan(plan_kwarg)
 
         if kwargs:
@@ -2898,9 +2921,7 @@ class AgentRuntime:
         try:
             wf = await loop.run_in_executor(
                 None,
-                lambda: self._workflow_client.get_workflow(
-                    execution_id, include_tasks=True
-                ),
+                lambda: self._workflow_client.get_workflow(execution_id, include_tasks=True),
             )
             tool_calls = self._extract_tool_calls(wf)
             messages = self._extract_messages(wf)
@@ -2996,7 +3017,10 @@ class AgentRuntime:
         if workers and workers[0].func is None:
             worker = workers[0]
             worker.func = self._build_passthrough_func(
-                agent_obj, framework, worker.name, credentials=credentials,
+                agent_obj,
+                framework,
+                worker.name,
+                credentials=credentials,
             )
             self._register_passthrough_worker(worker)
         elif "_graph" in raw_config:
@@ -3045,7 +3069,9 @@ class AgentRuntime:
                     output = status.reason
 
             output = self._normalize_output(output, raw_status, status.reason)
-            logger.info("Framework agent '%s' completed (execution_id=%s)", agent_name, execution_id)
+            logger.info(
+                "Framework agent '%s' completed (execution_id=%s)", agent_name, execution_id
+            )
             token_usage = self._extract_token_usage(execution_id)
             return AgentResult(
                 output=output,
@@ -3315,14 +3341,22 @@ class AgentRuntime:
             from agentspan.agents.frameworks.langgraph import make_langgraph_worker
 
             return make_langgraph_worker(
-                agent_obj, name, server_url, auth_key, auth_secret,
+                agent_obj,
+                name,
+                server_url,
+                auth_key,
+                auth_secret,
                 credential_names=credentials,
             )
         elif framework == "langchain":
             from agentspan.agents.frameworks.langchain import make_langchain_worker
 
             return make_langchain_worker(
-                agent_obj, name, server_url, auth_key, auth_secret,
+                agent_obj,
+                name,
+                server_url,
+                auth_key,
+                auth_secret,
                 credential_names=credentials,
             )
         elif framework == "claude_agent_sdk":
@@ -3339,7 +3373,11 @@ class AgentRuntime:
                 options = agent_obj  # Already ClaudeCodeOptions
 
             return make_claude_agent_sdk_worker(
-                options, name, server_url, auth_key, auth_secret,
+                options,
+                name,
+                server_url,
+                auth_key,
+                auth_secret,
                 credential_names=credentials,
             )
         raise ValueError(f"Unknown passthrough framework: {framework}")
@@ -3841,7 +3879,8 @@ class AgentRuntime:
         if handle is not None:
             event_iter = self._stream_workflow(handle.execution_id)
             return AgentStream(
-                handle=handle, event_iterator=event_iter,
+                handle=handle,
+                event_iterator=event_iter,
                 token_fetcher=self._extract_token_usage,
             )
 
@@ -3853,7 +3892,8 @@ class AgentRuntime:
         )
         event_iter = self._stream_workflow(handle.execution_id)
         return AgentStream(
-            handle=handle, event_iterator=event_iter,
+            handle=handle,
+            event_iterator=event_iter,
             token_fetcher=self._extract_token_usage,
         )
 
@@ -3949,7 +3989,9 @@ class AgentRuntime:
                         ):
                             fn_name = task_type.lower()
                             raw_args = getattr(task, "input_data", None) or {}
-                            clean_args = {k: v for k, v in raw_args.items() if k != "__agentspan_ctx__"}
+                            clean_args = {
+                                k: v for k, v in raw_args.items() if k != "__agentspan_ctx__"
+                            }
                             yield AgentEvent(
                                 type=EventType.TOOL_CALL,
                                 tool_name=fn_name,
@@ -4472,7 +4514,9 @@ class AgentRuntime:
                         ):
                             fn_name = task_type.lower()
                             raw_args = getattr(task, "input_data", None) or {}
-                            clean_args = {k: v for k, v in raw_args.items() if k != "__agentspan_ctx__"}
+                            clean_args = {
+                                k: v for k, v in raw_args.items() if k != "__agentspan_ctx__"
+                            }
                             yield AgentEvent(
                                 type=EventType.TOOL_CALL,
                                 tool_name=fn_name,
@@ -4616,7 +4660,10 @@ class AgentRuntime:
         if workers and workers[0].func is None:
             worker = workers[0]
             worker.func = self._build_passthrough_func(
-                agent_obj, framework, worker.name, credentials=credentials,
+                agent_obj,
+                framework,
+                worker.name,
+                credentials=credentials,
             )
             self._register_passthrough_worker(worker)
         elif "_graph" in raw_config:
@@ -4682,7 +4729,9 @@ class AgentRuntime:
                     output = status.reason
 
             output = self._normalize_output(output, raw_status, status.reason)
-            logger.info("Framework agent '%s' completed (execution_id=%s)", agent_name, execution_id)
+            logger.info(
+                "Framework agent '%s' completed (execution_id=%s)", agent_name, execution_id
+            )
             token_usage = self._extract_token_usage(execution_id)
             return AgentResult(
                 output=output,
@@ -4882,6 +4931,7 @@ class AgentRuntime:
             if len(domains) > 1:
                 # Multiple distinct domains — pick the most common one
                 from collections import Counter
+
                 counts = Counter(v for v in task_to_domain.values() if v)
                 return counts.most_common(1)[0][0]
             return None
@@ -4977,9 +5027,7 @@ class AgentRuntime:
 
         # Also unblock any blocking PULL_WORKFLOW_MESSAGES wait.
         try:
-            self._workflow_client.send_message(
-                execution_id, {"_signal": "stop"}
-            )
+            self._workflow_client.send_message(execution_id, {"_signal": "stop"})
         except Exception:
             pass  # best-effort — agent may not have a WMQ tool
 
@@ -5004,7 +5052,9 @@ class AgentRuntime:
         import requests as req_lib
 
         url = self._agent_api_url(f"/{execution_id}/signal")
-        resp = req_lib.post(url, json={"message": message}, headers=self._agent_api_headers(), timeout=30)
+        resp = req_lib.post(
+            url, json={"message": message}, headers=self._agent_api_headers(), timeout=30
+        )
         try:
             resp.raise_for_status()
         except req_lib.exceptions.HTTPError as exc:
@@ -5224,7 +5274,9 @@ class AgentRuntime:
         for task in wf.tasks:
             status = str(getattr(task, "status", "")).upper()
             if status == "FAILED":
-                ref = getattr(task, "reference_task_name", None) or getattr(task, "task_type", "unknown")
+                ref = getattr(task, "reference_task_name", None) or getattr(
+                    task, "task_type", "unknown"
+                )
                 reason = getattr(task, "reason_for_incompletion", None)
                 if reason:
                     return f"Task '{ref}' failed: {reason}"

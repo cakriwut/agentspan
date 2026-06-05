@@ -6,6 +6,7 @@ invocation.  Only the external credential server HTTP call is stubbed.
 Everything else — serialize_agent, make_tool_worker, Conductor Task,
 os.environ injection — is real.
 """
+
 import pytest
 
 pytest.importorskip("langchain_core", reason="langchain_core not installed")
@@ -19,6 +20,7 @@ from conductor.client.http.models import Task, TaskResult
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _real_conductor_task(workflow_instance_id="wf-integ-001"):
     """Build a real Conductor Task object (not a mock)."""
@@ -98,7 +100,9 @@ class TestFullExtractionPathIntegration:
         tool_func = workers[0].func
         tool_func._agentspan_framework_callable = True
         worker_fn = make_tool_worker(
-            tool_func, workers[0].name, credential_names=["GITHUB_TOKEN"],
+            tool_func,
+            workers[0].name,
+            credential_names=["GITHUB_TOKEN"],
         )
 
         fake_fetcher = MagicMock()
@@ -160,7 +164,9 @@ class TestFullExtractionPathIntegration:
             raise RuntimeError("intentional failure")
 
         worker_fn = make_tool_worker(
-            failing_tool, "failing_tool", credential_names=["SECRET_KEY"],
+            failing_tool,
+            "failing_tool",
+            credential_names=["SECRET_KEY"],
         )
 
         fake_fetcher = MagicMock()
@@ -208,8 +214,13 @@ class TestFullExtractionPathIntegration:
         runtime._registered_tool_names = set()
         runtime._workers_started = False
 
-        with patch("agentspan.agents.runtime._dispatch.make_tool_worker", side_effect=spy_make_tool_worker), \
-             patch("conductor.client.worker.worker_task.worker_task", return_value=lambda f: f):
+        with (
+            patch(
+                "agentspan.agents.runtime._dispatch.make_tool_worker",
+                side_effect=spy_make_tool_worker,
+            ),
+            patch("conductor.client.worker.worker_task.worker_task", return_value=lambda f: f),
+        ):
             runtime._register_framework_workers(workers, credentials=["GITHUB_TOKEN"])
 
         assert len(captured_calls) == 1

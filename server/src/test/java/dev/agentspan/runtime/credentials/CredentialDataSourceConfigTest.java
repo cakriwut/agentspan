@@ -33,8 +33,8 @@ class CredentialDataSourceConfigTest {
     }
 
     @Test
-    void schemaIsCreated_allFourTablesExist() {
-        for (String table : java.util.List.of("users", "api_keys", "credentials_store", "credentials_binding")) {
+    void schemaIsCreated_allCoreTablesExist() {
+        for (String table : java.util.List.of("users", "api_keys", "credentials_store")) {
             assertThatCode(() -> credentialJdbc.queryForObject(
                             "SELECT COUNT(*) FROM " + table, java.util.Map.of(), Integer.class))
                     .as("table %s should exist and be queryable", table)

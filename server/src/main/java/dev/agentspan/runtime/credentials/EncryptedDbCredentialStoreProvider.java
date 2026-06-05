@@ -73,16 +73,17 @@ public class EncryptedDbCredentialStoreProvider implements CredentialStoreProvid
         try {
             byte[] encrypted = encrypt(value);
             String now = Instant.now().toString();
-            int updated = jdbc.update(
-                    "UPDATE credentials_store SET encrypted_value = :enc, updated_at = :now "
-                            + "WHERE user_id = :uid AND name = :n",
-                    Map.of("enc", encrypted, "uid", userId, "n", name, "now", now));
-            if (updated == 0) {
-                jdbc.update(
-                        "INSERT INTO credentials_store (user_id, name, encrypted_value, created_at, updated_at) "
-                                + "VALUES (:uid, :n, :enc, :now, :now)",
-                        Map.of("uid", userId, "n", name, "enc", encrypted, "now", now));
-            }
+            // Single-statement upsert. ON CONFLICT(...) DO UPDATE is supported
+            // by SQLite 3.24+ and Postgres 9.5+; atomic on both. Replaces an
+            // earlier UPDATE-then-INSERT pattern that raced on concurrent
+            // first-write to the same (user_id, name).
+            jdbc.update(
+                    "INSERT INTO credentials_store (user_id, name, encrypted_value, created_at, updated_at) "
+                            + "VALUES (:uid, :n, :enc, :now, :now) "
+                            + "ON CONFLICT(user_id, name) DO UPDATE SET "
+                            + "  encrypted_value = excluded.encrypted_value, "
+                            + "  updated_at      = excluded.updated_at",
+                    Map.of("uid", userId, "n", name, "enc", encrypted, "now", now));
         } catch (Exception e) {
             throw new IllegalStateException("Failed to store credential: " + name, e);
         }

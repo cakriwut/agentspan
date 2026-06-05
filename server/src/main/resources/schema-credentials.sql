@@ -1,7 +1,14 @@
 -- schema-credentials.sql
--- Agentspan credential tables. Created with spring.sql.init.mode=always
--- using a separate DataSource bean (see CredentialDataSourceConfig).
+-- AgentSpan secrets tables. Created with spring.sql.init.mode=always
+-- using a separate DataSource bean (see SecretDataSourceConfig).
 -- SQLite-compatible DDL — IF NOT EXISTS guards make this idempotent.
+--
+-- Migration from the older credentials_store table is handled in Java
+-- (SecretSchemaMigrator) since SQLite has no portable conditional DDL.
+
+-- Drop deprecated credentials_binding table (removed in favor of direct name
+-- lookup for Conductor-parity secrets API). Safe to re-run.
+DROP TABLE IF EXISTS credentials_binding;
 
 CREATE TABLE IF NOT EXISTS users (
     id            TEXT PRIMARY KEY,          -- UUID as string
@@ -30,9 +37,8 @@ CREATE TABLE IF NOT EXISTS credentials_store (
     PRIMARY KEY (user_id, name)
 );
 
-CREATE TABLE IF NOT EXISTS credentials_binding (
-    user_id     TEXT NOT NULL,
-    logical_key TEXT NOT NULL,              -- what code declares: "GITHUB_TOKEN"
-    store_name  TEXT NOT NULL,             -- what is stored:     "my-github-prod-key"
-    PRIMARY KEY (user_id, logical_key)
-);
+-- Tags not supported — secret_tags table is omitted.
+-- (Conductor has tags for RBAC scoping; AgentSpan is single-tenant OSS.)
+
+-- credential_disclosures (per-execution disclosure tracking for output masking)
+-- is an enterprise feature and not included in the OSS schema.

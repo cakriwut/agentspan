@@ -17,7 +17,6 @@ export type {
   AgentStatus,
   DeploymentInfo,
   PromptTemplate as PromptTemplateInterface,
-  CredentialFile,
   CodeExecutionConfig,
   CliConfig,
   RunOptions,
@@ -163,7 +162,6 @@ export {
   setCredentialContext,
   runWithCredentialContext,
   clearCredentialContext,
-  injectCredentials,
 } from "./credentials.js";
 
 // ── Guardrails ──────────────────────────────────────────

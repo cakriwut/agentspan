@@ -73,7 +73,7 @@ public class CredentialDataSourceConfig {
 
     @Bean("credentialDataSource")
     @Primary
-    public DataSource credentialDataSource() {
+    public DataSource secretDataSource() {
         boolean postgres = isPostgres();
         HikariConfig config = new HikariConfig();
         config.setJdbcUrl(datasourceUrl);

@@ -449,11 +449,13 @@ class TestAgentCredentials:
 
     def test_credentials_defaults_to_empty_list(self):
         from agentspan.agents.agent import Agent
+
         a = Agent(name="test_agent", model="openai/gpt-4o")
         assert a.credentials == []
 
     def test_explicit_credentials_stored(self):
         from agentspan.agents.agent import Agent
+
         a = Agent(
             name="test_agent",
             model="openai/gpt-4o",
@@ -465,6 +467,7 @@ class TestAgentCredentials:
     def test_cli_allowed_commands_without_credentials_stays_empty(self):
         """CLI commands without explicit credentials produce empty credentials list."""
         from agentspan.agents.agent import Agent
+
         a = Agent(
             name="test_agent",
             model="openai/gpt-4o",
@@ -476,6 +479,7 @@ class TestAgentCredentials:
     def test_cli_allowed_commands_with_explicit_credentials(self):
         """Explicit credentials are required — no auto-mapping from CLI commands."""
         from agentspan.agents.agent import Agent
+
         a = Agent(
             name="test_agent",
             model="openai/gpt-4o",
@@ -489,6 +493,7 @@ class TestAgentCredentials:
     def test_terraform_without_credentials_allowed(self):
         """terraform in cli_allowed_commands without credentials is allowed (no auto-mapping)."""
         from agentspan.agents.agent import Agent
+
         a = Agent(
             name="test_agent",
             model="openai/gpt-4o",
@@ -500,6 +505,7 @@ class TestAgentCredentials:
     def test_terraform_with_explicit_credentials_does_not_raise(self):
         """terraform is fine when explicit credentials are declared."""
         from agentspan.agents.agent import Agent
+
         # Should not raise
         a = Agent(
             name="test_agent",
@@ -513,6 +519,7 @@ class TestAgentCredentials:
     def test_commands_not_in_map_are_ignored_gracefully(self):
         """CLI commands like mktemp, rm not in map produce no credentials (no error)."""
         from agentspan.agents.agent import Agent
+
         a = Agent(
             name="test_agent",
             model="openai/gpt-4o",
@@ -525,6 +532,7 @@ class TestAgentCredentials:
     def test_explicit_credentials_override_automapping(self):
         """When explicit credentials provided, auto-mapping is not applied."""
         from agentspan.agents.agent import Agent
+
         a = Agent(
             name="test_agent",
             model="openai/gpt-4o",
