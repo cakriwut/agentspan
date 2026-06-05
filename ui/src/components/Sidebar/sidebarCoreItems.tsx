@@ -53,7 +53,7 @@ const CORE_SIDEBAR_POSITIONS = {
     workflowDefItem: 100,
     skillsItem: 200,
     schedulesItem: 250,
-    credentialsItem: 300,
+    secretsItem: 300,
   },
 } as const;
 
@@ -160,15 +160,15 @@ export function getCoreSidebarItems(open: boolean): MenuItemType[] {
           position: D.schedulesItem,
         },
         {
-          id: "credentialsItem",
-          title: "Credentials",
+          id: "secretsItem",
+          title: "Secrets",
           icon: null,
           linkTo: SECRETS_URL.BASE,
           activeRoutes: [SECRETS_URL.BASE],
           shortcuts: [],
           hotkeys: "",
           hidden: false,
-          position: D.credentialsItem,
+          position: D.secretsItem,
         },
       ],
     },
