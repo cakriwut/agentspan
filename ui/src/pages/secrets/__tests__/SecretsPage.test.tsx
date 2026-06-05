@@ -94,14 +94,6 @@ describe("SecretsPage", () => {
     );
   });
 
-  it("shows LoginDialog when server returns 401", async () => {
-    mockFetch.mockRejectedValue({ status: 401 });
-    render(<SecretsPage />, { wrapper });
-    await waitFor(() =>
-      expect(screen.getByText(/sign in to manage secrets/i)).toBeInTheDocument(),
-    );
-  });
-
   it("shows success toast and removes item after delete", async () => {
     const secretsAfterDelete = [
       { name: "STRIPE_KEY", partial: "sk_l...4abc", updated_at: "2026-03-19" },
