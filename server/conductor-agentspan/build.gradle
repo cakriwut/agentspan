@@ -1,0 +1,71 @@
+plugins {
+    id 'java-library'
+    id 'maven-publish'
+    id 'org.springframework.boot'
+}
+
+bootJar { enabled = false }
+// Spring Boot plugin adds a "-plain" classifier to the normal jar when bootJar exists;
+// clear it so the published library artifact is conductor-agentspan.jar.
+jar {
+    enabled = true
+    archiveClassifier = ''
+}
+
+dependencies {
+    // ALL Conductor artifacts provided — host (orkes or our server) supplies version at runtime.
+    // NOTE (Phase 0 transitional): impls like EncryptedDbCredentialStoreProvider still live here
+    // and need their infra deps. These move to the server in Phase 1 when SPIs are extracted.
+    compileOnly "org.conductoross:conductor-common:${conductorVersion}"
+    compileOnly "org.conductoross:conductor-core:${conductorVersion}"
+    compileOnly "org.conductoross:conductor-ai:${conductorVersion}"
+    compileOnly "org.conductoross:conductor-http-task:${conductorVersion}"
+    compileOnly 'org.springframework.boot:spring-boot-starter-web'
+    compileOnly 'org.springframework.boot:spring-boot-autoconfigure'
+    compileOnly 'org.springframework.boot:spring-boot-starter-validation'
+    compileOnly 'org.springframework.boot:spring-boot-starter-actuator'
+    compileOnly 'org.springframework.retry:spring-retry'
+
+    // Phase 0 transitional: impl-layer deps; move to server in Phase 1
+    implementation 'org.springframework:spring-jdbc'
+    implementation "com.zaxxer:HikariCP"
+    implementation "org.springframework.security:spring-security-crypto:${springSecVersion}"
+    runtimeOnly "org.xerial:sqlite-jdbc:${sqliteJdbcVersion}"
+
+    // Core logic deps (stay in library permanently)
+    implementation "com.networknt:json-schema-validator:${jsonSchemaVersion}"
+    implementation 'org.springframework.boot:spring-boot-starter-log4j2'
+    implementation 'org.apache.logging.log4j:log4j-web'
+
+    compileOnly "org.projectlombok:lombok:${lombokVersion}"
+    annotationProcessor "org.projectlombok:lombok:${lombokVersion}"
+    annotationProcessor 'org.springframework.boot:spring-boot-configuration-processor'
+
+    implementation 'org.springdoc:springdoc-openapi-starter-webmvc-api:2.6.0'
+
+    // Tests need the full engine on classpath
+    testImplementation "org.conductoross:conductor-core:${conductorVersion}"
+    testImplementation "org.conductoross:conductor-common:${conductorVersion}"
+    testImplementation "org.conductoross:conductor-ai:${conductorVersion}"
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    testImplementation 'org.springframework.boot:spring-boot-starter-web'
+    testImplementation "org.junit.jupiter:junit-jupiter:${junitVersion}"
+    testImplementation "org.assertj:assertj-core:${assertjVersion}"
+    testImplementation "org.mockito:mockito-core:${mockitoVersion}"
+    testCompileOnly "org.projectlombok:lombok:${lombokVersion}"
+    testAnnotationProcessor "org.projectlombok:lombok:${lombokVersion}"
+    testImplementation 'org.graalvm.polyglot:polyglot:25.0.2'
+    testImplementation 'org.graalvm.js:js:25.0.2'
+}
+
+publishing {
+    publications {
+        mavenJava(MavenPublication) {
+            from components.java
+            pom {
+                name = 'Conductor AgentSpan'
+                description = 'AgentSpan library for Conductor — interfaces + agent logic'
+            }
+        }
+    }
+}
