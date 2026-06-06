@@ -100,7 +100,8 @@ test {
 spotless {
     java {
         target fileTree('.') {
-            include 'src/main/java/**/*.java', 'src/test/**/*.java', 'e2e/**/*.java'
+            include 'src/main/java/**/*.java', 'src/test/**/*.java', 'e2e/**/*.java',
+                    'spring/src/main/java/**/*.java', 'spring/src/test/**/*.java'
             exclude '**/build/**'
         }
         palantirJavaFormat('2.50.0')

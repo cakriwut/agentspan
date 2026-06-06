@@ -2,24 +2,39 @@ package org.conductoross.conductor.ai.spring;
 
 import org.conductoross.conductor.ai.AgentConfig;
 import org.conductoross.conductor.ai.AgentRuntime;
-import io.orkes.conductor.client.ApiClient;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 
-@AutoConfiguration
+import io.orkes.conductor.client.ApiClient;
+import io.orkes.conductor.client.spring.OrkesConductorClientAutoConfiguration;
+
+/**
+ * Spring Boot auto-configuration for the Agentspan SDK.
+ *
+ * <p>This configuration wires two beans from {@code agentspan.*} properties:
+ * <ul>
+ *   <li>{@link AgentConfig} — worker-runner tuning (poll interval, thread count)</li>
+ *   <li>{@link AgentRuntime} — the SDK entry point</li>
+ * </ul>
+ *
+ * <p>The {@link ApiClient} (server URL + auth) is <em>not</em> created here. It
+ * comes from {@link OrkesConductorClientAutoConfiguration}, which is pulled in
+ * transitively via {@code conductor-client-spring} and reads {@code conductor.*}
+ * properties. Users configure connectivity once in that namespace:
+ * <pre>{@code
+ * conductor.root-uri=http://localhost:6767/api
+ * conductor.security.client.key-id=my-key       # optional
+ * conductor.security.client.secret=my-secret    # optional
+ * }</pre>
+ *
+ * <p>All three beans are conditional — define your own to override any of them.
+ */
+@AutoConfiguration(after = OrkesConductorClientAutoConfiguration.class)
 @EnableConfigurationProperties(AgentspanProperties.class)
 public class AgentspanAutoConfiguration {
 
-    /** The native Conductor client (server URL + auth) — the SDK's transport. */
-    @Bean
-    @ConditionalOnMissingBean
-    public ApiClient agentspanConductorClient(AgentspanProperties props) {
-        return AgentRuntime.client(props.getServerUrl(), props.getAuthKey(), props.getAuthSecret());
-    }
-
-    /** Worker-runner tuning. */
     @Bean
     @ConditionalOnMissingBean
     public AgentConfig agentspanConfig(AgentspanProperties props) {
