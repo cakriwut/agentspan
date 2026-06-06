@@ -14,7 +14,7 @@ Maven (`pom.xml`):
 
 ```xml
 <dependency>
-    <groupId>ai.agentspan</groupId>
+    <groupId>org.conductoross.conductor.ai</groupId>
     <artifactId>java-sdk</artifactId>
     <version>0.1.0</version>
 </dependency>
@@ -23,7 +23,7 @@ Maven (`pom.xml`):
 Gradle (`build.gradle`):
 
 ```groovy
-implementation 'ai.agentspan:java-sdk:0.1.0'
+implementation 'org.conductoross.conductor.ai:java-sdk:0.1.0'
 ```
 
 ### Spring Boot starter
@@ -32,22 +32,22 @@ For Spring Boot apps, add the auto-configuration starter instead:
 
 ```xml
 <dependency>
-    <groupId>ai.agentspan</groupId>
+    <groupId>org.conductoross.conductor.ai</groupId>
     <artifactId>java-sdk-spring</artifactId>
     <version>0.1.0</version>
 </dependency>
 ```
 
 ```groovy
-implementation 'ai.agentspan:java-sdk-spring:0.1.0'
+implementation 'org.conductoross.conductor.ai:java-sdk-spring:0.1.0'
 ```
 
 ## Quick Start
 
 ```java
-import ai.agentspan.Agent;
-import ai.agentspan.Agentspan;
-import ai.agentspan.model.AgentResult;
+import org.conductoross.conductor.ai.Agent;
+import org.conductoross.conductor.ai.Agentspan;
+import org.conductoross.conductor.ai.model.AgentResult;
 
 public class Main {
     public static void main(String[] args) {
@@ -78,8 +78,8 @@ export AGENTSPAN_LLM_MODEL=openai/gpt-4o
 Or configure programmatically:
 
 ```java
-import ai.agentspan.AgentConfig;
-import ai.agentspan.Agentspan;
+import org.conductoross.conductor.ai.AgentConfig;
+import org.conductoross.conductor.ai.Agentspan;
 
 AgentConfig config = new AgentConfig(
     "http://localhost:6767/api",
@@ -96,8 +96,8 @@ Agentspan.configure(config);
 Define tools using the `@Tool` annotation:
 
 ```java
-import ai.agentspan.annotations.Tool;
-import ai.agentspan.internal.ToolRegistry;
+import org.conductoross.conductor.ai.annotations.Tool;
+import org.conductoross.conductor.ai.internal.ToolRegistry;
 
 public class WeatherTools {
     @Tool(name = "get_weather", description = "Get weather for a city")

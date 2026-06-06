@@ -3,7 +3,7 @@ plugins {
     id 'com.vanniktech.maven.publish' version '0.34.0'
 }
 
-group = 'ai.agentspan'
+group = 'org.conductoross.conductor'
 
 java {
     toolchain {
@@ -51,7 +51,7 @@ mavenPublishing {
         signAllPublications()
     }
 
-    coordinates('ai.agentspan', 'java-sdk-spring', project.version.toString())
+    coordinates('org.conductoross.conductor', 'conductor-ai-sdk-spring', project.version.toString())
 
     pom {
         name = 'Agentspan Java SDK Spring Boot Starter'
