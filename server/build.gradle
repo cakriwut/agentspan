@@ -3,6 +3,7 @@ plugins {
     id 'org.springframework.boot' version '3.3.5' apply false
     id 'io.spring.dependency-management' version '1.1.7' apply false
     id 'com.diffplug.spotless' version '7.0.2'
+    id 'com.vanniktech.maven.publish' version '0.34.0' apply false
 }
 
 // Root project needs repositories too — spotless (applied here) resolves
@@ -28,6 +29,11 @@ ext {
 subprojects {
     apply plugin: 'java'
     apply plugin: 'io.spring.dependency-management'
+
+    // Published Maven coordinates: org.conductoross.conductor:<module>:<version>.
+    // Version comes from gradle.properties (default) or -Pversion=X in CI.
+    group = 'org.conductoross.conductor'
+    version = rootProject.version
 
     java {
         toolchain {
@@ -68,6 +74,15 @@ subprojects {
             exceptionFormat = 'full'
             events 'failed'
         }
+    }
+
+    // vanniktech publishing builds a javadoc jar (required by Maven Central).
+    // Relax doclint, and don't fail on errors: Lombok's @RequiredArgsConstructor
+    // (onConstructor_) isn't understood by the javadoc tool, which would otherwise
+    // abort jar generation. The jar is still produced for what resolves.
+    tasks.withType(Javadoc).configureEach {
+        options.addStringOption('Xdoclint:none', '-quiet')
+        failOnError = false
     }
 }
 

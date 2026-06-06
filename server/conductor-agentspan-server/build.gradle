@@ -1,6 +1,7 @@
 plugins {
     id 'org.springframework.boot'
     id 'java'
+    id 'com.vanniktech.maven.publish'
 }
 
 def uiDir = file("${rootDir}/../ui")
@@ -38,8 +39,8 @@ dependencies {
     // (Phase 0: impls still live in conductor-agentspan; these deps are there too.
     //  Phase 1: impls move here, these deps become permanent server deps.)
     implementation 'org.springframework:spring-jdbc'
+    implementation 'com.zaxxer:HikariCP'
     implementation "org.xerial:sqlite-jdbc:${sqliteJdbcVersion}"
-    implementation "org.springframework.security:spring-security-crypto:${springSecVersion}"
 
     // Conductor OSS runtime — the only place a runnable engine ships
     implementation "org.conductoross:conductor-common:${conductorVersion}"
@@ -62,6 +63,9 @@ dependencies {
     annotationProcessor 'org.springframework.boot:spring-boot-configuration-processor'
     implementation 'org.springframework.boot:spring-boot-starter-log4j2'
     implementation 'org.apache.logging.log4j:log4j-web'
+    // OpenAPI docs endpoint (configured via springdoc.* in application.properties) — a
+    // runtime/app concern, so it lives in the server, not the library.
+    implementation 'org.springdoc:springdoc-openapi-starter-webmvc-api:2.6.0'
 
     compileOnly "org.projectlombok:lombok:${lombokVersion}"
     annotationProcessor "org.projectlombok:lombok:${lombokVersion}"
@@ -80,6 +84,47 @@ dependencies {
 bootJar {
     if (buildUiEnabled) dependsOn 'syncUiStatic'
     archiveFileName = 'agentspan-runtime.jar'
+}
+
+// Publish the plain (non-fat) jar as conductor-agentspan-server.jar (no "-plain"
+// classifier). The runnable fat jar (agentspan-runtime.jar) is released separately
+// via the S3/GitHub workflow, not to Maven Central.
+jar {
+    archiveClassifier = ''
+}
+
+mavenPublishing {
+    publishToMavenCentral(true)
+    if (project.findProperty('signingInMemoryKey') != null) {
+        signAllPublications()
+    }
+
+    coordinates('org.conductoross.conductor', 'conductor-agentspan-server', project.version.toString())
+
+    pom {
+        name = 'Conductor AgentSpan Server'
+        description = 'Standalone AgentSpan server — default SPI implementations and OSS runtime over conductor-agentspan'
+        url = 'https://github.com/agentspan-ai/agentspan'
+        licenses {
+            license {
+                name = 'MIT License'
+                url = 'https://opensource.org/licenses/MIT'
+            }
+        }
+        developers {
+            developer {
+                organization = 'Orkes'
+                organizationUrl = 'https://orkes.io'
+                name = 'Orkes Development Team'
+                email = 'developers@orkes.io'
+            }
+        }
+        scm {
+            connection = 'scm:git:git://github.com/agentspan-ai/agentspan.git'
+            developerConnection = 'scm:git:ssh://github.com/agentspan-ai/agentspan.git'
+            url = 'https://github.com/agentspan-ai/agentspan'
+        }
+    }
 }
 
 tasks.register('installUiDependencies', Exec) {
