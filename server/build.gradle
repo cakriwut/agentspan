@@ -32,7 +32,7 @@ subprojects {
 
     // Published Maven coordinates: org.conductoross.conductor:<module>:<version>.
     // Version comes from gradle.properties (default) or -Pversion=X in CI.
-    group = 'org.conductoross.conductor'
+    group = 'org.conductoross'
     version = rootProject.version
 
     java {

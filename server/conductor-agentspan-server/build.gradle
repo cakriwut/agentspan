@@ -99,7 +99,7 @@ mavenPublishing {
         signAllPublications()
     }
 
-    coordinates('org.conductoross.conductor', 'conductor-agentspan-server', project.version.toString())
+    coordinates('org.conductoross', 'conductor-agentspan-server', project.version.toString())
 
     pom {
         name = 'Conductor AgentSpan Server'
