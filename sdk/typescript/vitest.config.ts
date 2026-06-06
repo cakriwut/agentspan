@@ -18,15 +18,14 @@ export default defineConfig({
   test: {
     globals: true,
     testTimeout: 60_000,
-    // Limit to 2 concurrent test files. GitHub Actions ubuntu-latest now uses
-    // 4-core runners, causing vitest to default to 3 forks. Suites 17, 18, and 20
-    // each fire 20–27 concurrent LLM-backed workflows; at 3 forks all three overlap,
-    // saturating the shared Conductor server. Cap at 2 so at most two heavy suites
-    // compete at once while keeping meaningful parallelism for the 15 min target.
+    // Run 3 test files concurrently. Credential names are unique per suite so
+    // suites 1-5 don't conflict with each other. Suites 17/18 don't use
+    // credentials. 3 forks cuts wall-clock roughly in half vs 2 forks while
+    // keeping server load manageable on the shared SQLite-backed Conductor.
     pool: 'forks',
     poolOptions: {
       forks: {
-        maxForks: 2,
+        maxForks: 3,
         minForks: 1,
       },
     },

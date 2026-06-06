@@ -259,7 +259,7 @@ jobs:
         run: |
           uv run pytest e2e/ -v --tb=short \
             --junitxml=../../e2e-results/junit.xml \
-            -n 1
+            -n 3 --dist=loadgroup
 
       - name: Generate Python HTML report
         if: always()
