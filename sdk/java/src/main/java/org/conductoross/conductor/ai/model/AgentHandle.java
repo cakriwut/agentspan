@@ -11,6 +11,7 @@ import java.util.Map;
 import org.conductoross.conductor.ai.enums.AgentStatus;
 import org.conductoross.conductor.ai.internal.AgentClient;
 import org.conductoross.conductor.ai.internal.AgentStatusResponse;
+import org.conductoross.conductor.ai.internal.RespondBody;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -124,11 +125,18 @@ public class AgentHandle {
         throw new RuntimeException("Agent timed out after " + timeoutMs + "ms: " + executionId + lastErrorMsg);
     }
 
-    /**
-     * Approve a pending tool call that requires human approval.
-     */
+    /** Approve a pending tool call that requires human approval. */
     public void approve() {
-        agentClient.respond(executionId, approveBody(null));
+        agentClient.respond(executionId, RespondBody.approve());
+    }
+
+    /**
+     * Approve with a human-readable comment.
+     *
+     * @param comment optional comment sent alongside the approval
+     */
+    public void approve(String comment) {
+        agentClient.respond(executionId, RespondBody.approve(comment));
     }
 
     /**
@@ -137,10 +145,7 @@ public class AgentHandle {
      * @param reason rejection reason
      */
     public void reject(String reason) {
-        Map<String, Object> body = new java.util.HashMap<>();
-        body.put("approved", false);
-        if (reason != null && !reason.isEmpty()) body.put("reason", reason);
-        agentClient.respond(executionId, body);
+        agentClient.respond(executionId, RespondBody.reject(reason));
     }
 
     /**
@@ -152,23 +157,20 @@ public class AgentHandle {
      * @param data the response payload
      */
     public void respond(Map<String, Object> data) {
-        agentClient.respond(executionId, data);
+        agentClient.respond(executionId, RespondBody.of(data));
     }
 
     /**
-     * Send a message to a waiting agent.
+     * Send a message to a waiting agent (equivalent to approve with no comment).
      *
-     * @param message the message to send
+     * @param message ignored — kept for API compatibility
      */
     public void send(String message) {
-        agentClient.respond(executionId, approveBody(null));
-    }
+        agentClient.respond(executionId, RespondBody.approve());
 
-    private static Map<String, Object> approveBody(String reason) {
-        Map<String, Object> body = new java.util.HashMap<>();
-        body.put("approved", true);
-        if (reason != null && !reason.isEmpty()) body.put("reason", reason);
-        return body;
+        // placeholder to suppress unused-parameter warning
+        @SuppressWarnings("unused")
+        String ignored = message;
     }
 
     /**

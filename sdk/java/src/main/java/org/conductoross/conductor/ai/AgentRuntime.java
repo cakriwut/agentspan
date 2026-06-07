@@ -23,6 +23,7 @@ import org.conductoross.conductor.ai.execution.CliCommandExecutor;
 import org.conductoross.conductor.ai.execution.CliConfig;
 import org.conductoross.conductor.ai.internal.AgentClient;
 import org.conductoross.conductor.ai.internal.AgentConfigSerializer;
+import org.conductoross.conductor.ai.internal.AgentRequest;
 import org.conductoross.conductor.ai.internal.SseClient;
 import org.conductoross.conductor.ai.internal.StartResponse;
 import org.conductoross.conductor.ai.internal.WorkerManager;
@@ -191,19 +192,8 @@ public class AgentRuntime implements AutoCloseable {
     public CompileResponse plan(Agent agent) {
         Map<String, Object> agentConfig = serializer.serialize(agent);
         logger.debug("Compiling agent '{}'", agent.getName());
-        // Same framework-dispatch as startAsync / deploy: framework-backed
-        // agents (openai / google_adk / langgraph) need to round-trip through
-        // the server normalizer or compile fails on a missing top-level model.
-        String framework = agent.getFramework();
-        boolean isFramework = framework != null && !framework.isEmpty();
-        Map<String, Object> payload = new HashMap<>();
-        if (isFramework) {
-            payload.put("framework", framework);
-            payload.put("rawConfig", agentConfig);
-        } else {
-            payload.put("agentConfig", agentConfig);
-        }
-        CompileResponse result = agentClient.compileAgent(payload);
+        CompileResponse result =
+                agentClient.compileAgent(agentRequest(agent, agentConfig).build());
         logger.info("Agent '{}' compiled successfully", agent.getName());
         return result;
     }
@@ -321,23 +311,12 @@ public class AgentRuntime implements AutoCloseable {
 
             logger.debug("Starting agent '{}' with prompt: {}", agent.getName(), prompt);
 
-            // Framework-backed agents (openai, google_adk, langgraph, vercel_ai, skill)
-            // must be sent via the server's framework+rawConfig fields so the
-            // matching normalizer runs server-side.
-            String framework = agent.getFramework();
-            boolean isFramework = framework != null && !framework.isEmpty();
-            Map<String, Object> payload = new HashMap<>();
-            if (isFramework) {
-                payload.put("framework", framework);
-                payload.put("rawConfig", agentConfig);
-            } else {
-                payload.put("agentConfig", agentConfig);
-            }
-            payload.put("prompt", prompt);
-            if (sessionId != null && !sessionId.isEmpty()) payload.put("sessionId", sessionId);
-            if (runId != null && !runId.isEmpty()) payload.put("runId", runId);
-            if (staticPlan != null) payload.put("static_plan", staticPlan);
-            StartResponse response = agentClient.startAgent(payload);
+            StartResponse response = agentClient.startAgent(agentRequest(agent, agentConfig)
+                    .prompt(prompt)
+                    .sessionId(sessionId != null && !sessionId.isEmpty() ? sessionId : null)
+                    .runId(runId != null && !runId.isEmpty() ? runId : null)
+                    .staticPlan(staticPlan)
+                    .build());
             String executionId = response.getExecutionId();
             if (executionId == null) {
                 throw new RuntimeException("Server returned no executionId for agent '" + agent.getName() + "'");
@@ -362,6 +341,20 @@ public class AgentRuntime implements AutoCloseable {
         }
         if (agent.getRouter() != null && hasStatefulTools(agent.getRouter())) return true;
         return false;
+    }
+
+    /**
+     * Build an {@link AgentRequest} pre-populated with the agent definition.
+     * Framework-backed agents (openai, google_adk, langgraph, skill) use
+     * {@code framework + rawConfig}; native agents use {@code agentConfig}.
+     * Callers chain additional fields (prompt, runId, etc.) before calling build().
+     */
+    private AgentRequest.Builder agentRequest(Agent agent, Map<String, Object> serialized) {
+        String framework = agent.getFramework();
+        if (framework != null && !framework.isEmpty()) {
+            return AgentRequest.frameworkAgent(framework, serialized);
+        }
+        return AgentRequest.nativeAgent(serialized);
     }
 
     /**
@@ -402,20 +395,8 @@ public class AgentRuntime implements AutoCloseable {
         List<DeploymentInfo> results = new ArrayList<>();
         for (Agent agent : agents) {
             Map<String, Object> agentConfig = serializer.serialize(agent);
-            Map<String, Object> payload = new LinkedHashMap<>();
-            // Framework-backed agents (openai, google_adk, langgraph, skill) ship via
-            // {framework, rawConfig} so the matching server-side normalizer
-            // runs — same dispatch as startAsync. Without this, the server
-            // tries to compile the agent as a native Agentspan agent and
-            // fails on a missing model / null taskDef name.
-            String framework = agent.getFramework();
-            if (framework != null && !framework.isEmpty()) {
-                payload.put("framework", framework);
-                payload.put("rawConfig", agentConfig);
-            } else {
-                payload.put("agentConfig", agentConfig);
-            }
-            StartResponse resp = agentClient.deployAgent(payload);
+            StartResponse resp =
+                    agentClient.deployAgent(agentRequest(agent, agentConfig).build());
             String registeredName = resp.getAgentName() != null ? resp.getAgentName() : agent.getName();
             results.add(new DeploymentInfo(registeredName, agent.getName()));
             logger.info("Deployed agent '{}' as '{}'", agent.getName(), registeredName);

@@ -6,72 +6,107 @@ Every request goes through the shared `ConductorClient`'s native HTTP + auth + s
 
 ## Methods
 
-| Method | HTTP | Input | Java return type | Description |
+| Method | HTTP | Java input type | Java return type | Description |
 |---|---|---|---|---|
-| [`compileAgent`](#compileagent) | `POST /api/agent/compile` | serialized agent map | `CompileResponse` | Compile to Conductor workflow def — no side effects |
-| [`deployAgent`](#deployagent) | `POST /api/agent/deploy` | serialized agent map | `StartResponse` | Register workflow def without starting |
-| [`startAgent`](#startagent) | `POST /api/agent/start` | serialized agent map + prompt | `StartResponse` | Compile + register + start execution |
+| [`compileAgent`](#compileagent) | `POST /api/agent/compile` | `AgentRequest` | `CompileResponse` | Compile to Conductor workflow def — no side effects |
+| [`deployAgent`](#deployagent) | `POST /api/agent/deploy` | `AgentRequest` | `StartResponse` | Register workflow def without starting |
+| [`startAgent`](#startagent) | `POST /api/agent/start` | `AgentRequest` | `StartResponse` | Compile + register + start execution |
 | [`getAgentStatus`](#getagentstatus) | `GET /api/agent/{id}/status` | path: `executionId` | `AgentStatusResponse` | Poll execution status; includes HITL pending-tool |
-| [`respond`](#respond) | `POST /api/agent/{id}/respond` | approval/answer map | `void` | Resume a paused HITL task |
+| [`respond`](#respond) | `POST /api/agent/{id}/respond` | `RespondBody` | `void` | Resume a paused HITL task |
+
+---
+
+## AgentRequest
+
+Input to `compileAgent`, `deployAgent`, and `startAgent`. Maps 1-to-1 with the server's `StartRequest` DTO. Built via static factory methods:
+
+```java
+// Native agent (model + tools defined in the SDK)
+AgentRequest.nativeAgent(serializedAgentMap).build()
+
+// Framework-backed agent (OpenAI, Google ADK, LangChain, Skill)
+AgentRequest.frameworkAgent("openai", serializedRawConfig).build()
+
+// With execution fields (for /start only)
+AgentRequest.nativeAgent(serializedMap)
+    .prompt("What is the capital of France?")
+    .sessionId("session-abc")
+    .runId("a1b2c3...")          // per-execution domain UUID for stateful agents
+    .staticPlan(planMap)         // deterministic PLAN_EXECUTE plan
+    .build()
+```
+
+**Field mapping to server `StartRequest`:**
+
+| `AgentRequest` field | JSON key | Server `StartRequest` field | Used by |
+|---|---|---|---|
+| `agentConfig` | `"agentConfig"` | `agentConfig` | compile / deploy / start (native agents) |
+| `framework` | `"framework"` | `framework` | compile / deploy / start (framework agents) |
+| `rawConfig` | `"rawConfig"` | `rawConfig` | compile / deploy / start (framework agents) |
+| `prompt` | `"prompt"` | `prompt` | start only |
+| `sessionId` | `"sessionId"` | `sessionId` | start (stateful agents) |
+| `runId` | `"runId"` | `runId` | start (stateful isolation domain) |
+| `staticPlan` | `"static_plan"` | `staticPlan` (`@JsonProperty("static_plan")`) | start (PLAN_EXECUTE) |
+| `media` | `"media"` | `media` | start (multi-modal) |
+| `context` | `"context"` | `context` | start |
+| `idempotencyKey` | `"idempotencyKey"` | `idempotencyKey` | start |
+| `credentials` | `"credentials"` | `credentials` | compile / start |
+| `skillRef` | `"skillRef"` | `skillRef` | start (skill framework) |
+| `timeoutSeconds` | `"timeoutSeconds"` | `timeoutSeconds` | compile / start |
+
+`@JsonInclude(NON_NULL)` — null fields are omitted from the wire.
+
+**Structural proof — `static_plan` key:**
+The server field is named `staticPlan` in Java but annotated `@JsonProperty("static_plan")`. The `AgentRequest.staticPlan` field is annotated `@JsonProperty("static_plan")` identically, so both sides agree on the JSON key.
+
+---
+
+## RespondBody
+
+Input to `respond`. Provides factory methods for the three common patterns; arbitrary extra fields are flattened to the top level via `@JsonAnyGetter`.
+
+```java
+RespondBody.approve()                  // { "approved": true }
+RespondBody.approve("Looks good")      // { "approved": true, "reason": "Looks good" }
+RespondBody.reject("Needs review")     // { "approved": false, "reason": "Needs review" }
+RespondBody.of(Map.of("selected", "writer"))  // { "selected": "writer" }  ← MANUAL strategy
+```
+
+**Used by `AgentHandle`:**
+
+| `AgentHandle` method | `RespondBody` factory | Wire JSON |
+|---|---|---|
+| `handle.approve()` | `RespondBody.approve()` | `{ "approved": true }` |
+| `handle.approve(comment)` | `RespondBody.approve(comment)` | `{ "approved": true, "reason": "..." }` |
+| `handle.reject(reason)` | `RespondBody.reject(reason)` | `{ "approved": false, "reason": "..." }` |
+| `handle.respond(map)` | `RespondBody.of(map)` | the map at the top level |
 
 ---
 
 ## compileAgent
 
-Compile an agent into a Conductor workflow definition. No workflow is registered or executed — safe to call to inspect the workflow shape or pre-validate an agent.
+Compile an agent into a Conductor workflow definition. No workflow is registered or executed.
 
 Used by `AgentRuntime.plan(agent)`.
 
 **HTTP:** `POST /api/agent/compile`
 
-### Request body
+### Request body — `AgentRequest`
 
-The SDK serializes the `Agent` via `AgentConfigSerializer`. Top-level key is either `agentConfig` (native agents) or `framework` + `rawConfig` (framework-backed agents):
-
-**Native agents:**
+Native agent wire shape:
 ```json
-{
-  "agentConfig": {
-    "name": "my_agent",
-    "model": "openai/gpt-4o-mini",
-    "strategy": "handoff",
-    "maxTurns": 25,
-    "instructions": "...",
-    "tools": [...],
-    "agents": [...],
-    "credentials": [...],
-    "guardrails": [...],
-    "timeoutSeconds": 600
-  }
-}
+{ "agentConfig": { "name": "my_agent", "model": "openai/gpt-4o-mini", "strategy": "handoff", ... } }
 ```
 
-**Framework-backed agents** (`framework="openai"`, `"google_adk"`, `"langchain"`, `"skill"`, etc.):
+Framework agent wire shape:
 ```json
-{
-  "framework": "openai",
-  "rawConfig": {
-    "name": "my_agent",
-    "model": "openai/gpt-4o-mini",
-    "tools": [...],
-    "handoffs": [...]
-  }
-}
+{ "framework": "openai", "rawConfig": { "name": "my_agent", "model": "openai/gpt-4o-mini", "tools": [...] } }
 ```
 
 ### Response — `CompileResponse`
 
 ```json
-{
-  "workflowDef": {
-    "name": "my_agent",
-    "version": 1,
-    "tasks": [...],
-    "inputParameters": ["prompt", "session_id"],
-    "outputParameters": { "output": "${synthesize_output_ref.output.result}" }
-  },
-  "requiredWorkers": ["my_tool_a", "my_tool_b"]
-}
+{ "workflowDef": { "name": "my_agent", "version": 1, "tasks": [...] }, "requiredWorkers": ["my_tool_a"] }
 ```
 
 | Field | Getter | Type | Description |
@@ -79,29 +114,26 @@ The SDK serializes the `Agent` via `AgentConfigSerializer`. Top-level key is eit
 | `workflowDef` | `getWorkflowDef()` | `Map<String,Object>` | Full Conductor workflow definition. |
 | `requiredWorkers` | `getRequiredWorkers()` | `List<String>` | Task type names the SDK must register local workers for. |
 
-**How the SDK uses it:** `AgentRuntime.plan(agent)` returns the `CompileResponse` directly. Callers use `compile.getWorkflowDef()` and `compile.getRequiredWorkers()`.
+**How the SDK uses it:** `AgentRuntime.plan(agent)` returns the `CompileResponse` directly.
 
 ---
 
 ## deployAgent
 
-Compile and register the workflow definition on the server without starting an execution. Idempotent — safe to call on every app startup.
+Compile and register the workflow definition on the server without starting an execution. Idempotent.
 
 Used by `AgentRuntime.deploy(Agent...)`.
 
 **HTTP:** `POST /api/agent/deploy`
 
-### Request body
+### Request body — `AgentRequest`
 
-Same as [`compileAgent`](#compileagent) — serialized agent map. No `prompt` field.
+Same as `compileAgent` — agent definition only, no `prompt`.
 
 ### Response — `StartResponse`
 
 ```json
-{
-  "agentName": "my_agent",
-  "requiredWorkers": ["my_tool_a", "my_tool_b"]
-}
+{ "agentName": "my_agent", "requiredWorkers": ["my_tool_a"] }
 ```
 
 | Field | Getter | Type | Description |
@@ -110,21 +142,19 @@ Same as [`compileAgent`](#compileagent) — serialized agent map. No `prompt` fi
 | `requiredWorkers` | `getRequiredWorkers()` | `List<String>` | Task type names the SDK must have workers running for. |
 | `executionId` | `getExecutionId()` | `String` | Always `null` for deploy — no execution was started. |
 
-**How the SDK uses it:** `AgentRuntime.deploy()` reads `resp.getAgentName()` and wraps it in a `DeploymentInfo(registeredName, agentName)`.
+**How the SDK uses it:** `AgentRuntime.deploy()` reads `resp.getAgentName()` and wraps it in `DeploymentInfo`.
 
 ---
 
 ## startAgent
 
-Compile, register, and start a workflow execution in one call. The primary operation behind `AgentRuntime.run()`.
+Compile, register, and start a workflow execution in one call.
 
 Used by `AgentRuntime.startAsync(agent, prompt, plan)`.
 
 **HTTP:** `POST /api/agent/start`
 
-### Request body
-
-Serialized agent map (same as `deployAgent`) plus execution-specific fields:
+### Request body — `AgentRequest`
 
 ```json
 {
@@ -136,22 +166,10 @@ Serialized agent map (same as `deployAgent`) plus execution-specific fields:
 }
 ```
 
-| Field | Required | Description |
-|---|---|---|
-| `agentConfig` / `framework` + `rawConfig` | ✅ | Serialized agent definition. |
-| `prompt` | ✅ | User's input message. |
-| `sessionId` | ❌ | Session ID for memory / stateful agents. |
-| `runId` | ❌ | Per-execution UUID for stateful agents. Server maps all worker tasks to this domain so concurrent executions don't steal each other's tasks. |
-| `static_plan` | ❌ | Deterministic plan for `PLAN_EXECUTE` strategy — bypasses the planner LLM. |
-
 ### Response — `StartResponse`
 
 ```json
-{
-  "executionId": "a3f92b1c-8e4d-4b7a-9c2e-1d5f3a8e6b02",
-  "agentName": "my_agent",
-  "requiredWorkers": ["my_tool_a"]
-}
+{ "executionId": "a3f92b1c-8e4d-4b7a-9c2e-1d5f3a8e6b02", "agentName": "my_agent", "requiredWorkers": ["my_tool_a"] }
 ```
 
 | Field | Getter | Type | Description |
@@ -172,103 +190,57 @@ Used by `AgentHandle.waitForResult()` and `AgentHandle.waitUntilWaiting()`.
 
 **HTTP:** `GET /api/agent/{executionId}/status`
 
-### Path parameters
-
-| Parameter | Type | Description |
-|---|---|---|
-| `executionId` | `String` | Execution ID returned by `startAgent`. |
-
 ### Response — `AgentStatusResponse`
 
 ```json
-{
-  "executionId": "a3f92b1c-8e4d-4b7a-9c2e-1d5f3a8e6b02",
-  "status": "COMPLETED",
-  "isComplete": true,
-  "isRunning": false,
-  "output": {
-    "result": "Paris is the capital of France."
-  }
-}
+{ "executionId": "...", "status": "COMPLETED", "isComplete": true, "isRunning": false, "output": { ... } }
 ```
 
-When a HITL task (`HUMAN` or `PULL_WORKFLOW_MESSAGES`) is paused:
-
+HITL paused:
 ```json
-{
-  "executionId": "a3f92b1c-...",
-  "status": "RUNNING",
-  "isComplete": false,
-  "isRunning": true,
-  "isWaiting": true,
-  "pendingTool": {
-    "taskRefName": "approve_deployment_ref",
-    "tool_name": "approve_deployment",
-    "parameters": { "environment": "production", "version": "2.1" },
-    "response_schema": { "type": "object", "properties": { "approved": { "type": "boolean" } } }
-  }
-}
+{ "status": "RUNNING", "isWaiting": true, "pendingTool": { "taskRefName": "...", "tool_name": "...", "parameters": { ... } } }
 ```
 
 **`AgentStatusResponse` fields:**
 
 | JSON field | Getter | Type | Source | Description |
 |---|---|---|---|---|
-| `executionId` | `getExecutionId()` | `String` | path param echo | — |
+| `executionId` | `getExecutionId()` | `String` | path param | — |
 | `status` | `getStatus()` | `String` | `workflow.getStatus().name()` | `RUNNING`, `COMPLETED`, `FAILED`, `TERMINATED`, `TIMED_OUT`, `PAUSED` |
 | `isComplete` | `isComplete()` | `boolean` | `workflow.getStatus().isTerminal()` | `true` for all terminal statuses |
 | `isRunning` | `isRunning()` | `boolean` | `status == RUNNING` | — |
 | `output` | `getOutput()` | `Map<String,Object>` | `workflow.getOutput()` | Only present when `isComplete() == true` |
 | `reasonForIncompletion` | `getReasonForIncompletion()` | `String` | `workflow.getReasonForIncompletion()` | Only present on non-COMPLETED terminal status |
-| `isWaiting` | `isWaiting()` | `boolean` | HUMAN task IN_PROGRESS | Only present when a HITL task is paused |
-| `pendingTool` | `getPendingTool()` | `PendingTool` | HUMAN task inputData | Only present when `isWaiting() == true` |
+| `isWaiting` | `isWaiting()` | `boolean` | HUMAN task IN_PROGRESS | `true` when a HITL task is paused |
+| `pendingTool` | `getPendingTool()` | `PendingTool` | HUMAN task inputData | Only when `isWaiting() == true` |
 
 **`PendingTool` fields:**
 
 | JSON field | Getter | Type | Description |
 |---|---|---|---|
-| `taskRefName` | `getTaskRefName()` | `String` | Passed back in the `respond` call if needed. |
-| `tool_name` | `getToolName()` | `String` | Logical tool name shown to the human reviewer. |
+| `taskRefName` | `getTaskRefName()` | `String` | Conductor task reference name. |
+| `tool_name` | `getToolName()` | `String` | Logical tool name shown to the human. |
 | `parameters` | `getParameters()` | `Map<String,Object>` | Args the agent passed to the tool. |
 | `response_schema` | `getResponseSchema()` | `Object` | JSON Schema the response must conform to (optional). |
-| `response_ui_schema` | `getResponseUiSchema()` | `Object` | UI rendering hints for the approval form (optional). |
-
-**How the SDK uses it:** `AgentHandle.waitForResult()` calls `status.getStatus()` to detect terminal state, then `buildResult()` reads `status.getOutput()` and `status.getReasonForIncompletion()`.
+| `response_ui_schema` | `getResponseUiSchema()` | `Object` | UI rendering hints (optional). |
 
 ---
 
 ## respond
 
-Resume a paused HITL execution by submitting the human's response. Finds the in-progress `HUMAN` task, merges the body into its output data, and marks it `COMPLETED`.
+Resume a paused HITL execution.
 
-Used by `AgentHandle.approve()`, `AgentHandle.reject()`, `AgentHandle.respond(Map)`.
+Used by `AgentHandle.approve()`, `.reject()`, `.respond(Map)` and `AgentStream.approve()`, `.reject()`.
 
 **HTTP:** `POST /api/agent/{executionId}/respond`
 
-### Path parameters
-
-| Parameter | Type | Description |
-|---|---|---|
-| `executionId` | `String` | Execution ID of the waiting run. |
-
-### Request body
-
-Free-form `Map<String,Object>` merged into the pending HUMAN task's output data:
+### Request body — `RespondBody`
 
 ```json
-{ "approved": true, "comment": "Looks good" }
+{ "approved": true }
+{ "approved": false, "reason": "Needs review" }
+{ "selected": "writer" }
 ```
-
-```json
-{ "approved": false, "reason": "Needs more testing" }
-```
-
-| SDK method | Body sent |
-|---|---|
-| `handle.approve()` | `{ "approved": true }` |
-| `handle.approve(comment)` | `{ "approved": true, "reason": comment }` |
-| `handle.reject(reason)` | `{ "approved": false, "reason": reason }` |
-| `handle.respond(map)` | the map as-is (for MANUAL strategy selection, etc.) |
 
 ### Response
 
@@ -278,22 +250,20 @@ Free-form `Map<String,Object>` merged into the pending HUMAN task's output data:
 
 ## WorkflowClient usage
 
-Raw workflow data (`GET /api/workflow/{id}`) is fetched via the standard Conductor `WorkflowClient` — not `AgentClient`. The separation is intentional: `AgentClient` owns only the agentspan-proprietary `/api/agent/*` endpoints.
+Raw workflow data (`GET /api/workflow/{id}`) is fetched via the standard Conductor `WorkflowClient` — not `AgentClient`. `AgentClient` owns only `/api/agent/*`.
 
-**HTTP:** `GET /api/workflow/{executionId}` via `WorkflowClient.getWorkflow(id, true)`
+`WorkflowClient.getWorkflow(id, true)` is called inside `AgentHandle.buildResult()` **once**, after `getAgentStatus` returns terminal, to walk the typed `Workflow`/`Task` objects and compute:
 
-`WorkflowClient.getWorkflow` is called inside `AgentHandle.buildResult()` **once**, after `getAgentStatus` returns a terminal status. It returns a typed `Workflow` object and its `List<Task>` are walked to compute:
+- **Token usage** — `LLM_CHAT_COMPLETE` task `outputData`: `promptTokens`, `completionTokens`, `tokenUsed` → `AgentResult.getTokenUsage()`
+- **Tool calls** — worker tasks whose `referenceTaskName` starts with `call_` → `AgentResult.getToolCalls()`
 
-- **Token usage** — sums `promptTokens` / `completionTokens` / `tokenUsed` from every `LLM_CHAT_COMPLETE` task → `AgentResult.getTokenUsage()`
-- **Tool calls** — every worker task whose `referenceTaskName` starts with `call_` → `AgentResult.getToolCalls()`
-
-This fires automatically when `run()` / `waitForResult()` returns. Callers never invoke it directly.
+Fires automatically inside `run()` / `waitForResult()`. Callers never invoke it directly.
 
 ---
 
 ## AgentConfig (request field)
 
-The agent definition nested under the `agentConfig` key in every request body.
+The agent definition serialized under the `agentConfig` key by `AgentConfigSerializer`.
 
 | Field | Type | Description |
 |---|---|---|

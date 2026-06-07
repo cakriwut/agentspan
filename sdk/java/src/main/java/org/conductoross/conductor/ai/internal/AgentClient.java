@@ -3,8 +3,6 @@
 
 package org.conductoross.conductor.ai.internal;
 
-import java.util.Map;
-
 import org.conductoross.conductor.ai.exceptions.AgentAPIException;
 import org.conductoross.conductor.ai.exceptions.AgentNotFoundException;
 import org.conductoross.conductor.ai.model.CompileResponse;
@@ -46,18 +44,18 @@ public class AgentClient {
     }
 
     /** {@code POST /api/agent/compile} — compile agent config to a workflow def. */
-    public CompileResponse compileAgent(Map<String, Object> payload) {
-        return post("/agent/compile", payload, COMPILE_TYPE);
+    public CompileResponse compileAgent(AgentRequest request) {
+        return post("/agent/compile", request, COMPILE_TYPE);
     }
 
     /** {@code POST /api/agent/deploy} — compile + register, no execution. */
-    public StartResponse deployAgent(Map<String, Object> payload) {
-        return post("/agent/deploy", payload, START_TYPE);
+    public StartResponse deployAgent(AgentRequest request) {
+        return post("/agent/deploy", request, START_TYPE);
     }
 
     /** {@code POST /api/agent/start} — compile + register + start an execution. */
-    public StartResponse startAgent(Map<String, Object> payload) {
-        return post("/agent/start", payload, START_TYPE);
+    public StartResponse startAgent(AgentRequest request) {
+        return post("/agent/start", request, START_TYPE);
     }
 
     /** {@code GET /api/agent/{executionId}/status} — fetch execution status. */
@@ -71,7 +69,7 @@ public class AgentClient {
     }
 
     /** {@code POST /api/agent/{executionId}/respond} — respond to a waiting HITL task. */
-    public void respond(String executionId, Map<String, Object> body) {
+    public void respond(String executionId, RespondBody body) {
         ConductorClientRequest req = ConductorClientRequest.builder()
                 .method(Method.POST)
                 .path("/agent/{executionId}/respond")
@@ -87,7 +85,7 @@ public class AgentClient {
 
     // ── internals ──────────────────────────────────────────────────────────
 
-    private <T> T post(String path, Map<String, Object> payload, TypeReference<T> type) {
+    private <T> T post(String path, Object payload, TypeReference<T> type) {
         ConductorClientRequest req = ConductorClientRequest.builder()
                 .method(Method.POST)
                 .path(path)

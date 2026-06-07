@@ -13,6 +13,7 @@ import org.conductoross.conductor.ai.enums.AgentStatus;
 import org.conductoross.conductor.ai.enums.EventType;
 import org.conductoross.conductor.ai.internal.AgentClient;
 import org.conductoross.conductor.ai.internal.AgentStatusResponse;
+import org.conductoross.conductor.ai.internal.RespondBody;
 import org.conductoross.conductor.ai.internal.SseClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -172,20 +173,16 @@ public class AgentStream implements Iterable<AgentEvent>, AutoCloseable {
      * use {@link #approve(AgentEvent)} with the {@code WAITING} event instead.
      */
     public void approve() {
-        agentClient.respond(executionId, approveBody(null));
+        agentClient.respond(executionId, RespondBody.approve());
     }
 
     /**
      * Approve the pending HUMAN task associated with the given {@code WAITING} event.
      *
-     * <p>Reads the owning execution id from {@link AgentEvent#getExecutionId()} —
-     * the sub-execution that emitted the event — and POSTs to it. Use this whenever
-     * the HUMAN task may live below the top level (handoff/sequential/parallel).
-     *
      * @param event the WAITING event whose pending HUMAN task should be approved
      */
     public void approve(AgentEvent event) {
-        agentClient.respond(targetExecutionId(event), approveBody(null));
+        agentClient.respond(targetExecutionId(event), RespondBody.approve());
     }
 
     /**
@@ -194,7 +191,7 @@ public class AgentStream implements Iterable<AgentEvent>, AutoCloseable {
      * @param reason optional rejection reason
      */
     public void reject(String reason) {
-        agentClient.respond(executionId, rejectBody(reason));
+        agentClient.respond(executionId, RespondBody.reject(reason));
     }
 
     /**
@@ -204,7 +201,7 @@ public class AgentStream implements Iterable<AgentEvent>, AutoCloseable {
      * @param reason optional rejection reason
      */
     public void reject(AgentEvent event, String reason) {
-        agentClient.respond(targetExecutionId(event), rejectBody(reason));
+        agentClient.respond(targetExecutionId(event), RespondBody.reject(reason));
     }
 
     /**
@@ -213,9 +210,7 @@ public class AgentStream implements Iterable<AgentEvent>, AutoCloseable {
      * @param message the message to send
      */
     public void send(String message) {
-        java.util.Map<String, Object> body = new java.util.HashMap<>();
-        body.put("message", message);
-        agentClient.respond(executionId, body);
+        agentClient.respond(executionId, RespondBody.of(java.util.Map.of("message", message)));
     }
 
     /**
@@ -225,23 +220,7 @@ public class AgentStream implements Iterable<AgentEvent>, AutoCloseable {
      * @param message the message to send
      */
     public void send(AgentEvent event, String message) {
-        java.util.Map<String, Object> body = new java.util.HashMap<>();
-        body.put("message", message);
-        agentClient.respond(targetExecutionId(event), body);
-    }
-
-    private static java.util.Map<String, Object> approveBody(String reason) {
-        java.util.Map<String, Object> body = new java.util.HashMap<>();
-        body.put("approved", true);
-        if (reason != null && !reason.isEmpty()) body.put("reason", reason);
-        return body;
-    }
-
-    private static java.util.Map<String, Object> rejectBody(String reason) {
-        java.util.Map<String, Object> body = new java.util.HashMap<>();
-        body.put("approved", false);
-        if (reason != null && !reason.isEmpty()) body.put("reason", reason);
-        return body;
+        agentClient.respond(targetExecutionId(event), RespondBody.of(java.util.Map.of("message", message)));
     }
 
     private static String targetExecutionId(AgentEvent event) {
