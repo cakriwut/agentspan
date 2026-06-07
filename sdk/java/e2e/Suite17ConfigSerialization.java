@@ -31,19 +31,21 @@ import org.conductoross.conductor.ai.tools.WaitForMessageTool;
 import org.junit.jupiter.api.*;
 
 /**
- * Suite 11: New parity features — structural plan() assertions.
+ * Suite 17: Agent config serialization — structural plan() assertions.
  *
- * <p>Tests the features added for Python parity:
+ * <p>Verifies that agent fields and features serialize correctly into the compiled
+ * agentDef via the SDK → /agent/compile → compiled-output round-trip. Covered:
  * stateful, baseUrl, TextGate, before/after_agent callbacks, StopMessageTermination,
  * RegexGuardrail, LLMGuardrail, OnCondition handoff, UserProxyAgent, ClaudeCode model,
- * MediaTools, WaitForMessageTool, HumanTool, GPTAssistantAgent, deploy().
+ * MediaTools, WaitForMessageTool, HumanTool, GPTAssistantAgent, deploy(), and the
+ * parity fields reasoningEffort / contextWindowBudget / maskedFields / memory.
  *
  * <p>All tests use plan() — no LLM calls. COUNTERFACTUAL: each test is designed to
- * fail if the corresponding feature serializes incorrectly.
+ * fail if the corresponding field serializes incorrectly.
  */
 @Tag("e2e")
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
-class Suite17NewParity extends BaseTest {
+class Suite17ConfigSerialization extends BaseTest {
 
     private static AgentRuntime runtime;
 
