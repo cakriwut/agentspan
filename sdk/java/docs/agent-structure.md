@@ -35,7 +35,7 @@ This page documents every field on `Agent`, the JSON key it produces on the wire
 | `baseUrl` | `baseUrl(String)` | `"baseUrl"` | `baseUrl` | `base_url` | Per-agent LLM provider endpoint override. |
 | `includeContents` | `includeContents(String)` | `"includeContents"` | `includeContents` | `include_contents` | `"none"` = fresh context; absent = inherit parent context. |
 | `thinkingBudgetTokens` | `thinkingBudgetTokens(int)` | `"thinkingConfig"` (map) | `thinkingConfig` | `thinking_budget_tokens` | Emitted as `{"enabled": true, "budgetTokens": N}`. Anthropic extended thinking only. |
-| `enablePlanning` | `enablePlanning(boolean)` | `"enablePlanning"` | `enablePlanning` | _(no direct equivalent)_ | Prepends a "plan first" preamble to the system prompt (Google ADK style). Unrelated to `PLAN_EXECUTE`. |
+| `enablePlanning` | `enablePlanning(boolean)` | `"enablePlanning"` | `enablePlanning` | `enable_planning` | Prepends a "plan first" preamble to the system prompt (Google ADK style). Unrelated to `PLAN_EXECUTE`. |
 | `prefillTools` | `prefillTools(List)` | `"prefillTools"` | `prefillTools` | `prefill_tools` | Tool calls executed before the first LLM turn; results injected as context. |
 | `planner` | `planner(Agent)` | `"planner"` | `planner` | `planner` | `PLAN_EXECUTE` named slot. Required when `strategy=PLAN_EXECUTE`. |
 | `fallback` | `fallback(Agent)` | `"fallback"` | `fallback` | `fallback` | `PLAN_EXECUTE` fallback agent when the plan can't compile or fails. |
@@ -46,7 +46,7 @@ This page documents every field on `Agent`, the JSON key it produces on the wire
 | `codeExecutionTimeout` | `codeExecutionTimeout(int)` | nested in `"codeExecution"` | `codeExecution.timeout` | `code_execution.timeout` | Default 30s. |
 | `allowedCommands` | `allowedCommands(List)` | nested in `"codeExecution"` | `codeExecution.allowedCommands` | `allowed_commands` | Shell commands permitted during code execution. |
 | `cliConfig` | `cliConfig(CliConfig)` | `"cliConfig"` (map) | `cliConfig` | `cli_config` | Injects a `run_command` worker tool with the CLI config. |
-| `gate` | `gate(TextGate)` | `"gate"` (map) | `gate` | _(no equivalent)_ | Sequential pipeline gate: emitted as `{"type": "text_contains", "text": ..., "caseSensitive": ...}`. |
+| `gate` | `gate(TextGate)` | `"gate"` (map) | `gate` | `gate` (`TextGate`) | Sequential pipeline gate: emitted as `{"type": "text_contains", "text": ..., "caseSensitive": ...}`. |
 | `stopWhenTaskName` | `stopWhen(String)` | `"stopWhen"` (map) | _(worker-based)_ | `stop_when` (callable) | Java stores the task name; emitted as `{"taskName": name}`. Python stores a callable. |
 | `callbacks` | `callbacks(CallbackHandler...)` | `"callbacks"` | `callbacks` | `callbacks` | Introspected for `before_model`, `after_model`, `before_agent`, `after_agent` methods. |
 | `beforeModelCallback` | `beforeModelCallback(Function)` | → in `"callbacks"` | `callbacks` | `before_model_callback` | Emitted as a callback entry at position `"before_model"`. |
@@ -97,6 +97,8 @@ These `AgentConfig` fields exist on the server side but the Java SDK does not ex
 | `dependencies` | _(none)_ | Python allows injecting arbitrary deps into ToolContext. Java uses `ToolContext` directly. |
 | `reasoning_effort` | _(none)_ | Not exposed in Java Agent. |
 | `masked_fields` | _(none)_ | Not exposed in Java Agent. |
+
+Note: `gate` (`TextGate`) and `enable_planning` exist in **both** Python and Java — they are full equivalents.
 
 ---
 
