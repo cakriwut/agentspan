@@ -22,7 +22,6 @@ import org.conductoross.conductor.ai.enums.Strategy;
 import org.conductoross.conductor.ai.execution.CliCommandExecutor;
 import org.conductoross.conductor.ai.execution.CliConfig;
 import org.conductoross.conductor.ai.internal.AgentClient;
-import org.conductoross.conductor.ai.internal.AgentConfigSerializer;
 import org.conductoross.conductor.ai.internal.AgentRequest;
 import org.conductoross.conductor.ai.internal.SseClient;
 import org.conductoross.conductor.ai.internal.StartResponse;
@@ -80,7 +79,6 @@ public class AgentRuntime implements AutoCloseable {
     private final WorkflowClient workflowClient;
 
     private final WorkerManager workerManager;
-    private final AgentConfigSerializer serializer;
     private volatile Schedules schedules;
 
     /** Create a runtime with a Conductor client and worker tuning both from environment. */
@@ -114,7 +112,6 @@ public class AgentRuntime implements AutoCloseable {
         this.agentClient = new AgentClient(conductorClient);
         this.workflowClient = new WorkflowClient(conductorClient);
         this.workerManager = new WorkerManager(config, conductorClient);
-        this.serializer = new AgentConfigSerializer();
         logger.info("AgentRuntime initialized: {}", conductorClient.getBasePath());
     }
 
@@ -190,10 +187,8 @@ public class AgentRuntime implements AutoCloseable {
      * @return plan result with workflowDef and requiredWorkers
      */
     public CompileResponse plan(Agent agent) {
-        Map<String, Object> agentConfig = serializer.serialize(agent);
         logger.debug("Compiling agent '{}'", agent.getName());
-        CompileResponse result =
-                agentClient.compileAgent(agentRequest(agent, agentConfig).build());
+        CompileResponse result = agentClient.compileAgent(agentRequest(agent).build());
         logger.info("Agent '{}' compiled successfully", agent.getName());
         return result;
     }
@@ -301,21 +296,19 @@ public class AgentRuntime implements AutoCloseable {
         // Mirrors Python runtime._has_stateful_tools + run_id = uuid.uuid4().
         final String runId =
                 hasStatefulTools(agent) ? UUID.randomUUID().toString().replace("-", "") : null;
-        final Map<String, Object> staticPlan = plan == null ? null : plan.toJson();
         prepareWorkers(agent, runId);
         workerManager.startAll();
 
         return CompletableFuture.supplyAsync(() -> {
-            Map<String, Object> agentConfig = serializer.serialize(agent);
             String sessionId = agent.getSessionId();
 
             logger.debug("Starting agent '{}' with prompt: {}", agent.getName(), prompt);
 
-            StartResponse response = agentClient.startAgent(agentRequest(agent, agentConfig)
+            StartResponse response = agentClient.startAgent(agentRequest(agent)
                     .prompt(prompt)
                     .sessionId(sessionId != null && !sessionId.isEmpty() ? sessionId : null)
                     .runId(runId != null && !runId.isEmpty() ? runId : null)
-                    .staticPlan(staticPlan)
+                    .staticPlan(plan)
                     .build());
             String executionId = response.getExecutionId();
             if (executionId == null) {
@@ -347,14 +340,15 @@ public class AgentRuntime implements AutoCloseable {
      * Build an {@link AgentRequest} pre-populated with the agent definition.
      * Framework-backed agents (openai, google_adk, langgraph, skill) use
      * {@code framework + rawConfig}; native agents use {@code agentConfig}.
+     * {@link AgentConfigSerializer.AsJson} handles serialization to the wire format.
      * Callers chain additional fields (prompt, runId, etc.) before calling build().
      */
-    private AgentRequest.Builder agentRequest(Agent agent, Map<String, Object> serialized) {
+    private static AgentRequest.Builder agentRequest(Agent agent) {
         String framework = agent.getFramework();
         if (framework != null && !framework.isEmpty()) {
-            return AgentRequest.frameworkAgent(framework, serialized);
+            return AgentRequest.frameworkAgent(framework, agent);
         }
-        return AgentRequest.nativeAgent(serialized);
+        return AgentRequest.nativeAgent(agent);
     }
 
     /**
@@ -394,9 +388,7 @@ public class AgentRuntime implements AutoCloseable {
         }
         List<DeploymentInfo> results = new ArrayList<>();
         for (Agent agent : agents) {
-            Map<String, Object> agentConfig = serializer.serialize(agent);
-            StartResponse resp =
-                    agentClient.deployAgent(agentRequest(agent, agentConfig).build());
+            StartResponse resp = agentClient.deployAgent(agentRequest(agent).build());
             String registeredName = resp.getAgentName() != null ? resp.getAgentName() : agent.getName();
             results.add(new DeploymentInfo(registeredName, agent.getName()));
             logger.info("Deployed agent '{}' as '{}'", agent.getName(), registeredName);

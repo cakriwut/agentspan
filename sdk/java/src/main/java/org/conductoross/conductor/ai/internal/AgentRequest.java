@@ -6,8 +6,12 @@ package org.conductoross.conductor.ai.internal;
 import java.util.List;
 import java.util.Map;
 
+import org.conductoross.conductor.ai.Agent;
+import org.conductoross.conductor.ai.plans.Plan;
+
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 
 /**
  * Request payload for {@code POST /api/agent/compile}, {@code /deploy}, and {@code /start}.
@@ -16,33 +20,43 @@ import com.fasterxml.jackson.annotation.JsonProperty;
  * are not relevant to an endpoint (e.g. {@code prompt} for compile) are left null and
  * omitted from the wire by {@link JsonInclude#NON_NULL}.
  *
- * <p>Agent definition is sent in one of two shapes:
+ * <p>Agent definition is carried in one of two shapes:
  * <ul>
- *   <li><b>Native agents</b>: {@code agentConfig} holds the serialized agent tree.</li>
+ *   <li><b>Native agents</b>: {@code agentConfig} holds the {@link Agent} object.
+ *       {@link AgentConfigSerializer.AsJson} serializes it to the camelCase map
+ *       the server's {@code AgentConfig} DTO expects.</li>
  *   <li><b>Framework-backed agents</b> (OpenAI, Google ADK, LangChain, Skill):
- *       {@code framework} + {@code rawConfig}. The server routes these through the
- *       matching {@code AgentConfigNormalizer} before compilation.</li>
+ *       {@code framework} identifies the normalizer; {@code rawConfig} holds the
+ *       {@link Agent} object serialized the same way via the same serializer.</li>
  * </ul>
  *
- * <p>Build via {@link #nativeAgent(Map)} or {@link #frameworkAgent(String, Map)},
- * then configure with the builder methods.
+ * <p>Build via {@link #nativeAgent(Agent)} or {@link #frameworkAgent(String, Agent)},
+ * then chain builder methods for execution-specific fields ({@code prompt}, {@code runId}, etc.).
  */
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public final class AgentRequest {
 
     // ── Agent definition (mutually exclusive) ────────────────────────────
 
-    /** Native agent definition produced by {@code AgentConfigSerializer.serialize()}. */
+    /**
+     * Native agent definition. Serialized to the server's {@code AgentConfig} wire format
+     * by {@link AgentConfigSerializer.AsJson}.
+     */
     @JsonProperty("agentConfig")
-    private final Map<String, Object> agentConfig;
+    @JsonSerialize(using = AgentConfigSerializer.AsJson.class)
+    private final Agent agentConfig;
 
     /** Framework identifier: {@code "openai"}, {@code "google_adk"}, {@code "langchain"}, {@code "skill"}, etc. */
     @JsonProperty("framework")
     private final String framework;
 
-    /** Serialized framework-specific agent config. Required when {@link #framework} is set. */
+    /**
+     * Framework-specific agent config. Serialized by {@link AgentConfigSerializer.AsJson}
+     * — same format as {@link #agentConfig}, routed through the matching server-side normalizer.
+     */
     @JsonProperty("rawConfig")
-    private final Map<String, Object> rawConfig;
+    @JsonSerialize(using = AgentConfigSerializer.AsJson.class)
+    private final Agent rawConfig;
 
     // ── Execution fields (only meaningful for /start) ────────────────────
 
@@ -63,10 +77,12 @@ public final class AgentRequest {
 
     /**
      * Deterministic plan for {@code PLAN_EXECUTE} strategy. Bypasses the planner LLM.
-     * Serialized as {@code "static_plan"} to match the server's {@code @JsonProperty}.
+     * Serialized as {@code "static_plan"} by {@link Plan.AsJson} to match the server's
+     * {@code @JsonProperty("static_plan")} on {@code StartRequest.staticPlan}.
      */
     @JsonProperty("static_plan")
-    private final Map<String, Object> staticPlan;
+    @JsonSerialize(using = Plan.AsJson.class)
+    private final Plan staticPlan;
 
     // ── Optional fields ──────────────────────────────────────────────────
 
@@ -74,21 +90,20 @@ public final class AgentRequest {
     @JsonProperty("media")
     private final List<String> media;
 
-    /** Arbitrary key-value context injected into the workflow input. */
+    /**
+     * Arbitrary key-value context injected into the workflow input.
+     * Intentionally untyped — the server treats it as a free-form map.
+     */
     @JsonProperty("context")
     private final Map<String, Object> context;
 
-    /** Client-supplied deduplication key; the server ignores duplicate starts. */
+    /** Client-supplied deduplication key; the server deduplicates starts with the same key. */
     @JsonProperty("idempotencyKey")
     private final String idempotencyKey;
 
     /** Credential names the server should inject at runtime. */
     @JsonProperty("credentials")
     private final List<String> credentials;
-
-    /** Reference to a server-registered skill package. Used with {@code framework="skill"}. */
-    @JsonProperty("skillRef")
-    private final Map<String, Object> skillRef;
 
     /** Per-execution timeout override (seconds). */
     @JsonProperty("timeoutSeconds")
@@ -106,38 +121,36 @@ public final class AgentRequest {
         this.context = b.context;
         this.idempotencyKey = b.idempotencyKey;
         this.credentials = b.credentials;
-        this.skillRef = b.skillRef;
         this.timeoutSeconds = b.timeoutSeconds;
     }
 
     /** Start building a request for a native (non-framework) agent. */
-    public static Builder nativeAgent(Map<String, Object> agentConfig) {
-        return new Builder().agentConfig(agentConfig);
+    public static Builder nativeAgent(Agent agent) {
+        return new Builder().agentConfig(agent);
     }
 
     /** Start building a request for a framework-backed agent (OpenAI, ADK, LangChain, Skill). */
-    public static Builder frameworkAgent(String framework, Map<String, Object> rawConfig) {
-        return new Builder().framework(framework).rawConfig(rawConfig);
+    public static Builder frameworkAgent(String framework, Agent agent) {
+        return new Builder().framework(framework).rawConfig(agent);
     }
 
     // ── Builder ──────────────────────────────────────────────────────────
 
     public static final class Builder {
-        private Map<String, Object> agentConfig;
+        private Agent agentConfig;
         private String framework;
-        private Map<String, Object> rawConfig;
+        private Agent rawConfig;
         private String prompt;
         private String sessionId;
         private String runId;
-        private Map<String, Object> staticPlan;
+        private Plan staticPlan;
         private List<String> media;
         private Map<String, Object> context;
         private String idempotencyKey;
         private List<String> credentials;
-        private Map<String, Object> skillRef;
         private Integer timeoutSeconds;
 
-        private Builder agentConfig(Map<String, Object> v) {
+        private Builder agentConfig(Agent v) {
             this.agentConfig = v;
             return this;
         }
@@ -147,7 +160,7 @@ public final class AgentRequest {
             return this;
         }
 
-        private Builder rawConfig(Map<String, Object> v) {
+        private Builder rawConfig(Agent v) {
             this.rawConfig = v;
             return this;
         }
@@ -167,7 +180,7 @@ public final class AgentRequest {
             return this;
         }
 
-        public Builder staticPlan(Map<String, Object> v) {
+        public Builder staticPlan(Plan v) {
             this.staticPlan = v;
             return this;
         }
@@ -189,11 +202,6 @@ public final class AgentRequest {
 
         public Builder credentials(List<String> v) {
             this.credentials = v;
-            return this;
-        }
-
-        public Builder skillRef(Map<String, Object> v) {
-            this.skillRef = v;
             return this;
         }
 

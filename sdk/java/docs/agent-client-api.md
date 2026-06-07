@@ -18,46 +18,48 @@ Every request goes through the shared `ConductorClient`'s native HTTP + auth + s
 
 ## AgentRequest
 
-Input to `compileAgent`, `deployAgent`, and `startAgent`. Maps 1-to-1 with the server's `StartRequest` DTO. Built via static factory methods:
+Input to `compileAgent`, `deployAgent`, and `startAgent`. Maps 1-to-1 with the server's `StartRequest` DTO. Built via static factory methods that take the SDK's own typed objects — no pre-serialization required:
 
 ```java
-// Native agent (model + tools defined in the SDK)
-AgentRequest.nativeAgent(serializedAgentMap).build()
+// Native agent
+AgentRequest.nativeAgent(agent).build()
 
 // Framework-backed agent (OpenAI, Google ADK, LangChain, Skill)
-AgentRequest.frameworkAgent("openai", serializedRawConfig).build()
+AgentRequest.frameworkAgent("openai", agent).build()
 
 // With execution fields (for /start only)
-AgentRequest.nativeAgent(serializedMap)
+AgentRequest.nativeAgent(agent)
     .prompt("What is the capital of France?")
     .sessionId("session-abc")
-    .runId("a1b2c3...")          // per-execution domain UUID for stateful agents
-    .staticPlan(planMap)         // deterministic PLAN_EXECUTE plan
+    .runId("a1b2c3...")    // per-execution domain UUID for stateful agents
+    .staticPlan(plan)      // Plan object — serialized by Plan.AsJson
     .build()
 ```
 
 **Field mapping to server `StartRequest`:**
 
-| `AgentRequest` field | JSON key | Server `StartRequest` field | Used by |
-|---|---|---|---|
-| `agentConfig` | `"agentConfig"` | `agentConfig` | compile / deploy / start (native agents) |
-| `framework` | `"framework"` | `framework` | compile / deploy / start (framework agents) |
-| `rawConfig` | `"rawConfig"` | `rawConfig` | compile / deploy / start (framework agents) |
-| `prompt` | `"prompt"` | `prompt` | start only |
-| `sessionId` | `"sessionId"` | `sessionId` | start (stateful agents) |
-| `runId` | `"runId"` | `runId` | start (stateful isolation domain) |
-| `staticPlan` | `"static_plan"` | `staticPlan` (`@JsonProperty("static_plan")`) | start (PLAN_EXECUTE) |
-| `media` | `"media"` | `media` | start (multi-modal) |
-| `context` | `"context"` | `context` | start |
-| `idempotencyKey` | `"idempotencyKey"` | `idempotencyKey` | start |
-| `credentials` | `"credentials"` | `credentials` | compile / start |
-| `skillRef` | `"skillRef"` | `skillRef` | start (skill framework) |
-| `timeoutSeconds` | `"timeoutSeconds"` | `timeoutSeconds` | compile / start |
+| `AgentRequest` field | Java type | JSON key | Server `StartRequest` field | Serializer | Used by |
+|---|---|---|---|---|---|
+| `agentConfig` | `Agent` | `"agentConfig"` | `agentConfig` | `AgentConfigSerializer.AsJson` | compile / deploy / start (native) |
+| `framework` | `String` | `"framework"` | `framework` | — | compile / deploy / start (framework) |
+| `rawConfig` | `Agent` | `"rawConfig"` | `rawConfig` | `AgentConfigSerializer.AsJson` | compile / deploy / start (framework) |
+| `prompt` | `String` | `"prompt"` | `prompt` | — | start only |
+| `sessionId` | `String` | `"sessionId"` | `sessionId` | — | start (stateful) |
+| `runId` | `String` | `"runId"` | `runId` | — | start (stateful isolation) |
+| `staticPlan` | `Plan` | `"static_plan"` | `staticPlan` (`@JsonProperty("static_plan")`) | `Plan.AsJson` | start (PLAN_EXECUTE) |
+| `media` | `List<String>` | `"media"` | `media` | — | start (multi-modal) |
+| `context` | `Map<String,Object>` | `"context"` | `context` | — | start (free-form) |
+| `idempotencyKey` | `String` | `"idempotencyKey"` | `idempotencyKey` | — | start |
+| `credentials` | `List<String>` | `"credentials"` | `credentials` | — | compile / start |
+| `timeoutSeconds` | `Integer` | `"timeoutSeconds"` | `timeoutSeconds` | — | compile / start |
 
 `@JsonInclude(NON_NULL)` — null fields are omitted from the wire.
 
-**Structural proof — `static_plan` key:**
-The server field is named `staticPlan` in Java but annotated `@JsonProperty("static_plan")`. The `AgentRequest.staticPlan` field is annotated `@JsonProperty("static_plan")` identically, so both sides agree on the JSON key.
+**Structural proof — typed serialization:**
+- `agentConfig: Agent` / `rawConfig: Agent` are annotated `@JsonSerialize(using=AgentConfigSerializer.AsJson.class)`. `AsJson` calls `AgentConfigSerializer.serialize(agent)` and writes the resulting map — identical to the Map the server's `AgentConfig` DTO deserializes from.
+- `staticPlan: Plan` is annotated `@JsonSerialize(using=Plan.AsJson.class)`. `AsJson` calls `plan.toJson()` — the same wire format PAC consumes.
+- `static_plan` key: server field is `staticPlan` with `@JsonProperty("static_plan")`. `AgentRequest.staticPlan` is annotated `@JsonProperty("static_plan")` identically — both sides agree.
+- `context: Map<String,Object>` is intentionally untyped — the server treats it as a free-form pass-through.
 
 ---
 
@@ -93,7 +95,14 @@ Used by `AgentRuntime.plan(agent)`.
 
 ### Request body — `AgentRequest`
 
-Native agent wire shape:
+```java
+// AgentRuntime builds this; callers never construct it manually:
+AgentRequest.nativeAgent(agent).build()
+// or
+AgentRequest.frameworkAgent(agent.getFramework(), agent).build()
+```
+
+Native agent wire shape (produced by `AgentConfigSerializer.AsJson`):
 ```json
 { "agentConfig": { "name": "my_agent", "model": "openai/gpt-4o-mini", "strategy": "handoff", ... } }
 ```
