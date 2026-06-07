@@ -731,4 +731,106 @@ class Suite17NewParity extends BaseTest {
         assertTrue(hasBefore, "No 'before_agent' callback found among: " + callbacks);
         assertTrue(hasAfter, "No 'after_agent' callback found among: " + callbacks);
     }
+
+    // ── Parity fields: reasoningEffort / contextWindowBudget / maskedFields / memory ──
+    //
+    // Round-trip validation (NO LLM): build an agent with the field set, compile via
+    // plan() against the real server, and assert the field survives the
+    // SDK → /agent/compile → AgentConfig → compiled-output round-trip. Most fields echo
+    // in workflowDef.metadata.agentDef; maskedFields maps to WorkflowDef.maskedFields, so
+    // valueFromPlan() checks both locations.
+
+    @SuppressWarnings("unchecked")
+    private Object valueFromPlan(CompileResponse plan, String key) {
+        Map<String, Object> agentDef = getAgentDef(plan);
+        if (agentDef.get(key) != null) return agentDef.get(key);
+        Map<String, Object> wf = plan.getWorkflowDef();
+        return wf != null ? wf.get(key) : null;
+    }
+
+    @Test
+    @Order(19)
+    void test_reasoning_effort_serialized() {
+        Agent agent = Agent.builder()
+                .name("e2e_java_reasoning_effort")
+                .model(MODEL)
+                .instructions("Reasoning agent.")
+                .reasoningEffort("high")
+                .build();
+
+        CompileResponse plan = runtime.plan(agent);
+        assertEquals(
+                "high",
+                getAgentDef(plan).get("reasoningEffort"),
+                "agentDef.reasoningEffort should be 'high' but got: "
+                        + getAgentDef(plan).get("reasoningEffort")
+                        + ". COUNTERFACTUAL: Agent.reasoningEffort() must serialize to agentDef.reasoningEffort.");
+    }
+
+    @Test
+    @Order(20)
+    void test_context_window_budget_serialized() {
+        Agent agent = Agent.builder()
+                .name("e2e_java_ctx_budget")
+                .model(MODEL)
+                .instructions("Budgeted agent.")
+                .contextWindowBudget(8000)
+                .build();
+
+        CompileResponse plan = runtime.plan(agent);
+        Object budget = getAgentDef(plan).get("contextWindowBudget");
+        assertNotNull(budget, "agentDef.contextWindowBudget missing. COUNTERFACTUAL: must serialize.");
+        assertEquals(
+                8000, ((Number) budget).intValue(), "agentDef.contextWindowBudget should be 8000 but got: " + budget);
+    }
+
+    @Test
+    @Order(21)
+    void test_masked_fields_serialized() {
+        Agent agent = Agent.builder()
+                .name("e2e_java_masked_fields")
+                .model(MODEL)
+                .instructions("Privacy agent.")
+                .maskedFields("ssn", "card_number")
+                .build();
+
+        CompileResponse plan = runtime.plan(agent);
+        Object masked = valueFromPlan(plan, "maskedFields");
+        assertNotNull(
+                masked,
+                "maskedFields not found in agentDef or workflowDef. COUNTERFACTUAL: Agent.maskedFields() must "
+                        + "round-trip to the compiled output (agentDef.maskedFields or WorkflowDef.maskedFields).");
+        assertTrue(
+                masked instanceof List && ((List<?>) masked).containsAll(List.of("ssn", "card_number")),
+                "maskedFields should contain [ssn, card_number] but got: " + masked);
+    }
+
+    @Test
+    @Order(22)
+    @SuppressWarnings("unchecked")
+    void test_memory_serialized() {
+        org.conductoross.conductor.ai.model.ConversationMemory memory =
+                new org.conductoross.conductor.ai.model.ConversationMemory(20)
+                        .addSystem("You are concise.")
+                        .addUser("hello");
+
+        Agent agent = Agent.builder()
+                .name("e2e_java_memory")
+                .model(MODEL)
+                .instructions("Stateful chat agent.")
+                .memory(memory)
+                .build();
+
+        CompileResponse plan = runtime.plan(agent);
+        Map<String, Object> mem = (Map<String, Object>) getAgentDef(plan).get("memory");
+        assertNotNull(
+                mem, "agentDef.memory missing. COUNTERFACTUAL: Agent.memory() must serialize to agentDef.memory.");
+        assertEquals(
+                20,
+                ((Number) mem.get("maxMessages")).intValue(),
+                "agentDef.memory.maxMessages should be 20 but got: " + mem.get("maxMessages"));
+        List<Map<String, Object>> msgs = (List<Map<String, Object>>) mem.get("messages");
+        assertNotNull(msgs, "agentDef.memory.messages missing.");
+        assertEquals(2, msgs.size(), "memory should carry 2 messages but got: " + msgs);
+    }
 }
