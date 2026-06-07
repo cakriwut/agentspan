@@ -15,6 +15,7 @@ import org.conductoross.conductor.ai.AgentConfig;
 import org.conductoross.conductor.ai.AgentRuntime;
 import org.conductoross.conductor.ai.enums.Strategy;
 import org.conductoross.conductor.ai.model.AgentResult;
+import org.conductoross.conductor.ai.model.CompileResponse;
 import org.conductoross.conductor.ai.model.ToolDef;
 import org.junit.jupiter.api.*;
 
@@ -96,7 +97,7 @@ class Suite14StatefulDomain extends BaseTest {
                 .tools(List.of(workerTool("e2e_s12_stateful_true_tool")))
                 .build();
 
-        Map<String, Object> plan = runtime.plan(agent);
+        CompileResponse plan = runtime.plan(agent);
         Map<String, Object> agentDef = getAgentDef(plan);
 
         List<Map<String, Object>> tools = (List<Map<String, Object>>) agentDef.get("tools");
@@ -136,7 +137,7 @@ class Suite14StatefulDomain extends BaseTest {
                 .tools(List.of(workerTool("e2e_s12_stateful_false_tool")))
                 .build();
 
-        Map<String, Object> plan = runtime.plan(agent);
+        CompileResponse plan = runtime.plan(agent);
         Map<String, Object> agentDef = getAgentDef(plan);
 
         List<Map<String, Object>> tools = (List<Map<String, Object>>) agentDef.get("tools");
@@ -182,7 +183,7 @@ class Suite14StatefulDomain extends BaseTest {
                 .tools(List.of(tool))
                 .build();
 
-        Map<String, Object> plan = runtime.plan(agent);
+        CompileResponse plan = runtime.plan(agent);
         Map<String, Object> agentDef = getAgentDef(plan);
 
         List<Map<String, Object>> planTools = (List<Map<String, Object>>) agentDef.get("tools");
@@ -243,7 +244,7 @@ class Suite14StatefulDomain extends BaseTest {
                 .stateful(true)
                 .build();
 
-        Map<String, Object> plan = runtime.plan(swarm);
+        CompileResponse plan = runtime.plan(swarm);
         Map<String, Object> agentDef = getAgentDef(plan);
 
         List<Map<String, Object>> subAgents = (List<Map<String, Object>>) agentDef.get("agents");

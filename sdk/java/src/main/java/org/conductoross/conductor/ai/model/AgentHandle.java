@@ -10,6 +10,7 @@ import java.util.Map;
 
 import org.conductoross.conductor.ai.enums.AgentStatus;
 import org.conductoross.conductor.ai.internal.AgentClient;
+import org.conductoross.conductor.ai.internal.AgentStatusResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -74,10 +75,10 @@ public class AgentHandle {
 
         while (System.currentTimeMillis() - startTime < timeoutMs) {
             try {
-                Map<String, Object> status = agentClient.getAgentStatus(executionId);
+                AgentStatusResponse status = agentClient.getAgentStatus(executionId);
                 consecutiveErrors = 0; // reset on success
                 lastError = null;
-                String workflowStatus = (String) status.get("status");
+                String workflowStatus = status.getStatus();
 
                 if (workflowStatus == null) {
                     logger.debug("Waiting for agent {} — status unknown", executionId);
@@ -177,9 +178,8 @@ public class AgentHandle {
      */
     public boolean isWaiting() {
         try {
-            Map<String, Object> status = agentClient.getAgentStatus(executionId);
-            Object waiting = status.get("isWaiting");
-            return Boolean.TRUE.equals(waiting);
+            AgentStatusResponse status = agentClient.getAgentStatus(executionId);
+            return status.isWaiting();
         } catch (Exception e) {
             return false;
         }
@@ -195,11 +195,9 @@ public class AgentHandle {
         long start = System.currentTimeMillis();
         while (System.currentTimeMillis() - start < timeoutMs) {
             try {
-                Map<String, Object> status = agentClient.getAgentStatus(executionId);
-                Object waiting = status.get("isWaiting");
-                if (Boolean.TRUE.equals(waiting)) return true;
-                String workflowStatus = (String) status.get("status");
-                if (workflowStatus != null && isTerminalStatus(workflowStatus)) return false;
+                AgentStatusResponse status = agentClient.getAgentStatus(executionId);
+                if (status.isWaiting()) return true;
+                if (status.getStatus() != null && isTerminalStatus(status.getStatus())) return false;
                 Thread.sleep(1000);
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
@@ -224,11 +222,8 @@ public class AgentHandle {
     }
 
     @SuppressWarnings("unchecked")
-    private AgentResult buildResult(Map<String, Object> statusResponse, String workflowStatus) {
-        Object output = statusResponse.get("output");
-        if (output == null) {
-            output = statusResponse.get("result");
-        }
+    private AgentResult buildResult(AgentStatusResponse statusResponse, String workflowStatus) {
+        Object output = statusResponse.getOutput();
 
         AgentStatus status;
         try {
@@ -239,8 +234,7 @@ public class AgentHandle {
 
         String error = null;
         if (status != AgentStatus.COMPLETED) {
-            error = (String) statusResponse.get("reasonForIncompletion");
-            if (error == null) error = (String) statusResponse.get("error");
+            error = statusResponse.getReasonForIncompletion();
         }
 
         // Normalize output to a map

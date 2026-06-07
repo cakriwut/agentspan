@@ -5,32 +5,37 @@ package org.conductoross.conductor.ai.model;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.conductoross.conductor.ai.enums.AgentStatus;
 import org.conductoross.conductor.ai.internal.AgentClient;
+import org.conductoross.conductor.ai.internal.AgentStatusResponse;
 import org.junit.jupiter.api.Test;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.netflix.conductor.client.http.ConductorClient;
 
 /**
  * Unit tests for {@link AgentHandle#waitForResult} error-handling — specifically the
  * consecutive-error fast-fail added to prevent false 600s timeouts.
- *
- * <p>Root cause: the old {@code catch(Exception e) { sleep(2s); }} silently converted ANY
- * server error (5xx, read timeout, connection reset) into a 600-second blind wait. This
- * masked real failures and made the degraded-server scenario look identical to a slow agent.
- * The fix adds a consecutive-error counter: after {@code POLL_ERROR_FAIL_AT} consecutive
- * failures the loop throws immediately rather than spinning to the 600s wall.
  */
 class AgentHandleErrorTest {
+
+    private static AgentStatusResponse completed(String executionId) {
+        try {
+            String json = "{\"executionId\":\"" + executionId
+                    + "\",\"status\":\"COMPLETED\",\"isComplete\":true,\"isRunning\":false}";
+            return new ObjectMapper().readValue(json, AgentStatusResponse.class);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
 
     /** Stub AgentClient that always throws — simulates a permanently-down server. */
     private static AgentClient alwaysErrorClient() {
         return new AgentClient(new ConductorClient("http://localhost:1/api")) {
             @Override
-            public Map<String, Object> getAgentStatus(String executionId) {
+            public AgentStatusResponse getAgentStatus(String executionId) {
                 throw new RuntimeException("connection refused");
             }
         };
@@ -41,9 +46,9 @@ class AgentHandleErrorTest {
         AtomicInteger calls = new AtomicInteger(0);
         return new AgentClient(new ConductorClient("http://localhost:1/api")) {
             @Override
-            public Map<String, Object> getAgentStatus(String executionId) {
+            public AgentStatusResponse getAgentStatus(String executionId) {
                 if (calls.incrementAndGet() == 1) throw new RuntimeException("transient");
-                return Map.of("status", "COMPLETED", "output", "ok", "executionId", executionId);
+                return completed(executionId);
             }
         };
     }
@@ -58,8 +63,7 @@ class AgentHandleErrorTest {
     void consecutiveErrorsFastFail() {
         AgentHandle handle = new AgentHandle("exec-1", alwaysErrorClient(), null);
 
-        RuntimeException ex =
-                assertThrows(RuntimeException.class, () -> handle.waitForResult(600_000, 1)); // 600s timeout, 1ms poll
+        RuntimeException ex = assertThrows(RuntimeException.class, () -> handle.waitForResult(600_000, 1));
 
         assertTrue(
                 ex.getMessage().contains("consecutive errors")
@@ -70,7 +74,6 @@ class AgentHandleErrorTest {
 
     @Test
     void singleErrorDoesNotFastFail() {
-        // One error followed by success → normal completion.
         AgentHandle handle = new AgentHandle("exec-2", oneErrorThenCompleteClient(), null);
         AgentResult r = assertDoesNotThrow(
                 () -> handle.waitForResult(10_000, 1),

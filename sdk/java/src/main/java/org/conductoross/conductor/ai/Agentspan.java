@@ -4,12 +4,12 @@
 package org.conductoross.conductor.ai;
 
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
 import org.conductoross.conductor.ai.model.AgentHandle;
 import org.conductoross.conductor.ai.model.AgentResult;
 import org.conductoross.conductor.ai.model.AgentStream;
+import org.conductoross.conductor.ai.model.CompileResponse;
 import org.conductoross.conductor.ai.model.DeploymentInfo;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -131,7 +131,7 @@ public final class Agentspan {
      * @param agent the agent to plan
      * @return the plan response map from the server
      */
-    public static Map<String, Object> plan(Agent agent) {
+    public static CompileResponse plan(Agent agent) {
         return getOrCreateRuntime().plan(agent);
     }
 
@@ -251,7 +251,7 @@ public final class Agentspan {
     }
 
     /** Drop-in: accepts a native ADK {@code BaseAgent} or any Agentspan {@link Agent}. */
-    public static Map<String, Object> plan(Object agent) {
+    public static CompileResponse plan(Object agent) {
         return plan(coerceAgent(agent));
     }
 

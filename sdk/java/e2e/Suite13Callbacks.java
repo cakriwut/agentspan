@@ -14,6 +14,7 @@ import org.conductoross.conductor.ai.AgentRuntime;
 import org.conductoross.conductor.ai.CallbackHandler;
 import org.conductoross.conductor.ai.enums.AgentStatus;
 import org.conductoross.conductor.ai.model.AgentResult;
+import org.conductoross.conductor.ai.model.CompileResponse;
 import org.junit.jupiter.api.*;
 
 /**
@@ -146,7 +147,7 @@ class Suite13Callbacks extends BaseTest {
                 .callbacks(new AgentLifecycleHandler())
                 .build();
 
-        Map<String, Object> plan = runtime.plan(agent);
+        CompileResponse plan = runtime.plan(agent);
         Map<String, Object> agentDef = getAgentDef(plan);
 
         List<Map<String, Object>> callbacks = (List<Map<String, Object>>) agentDef.get("callbacks");
@@ -203,7 +204,7 @@ class Suite13Callbacks extends BaseTest {
                 .callbacks(new ModelLifecycleHandler())
                 .build();
 
-        Map<String, Object> plan = runtime.plan(agent);
+        CompileResponse plan = runtime.plan(agent);
         Map<String, Object> agentDef = getAgentDef(plan);
 
         List<Map<String, Object>> callbacks = (List<Map<String, Object>>) agentDef.get("callbacks");
@@ -240,7 +241,7 @@ class Suite13Callbacks extends BaseTest {
                 .callbacks(new AllHooksHandler())
                 .build();
 
-        Map<String, Object> plan = runtime.plan(agent);
+        CompileResponse plan = runtime.plan(agent);
         Map<String, Object> agentDef = getAgentDef(plan);
 
         List<Map<String, Object>> callbacks = (List<Map<String, Object>>) agentDef.get("callbacks");

@@ -19,6 +19,7 @@ import org.conductoross.conductor.ai.gate.TextGate;
 import org.conductoross.conductor.ai.guardrail.LLMGuardrail;
 import org.conductoross.conductor.ai.guardrail.RegexGuardrail;
 import org.conductoross.conductor.ai.handoff.OnCondition;
+import org.conductoross.conductor.ai.model.CompileResponse;
 import org.conductoross.conductor.ai.model.DeploymentInfo;
 import org.conductoross.conductor.ai.model.GuardrailDef;
 import org.conductoross.conductor.ai.model.ToolDef;
@@ -115,7 +116,7 @@ class Suite17NewParity extends BaseTest {
                 .tools(List.of(workerTool))
                 .build();
 
-        Map<String, Object> plan = runtime.plan(agent);
+        CompileResponse plan = runtime.plan(agent);
         Map<String, Object> agentDef = getAgentDef(plan);
 
         List<Map<String, Object>> tools = (List<Map<String, Object>>) agentDef.get("tools");
@@ -151,7 +152,7 @@ class Suite17NewParity extends BaseTest {
                 .baseUrl("http://my-llm-proxy.internal/v1")
                 .build();
 
-        Map<String, Object> plan = runtime.plan(agent);
+        CompileResponse plan = runtime.plan(agent);
         Map<String, Object> agentDef = getAgentDef(plan);
 
         assertEquals(
@@ -178,7 +179,7 @@ class Suite17NewParity extends BaseTest {
                 .gate(new TextGate("STOP", false))
                 .build();
 
-        Map<String, Object> plan = runtime.plan(checker);
+        CompileResponse plan = runtime.plan(checker);
         Map<String, Object> agentDef = getAgentDef(plan);
 
         assertNotNull(
@@ -211,7 +212,7 @@ class Suite17NewParity extends BaseTest {
                 .beforeAgentCallback(ctx -> ctx)
                 .build();
 
-        Map<String, Object> plan = runtime.plan(agent);
+        CompileResponse plan = runtime.plan(agent);
         Map<String, Object> agentDef = getAgentDef(plan);
 
         List<Map<String, Object>> callbacks = (List<Map<String, Object>>) agentDef.get("callbacks");
@@ -243,7 +244,7 @@ class Suite17NewParity extends BaseTest {
                 .afterAgentCallback(ctx -> ctx)
                 .build();
 
-        Map<String, Object> plan = runtime.plan(agent);
+        CompileResponse plan = runtime.plan(agent);
         Map<String, Object> agentDef = getAgentDef(plan);
 
         List<Map<String, Object>> callbacks = (List<Map<String, Object>>) agentDef.get("callbacks");
@@ -274,7 +275,7 @@ class Suite17NewParity extends BaseTest {
                 .termination(StopMessageTermination.of("DONE"))
                 .build();
 
-        Map<String, Object> plan = runtime.plan(agent);
+        CompileResponse plan = runtime.plan(agent);
         Map<String, Object> agentDef = getAgentDef(plan);
 
         assertNotNull(
@@ -317,7 +318,7 @@ class Suite17NewParity extends BaseTest {
                 .guardrails(List.of(guard))
                 .build();
 
-        Map<String, Object> plan = runtime.plan(agent);
+        CompileResponse plan = runtime.plan(agent);
         Map<String, Object> agentDef = getAgentDef(plan);
         Map<String, Object> g = findGuardrailByName(agentDef, "e2e_java_regex_guard");
 
@@ -359,7 +360,7 @@ class Suite17NewParity extends BaseTest {
                 .guardrails(List.of(guard))
                 .build();
 
-        Map<String, Object> plan = runtime.plan(agent);
+        CompileResponse plan = runtime.plan(agent);
         Map<String, Object> agentDef = getAgentDef(plan);
         Map<String, Object> g = findGuardrailByName(agentDef, "e2e_java_llm_guard");
 
@@ -410,7 +411,7 @@ class Suite17NewParity extends BaseTest {
                 .strategy(Strategy.HANDOFF)
                 .build();
 
-        Map<String, Object> plan = runtime.plan(team);
+        CompileResponse plan = runtime.plan(team);
         Map<String, Object> agentDef = getAgentDef(plan);
 
         // Navigate to the worker sub-agent in the plan
@@ -460,7 +461,7 @@ class Suite17NewParity extends BaseTest {
                 .strategy(Strategy.ROUND_ROBIN)
                 .build();
 
-        Map<String, Object> plan = runtime.plan(team);
+        CompileResponse plan = runtime.plan(team);
         Map<String, Object> agentDef = getAgentDef(plan);
 
         List<Map<String, Object>> agents = (List<Map<String, Object>>) agentDef.get("agents");
@@ -509,7 +510,7 @@ class Suite17NewParity extends BaseTest {
                 .tools(List.of(imageTool, audioTool))
                 .build();
 
-        Map<String, Object> plan = runtime.plan(agent);
+        CompileResponse plan = runtime.plan(agent);
         Map<String, Object> agentDef = getAgentDef(plan);
 
         Map<String, Object> img = findToolByName(agentDef, "e2e_java_image_tool");
@@ -544,7 +545,7 @@ class Suite17NewParity extends BaseTest {
                 .tools(List.of(waitTool))
                 .build();
 
-        Map<String, Object> plan = runtime.plan(agent);
+        CompileResponse plan = runtime.plan(agent);
         Map<String, Object> agentDef = getAgentDef(plan);
 
         Map<String, Object> tool = findToolByName(agentDef, "e2e_java_wait_msg");
@@ -572,7 +573,7 @@ class Suite17NewParity extends BaseTest {
                 .tools(List.of(humanTool))
                 .build();
 
-        Map<String, Object> plan = runtime.plan(agent);
+        CompileResponse plan = runtime.plan(agent);
         Map<String, Object> agentDef = getAgentDef(plan);
 
         Map<String, Object> tool = findToolByName(agentDef, "e2e_java_human_tool");
@@ -617,7 +618,7 @@ class Suite17NewParity extends BaseTest {
                 .instructions("Use Claude Code.")
                 .build();
 
-        Map<String, Object> plan = runtime.plan(agent);
+        CompileResponse plan = runtime.plan(agent);
         Map<String, Object> agentDef = getAgentDef(plan);
 
         String model = (String) agentDef.get("model");
@@ -641,7 +642,7 @@ class Suite17NewParity extends BaseTest {
                 .instructions("You are a data analyst.")
                 .build();
 
-        Map<String, Object> plan = runtime.plan(agent);
+        CompileResponse plan = runtime.plan(agent);
         Map<String, Object> agentDef = getAgentDef(plan);
 
         Map<String, Object> metadata = (Map<String, Object>) agentDef.get("metadata");
@@ -713,7 +714,7 @@ class Suite17NewParity extends BaseTest {
                 .afterAgentCallback(ctx -> ctx)
                 .build();
 
-        Map<String, Object> plan = runtime.plan(agent);
+        CompileResponse plan = runtime.plan(agent);
         Map<String, Object> agentDef = getAgentDef(plan);
 
         List<Map<String, Object>> callbacks = (List<Map<String, Object>>) agentDef.get("callbacks");

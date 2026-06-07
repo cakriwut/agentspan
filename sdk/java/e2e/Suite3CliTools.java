@@ -14,6 +14,7 @@ import org.conductoross.conductor.ai.AgentRuntime;
 import org.conductoross.conductor.ai.enums.AgentStatus;
 import org.conductoross.conductor.ai.execution.CliConfig;
 import org.conductoross.conductor.ai.model.AgentResult;
+import org.conductoross.conductor.ai.model.CompileResponse;
 import org.junit.jupiter.api.*;
 
 /**
@@ -132,7 +133,7 @@ class Suite3CliTools extends BaseTest {
                         .build())
                 .build();
 
-        Map<String, Object> plan = runtime.plan(agent);
+        CompileResponse plan = runtime.plan(agent);
         Map<String, Object> agentDef = getAgentDef(plan);
 
         Map<String, Object> cliMap = (Map<String, Object>) agentDef.get("cliConfig");
@@ -180,7 +181,7 @@ class Suite3CliTools extends BaseTest {
                 .instructions("No CLI here.")
                 .build();
 
-        Map<String, Object> plan = runtime.plan(agent);
+        CompileResponse plan = runtime.plan(agent);
         Map<String, Object> agentDef = getAgentDef(plan);
 
         assertFalse(
@@ -218,7 +219,7 @@ class Suite3CliTools extends BaseTest {
                         .build())
                 .build();
 
-        Map<String, Object> plan = runtime.plan(agent);
+        CompileResponse plan = runtime.plan(agent);
         Map<String, Object> agentDef = getAgentDef(plan);
 
         Map<String, Object> cliMap = (Map<String, Object>) agentDef.get("cliConfig");
@@ -266,8 +267,8 @@ class Suite3CliTools extends BaseTest {
                         .build())
                 .build();
 
-        Map<String, Object> planA = runtime.plan(agentA);
-        Map<String, Object> planB = runtime.plan(agentB);
+        CompileResponse planA = runtime.plan(agentA);
+        CompileResponse planB = runtime.plan(agentB);
 
         Map<String, Object> cliA = (Map<String, Object>) getAgentDef(planA).get("cliConfig");
         Map<String, Object> cliB = (Map<String, Object>) getAgentDef(planB).get("cliConfig");
@@ -317,7 +318,7 @@ class Suite3CliTools extends BaseTest {
                         .build())
                 .build();
 
-        Map<String, Object> plan = runtime.plan(agent);
+        CompileResponse plan = runtime.plan(agent);
         Map<String, Object> agentDef = getAgentDef(plan);
 
         List<Map<String, Object>> tools = (List<Map<String, Object>>) agentDef.get("tools");

@@ -12,6 +12,7 @@ import org.conductoross.conductor.ai.Agent;
 import org.conductoross.conductor.ai.AgentConfig;
 import org.conductoross.conductor.ai.AgentRuntime;
 import org.conductoross.conductor.ai.model.AgentResult;
+import org.conductoross.conductor.ai.model.CompileResponse;
 import org.conductoross.conductor.ai.model.ToolDef;
 import org.conductoross.conductor.ai.tools.PdfTool;
 import org.junit.jupiter.api.*;
@@ -207,7 +208,7 @@ class Suite6PdfTools extends BaseTest {
                 .tools(List.of(pdf))
                 .build();
 
-        Map<String, Object> plan = runtime.plan(agent);
+        CompileResponse plan = runtime.plan(agent);
         Map<String, Object> agentDef = getAgentDef(plan);
 
         Map<String, Object> tool = findToolByName(agentDef, "generate_pdf");
@@ -251,7 +252,7 @@ class Suite6PdfTools extends BaseTest {
                 .tools(List.of(worker))
                 .build();
 
-        Map<String, Object> plan = runtime.plan(agent);
+        CompileResponse plan = runtime.plan(agent);
         Map<String, Object> agentDef = getAgentDef(plan);
 
         List<Map<String, Object>> tools = (List<Map<String, Object>>) agentDef.get("tools");

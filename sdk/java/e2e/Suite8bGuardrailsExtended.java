@@ -18,6 +18,7 @@ import org.conductoross.conductor.ai.enums.OnFail;
 import org.conductoross.conductor.ai.enums.Position;
 import org.conductoross.conductor.ai.internal.ToolRegistry;
 import org.conductoross.conductor.ai.model.AgentResult;
+import org.conductoross.conductor.ai.model.CompileResponse;
 import org.conductoross.conductor.ai.model.GuardrailDef;
 import org.conductoross.conductor.ai.model.GuardrailResult;
 import org.conductoross.conductor.ai.model.ToolDef;
@@ -140,7 +141,7 @@ class Suite8bGuardrailsExtended extends BaseTest {
                 .tools(List.of(guardedTool))
                 .build();
 
-        Map<String, Object> plan = runtime.plan(agent);
+        CompileResponse plan = runtime.plan(agent);
         Map<String, Object> agentDef = getAgentDef(plan);
 
         // ── Assert agent-level guardrails ──────────────────────────────

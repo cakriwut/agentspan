@@ -12,6 +12,7 @@ import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 
+import org.conductoross.conductor.ai.model.CompileResponse;
 import org.junit.jupiter.api.BeforeAll;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -105,12 +106,11 @@ public abstract class BaseTest {
      * @return the agentDef map
      */
     @SuppressWarnings("unchecked")
-    protected Map<String, Object> getAgentDef(Map<String, Object> plan) {
-        Object wfObj = plan.get("workflowDef");
-        if (wfObj == null) {
-            fail("plan() result missing 'workflowDef'. Top-level keys: " + plan.keySet());
+    protected Map<String, Object> getAgentDef(CompileResponse plan) {
+        Map<String, Object> wf = plan.getWorkflowDef();
+        if (wf == null || wf.isEmpty()) {
+            fail("plan() result has no workflowDef");
         }
-        Map<String, Object> wf = (Map<String, Object>) wfObj;
 
         Object metaObj = wf.get("metadata");
         if (metaObj == null) {

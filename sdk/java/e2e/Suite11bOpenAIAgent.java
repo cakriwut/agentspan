@@ -15,6 +15,7 @@ import org.conductoross.conductor.ai.AgentRuntime;
 import org.conductoross.conductor.ai.enums.AgentStatus;
 import org.conductoross.conductor.ai.frameworks.OpenAIAgent;
 import org.conductoross.conductor.ai.model.AgentResult;
+import org.conductoross.conductor.ai.model.CompileResponse;
 import org.conductoross.conductor.ai.model.ToolDef;
 import org.junit.jupiter.api.*;
 
@@ -152,10 +153,10 @@ class Suite11bOpenAIAgent extends BaseTest {
                 .tools(new CalculatorTools())
                 .build();
 
-        Map<String, Object> plan = runtime.plan(agent);
+        CompileResponse plan = runtime.plan(agent);
         assertTrue(
-                plan.containsKey("workflowDef"),
-                "plan() result missing 'workflowDef'. Got keys: " + plan.keySet()
+                plan.getWorkflowDef() != null && !plan.getWorkflowDef().isEmpty(),
+                "plan() result missing 'workflowDef'. Got keys: " + "[workflowDef, requiredWorkers]"
                         + ". COUNTERFACTUAL: if framework-agent serialization is broken, the server rejects compile.");
 
         Map<String, Object> agentDef = getAgentDef(plan);

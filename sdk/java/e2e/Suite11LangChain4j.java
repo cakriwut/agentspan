@@ -15,6 +15,7 @@ import org.conductoross.conductor.ai.AgentRuntime;
 import org.conductoross.conductor.ai.enums.AgentStatus;
 import org.conductoross.conductor.ai.frameworks.LangChain4jAgent;
 import org.conductoross.conductor.ai.model.AgentResult;
+import org.conductoross.conductor.ai.model.CompileResponse;
 import org.conductoross.conductor.ai.model.ToolDef;
 import org.junit.jupiter.api.*;
 
@@ -193,11 +194,11 @@ class Suite11LangChain4j extends BaseTest {
     void test_compiles_via_server() {
         Agent agent = LangChain4jAgent.from("lc4j_compile_test", MODEL, "You are a test agent.", new CalculatorTools());
 
-        Map<String, Object> plan = runtime.plan(agent);
+        CompileResponse plan = runtime.plan(agent);
 
         assertTrue(
-                plan.containsKey("workflowDef"),
-                "plan() result missing 'workflowDef'. Got keys: " + plan.keySet() + ". "
+                plan.getWorkflowDef() != null && !plan.getWorkflowDef().isEmpty(),
+                "plan() result missing 'workflowDef'. Got keys: " + "[workflowDef, requiredWorkers]" + ". "
                         + "COUNTERFACTUAL: if agent serialization is completely broken, plan() fails.");
 
         Map<String, Object> agentDef = getAgentDef(plan);

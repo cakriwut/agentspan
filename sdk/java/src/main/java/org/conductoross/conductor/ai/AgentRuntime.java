@@ -24,10 +24,12 @@ import org.conductoross.conductor.ai.execution.CliConfig;
 import org.conductoross.conductor.ai.internal.AgentClient;
 import org.conductoross.conductor.ai.internal.AgentConfigSerializer;
 import org.conductoross.conductor.ai.internal.SseClient;
+import org.conductoross.conductor.ai.internal.StartResponse;
 import org.conductoross.conductor.ai.internal.WorkerManager;
 import org.conductoross.conductor.ai.model.AgentHandle;
 import org.conductoross.conductor.ai.model.AgentResult;
 import org.conductoross.conductor.ai.model.AgentStream;
+import org.conductoross.conductor.ai.model.CompileResponse;
 import org.conductoross.conductor.ai.model.DeploymentInfo;
 import org.conductoross.conductor.ai.model.GuardrailDef;
 import org.conductoross.conductor.ai.model.GuardrailResult;
@@ -186,7 +188,7 @@ public class AgentRuntime implements AutoCloseable {
      * @param agent the agent to compile
      * @return plan result with workflowDef and requiredWorkers
      */
-    public Map<String, Object> plan(Agent agent) {
+    public CompileResponse plan(Agent agent) {
         Map<String, Object> agentConfig = serializer.serialize(agent);
         logger.debug("Compiling agent '{}'", agent.getName());
         // Same framework-dispatch as startAsync / deploy: framework-backed
@@ -201,7 +203,7 @@ public class AgentRuntime implements AutoCloseable {
         } else {
             payload.put("agentConfig", agentConfig);
         }
-        Map<String, Object> result = agentClient.compileAgent(payload);
+        CompileResponse result = agentClient.compileAgent(payload);
         logger.info("Agent '{}' compiled successfully", agent.getName());
         return result;
     }
@@ -335,8 +337,11 @@ public class AgentRuntime implements AutoCloseable {
             if (sessionId != null && !sessionId.isEmpty()) payload.put("sessionId", sessionId);
             if (runId != null && !runId.isEmpty()) payload.put("runId", runId);
             if (staticPlan != null) payload.put("static_plan", staticPlan);
-            Map<String, Object> response = agentClient.startAgent(payload);
-            String executionId = extractExecutionId(response);
+            StartResponse response = agentClient.startAgent(payload);
+            String executionId = response.getExecutionId();
+            if (executionId == null) {
+                throw new RuntimeException("Server returned no executionId for agent '" + agent.getName() + "'");
+            }
 
             logger.info("Agent '{}' started with execution ID: {}", agent.getName(), executionId);
             return new AgentHandle(executionId, agentClient, workflowClient);
@@ -410,9 +415,8 @@ public class AgentRuntime implements AutoCloseable {
             } else {
                 payload.put("agentConfig", agentConfig);
             }
-            Map<String, Object> resp = agentClient.deployAgent(payload);
-            String registeredName =
-                    resp.getOrDefault("agentName", agent.getName()).toString();
+            StartResponse resp = agentClient.deployAgent(payload);
+            String registeredName = resp.getAgentName() != null ? resp.getAgentName() : agent.getName();
             results.add(new DeploymentInfo(registeredName, agent.getName()));
             logger.info("Deployed agent '{}' as '{}'", agent.getName(), registeredName);
         }
@@ -1008,26 +1012,5 @@ public class AgentRuntime implements AutoCloseable {
             result.put("success", false);
         }
         return result;
-    }
-
-    private String extractExecutionId(Map<String, Object> response) {
-        Object id = response.get("executionId");
-        if (id != null) return id.toString();
-
-        // Legacy fallback — older server versions may still return workflowId
-        id = response.get("workflowId");
-        if (id != null) return id.toString();
-
-        id = response.get("id");
-        if (id != null) return id.toString();
-
-        id = response.get("correlationId");
-        if (id != null) return id.toString();
-
-        if (response.size() == 1) {
-            return response.values().iterator().next().toString();
-        }
-
-        throw new RuntimeException("Cannot extract execution ID from response: " + response);
     }
 }

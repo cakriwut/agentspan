@@ -16,6 +16,7 @@ import org.conductoross.conductor.ai.enums.OnFail;
 import org.conductoross.conductor.ai.enums.Position;
 import org.conductoross.conductor.ai.enums.Strategy;
 import org.conductoross.conductor.ai.internal.ToolRegistry;
+import org.conductoross.conductor.ai.model.CompileResponse;
 import org.conductoross.conductor.ai.model.GuardrailDef;
 import org.conductoross.conductor.ai.model.GuardrailResult;
 import org.conductoross.conductor.ai.tools.HttpTool;
@@ -133,12 +134,14 @@ class Suite1BasicValidation extends BaseTest {
                 .tools(ToolRegistry.fromInstance(new MathAndGreetTools()))
                 .build();
 
-        Map<String, Object> plan = runtime.plan(agent);
+        CompileResponse plan = runtime.plan(agent);
 
-        assertTrue(plan.containsKey("workflowDef"), "plan() result missing 'workflowDef'. Got keys: " + plan.keySet());
         assertTrue(
-                plan.containsKey("requiredWorkers"),
-                "plan() result missing 'requiredWorkers'. Got keys: " + plan.keySet());
+                plan.getWorkflowDef() != null && !plan.getWorkflowDef().isEmpty(),
+                "plan() result missing 'workflowDef'. Got keys: " + "[workflowDef, requiredWorkers]");
+        assertTrue(
+                plan.getRequiredWorkers() != null,
+                "plan() result missing 'requiredWorkers'. Got keys: " + "[workflowDef, requiredWorkers]");
 
         Map<String, Object> agentDef = getAgentDef(plan);
 
@@ -192,7 +195,7 @@ class Suite1BasicValidation extends BaseTest {
                 .guardrails(List.of(customGuardrail, regexGuardrail))
                 .build();
 
-        Map<String, Object> plan = runtime.plan(agent);
+        CompileResponse plan = runtime.plan(agent);
         Map<String, Object> agentDef = getAgentDef(plan);
 
         @SuppressWarnings("unchecked")
@@ -262,7 +265,7 @@ class Suite1BasicValidation extends BaseTest {
                 .tools(List.of(credTool))
                 .build();
 
-        Map<String, Object> plan = runtime.plan(agent);
+        CompileResponse plan = runtime.plan(agent);
         Map<String, Object> agentDef = getAgentDef(plan);
 
         List<Map<String, Object>> tools = (List<Map<String, Object>>) agentDef.get("tools");
@@ -312,7 +315,7 @@ class Suite1BasicValidation extends BaseTest {
                 .strategy(Strategy.HANDOFF)
                 .build();
 
-        Map<String, Object> plan = runtime.plan(parent);
+        CompileResponse plan = runtime.plan(parent);
         Map<String, Object> agentDef = getAgentDef(plan);
 
         List<String> subNames = getSubAgentNames(agentDef);
@@ -327,7 +330,7 @@ class Suite1BasicValidation extends BaseTest {
 
         // Assert SUB_WORKFLOW task exists in the compiled workflow
         @SuppressWarnings("unchecked")
-        Map<String, Object> workflowDef = (Map<String, Object>) plan.get("workflowDef");
+        Map<String, Object> workflowDef = plan.getWorkflowDef();
         List<Map<String, Object>> allTasks = allTasksFlat(workflowDef);
         boolean hasSubWorkflow = allTasks.stream().anyMatch(t -> "SUB_WORKFLOW".equals(t.get("type")));
         assertTrue(
@@ -401,7 +404,7 @@ class Suite1BasicValidation extends BaseTest {
                 .strategy(Strategy.HANDOFF)
                 .build();
 
-        Map<String, Object> plan = runtime.plan(parent);
+        CompileResponse plan = runtime.plan(parent);
         Map<String, Object> agentDef = getAgentDef(plan);
 
         List<Map<String, Object>> compiledAgents = (List<Map<String, Object>>) agentDef.get("agents");
@@ -449,7 +452,7 @@ class Suite1BasicValidation extends BaseTest {
                 .tools(List.of(httpTool))
                 .build();
 
-        Map<String, Object> plan = runtime.plan(agent);
+        CompileResponse plan = runtime.plan(agent);
         Map<String, Object> agentDef = getAgentDef(plan);
 
         List<String> toolNames = getToolNames(agentDef);
@@ -486,7 +489,7 @@ class Suite1BasicValidation extends BaseTest {
 
         Agent pipeline = a.then(b);
 
-        Map<String, Object> plan = runtime.plan(pipeline);
+        CompileResponse plan = runtime.plan(pipeline);
         Map<String, Object> agentDef = getAgentDef(plan);
 
         assertEquals(

@@ -16,6 +16,7 @@ import org.conductoross.conductor.ai.enums.AgentStatus;
 import org.conductoross.conductor.ai.execution.DockerCodeExecutor;
 import org.conductoross.conductor.ai.execution.ExecutionResult;
 import org.conductoross.conductor.ai.model.AgentResult;
+import org.conductoross.conductor.ai.model.CompileResponse;
 import org.junit.jupiter.api.*;
 
 /**
@@ -107,7 +108,7 @@ class Suite10CodeExecution extends BaseTest {
                 .codeExecutionTimeout(30)
                 .build();
 
-        Map<String, Object> plan = runtime.plan(agent);
+        CompileResponse plan = runtime.plan(agent);
         Map<String, Object> agentDef = getAgentDef(plan);
 
         // Assert codeExecution block exists
@@ -199,8 +200,8 @@ class Suite10CodeExecution extends BaseTest {
                 .allowedLanguages(List.of("python"))
                 .build();
 
-        Map<String, Object> planA = runtime.plan(agentA);
-        Map<String, Object> planB = runtime.plan(agentB);
+        CompileResponse planA = runtime.plan(agentA);
+        CompileResponse planB = runtime.plan(agentB);
 
         Map<String, Object> adA = getAgentDef(planA);
         Map<String, Object> adB = getAgentDef(planB);
@@ -251,7 +252,7 @@ class Suite10CodeExecution extends BaseTest {
                 .allowedLanguages(List.of("python")) // bash NOT allowed
                 .build();
 
-        Map<String, Object> plan = runtime.plan(agent);
+        CompileResponse plan = runtime.plan(agent);
         Map<String, Object> agentDef = getAgentDef(plan);
 
         Map<String, Object> codeExec = (Map<String, Object>) agentDef.get("codeExecution");

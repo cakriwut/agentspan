@@ -12,6 +12,7 @@ import java.util.NoSuchElementException;
 import org.conductoross.conductor.ai.enums.AgentStatus;
 import org.conductoross.conductor.ai.enums.EventType;
 import org.conductoross.conductor.ai.internal.AgentClient;
+import org.conductoross.conductor.ai.internal.AgentStatusResponse;
 import org.conductoross.conductor.ai.internal.SseClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -98,8 +99,8 @@ public class AgentStream implements Iterable<AgentEvent>, AutoCloseable {
         long start = System.currentTimeMillis();
         while (System.currentTimeMillis() - start < timeoutMs) {
             try {
-                Map<String, Object> status = agentClient.getAgentStatus(executionId);
-                String workflowStatus = (String) status.get("status");
+                AgentStatusResponse status = agentClient.getAgentStatus(executionId);
+                String workflowStatus = status.getStatus();
                 if (workflowStatus != null && isTerminalStatus(workflowStatus)) {
                     result = buildResultFromStatus(status, workflowStatus);
                     return result;
@@ -129,9 +130,8 @@ public class AgentStream implements Iterable<AgentEvent>, AutoCloseable {
     }
 
     @SuppressWarnings("unchecked")
-    private AgentResult buildResultFromStatus(Map<String, Object> statusResponse, String workflowStatus) {
-        Object output = statusResponse.get("output");
-        if (output == null) output = statusResponse.get("result");
+    private AgentResult buildResultFromStatus(AgentStatusResponse statusResponse, String workflowStatus) {
+        Object output = statusResponse.getOutput();
 
         AgentStatus status;
         try {
@@ -142,8 +142,7 @@ public class AgentStream implements Iterable<AgentEvent>, AutoCloseable {
 
         String error = null;
         if (status != AgentStatus.COMPLETED) {
-            error = (String) statusResponse.get("reasonForIncompletion");
-            if (error == null) error = (String) statusResponse.get("error");
+            error = statusResponse.getReasonForIncompletion();
         }
 
         if (output == null) {

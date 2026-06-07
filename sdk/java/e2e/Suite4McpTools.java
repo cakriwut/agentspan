@@ -11,6 +11,7 @@ import java.util.stream.Collectors;
 import org.conductoross.conductor.ai.Agent;
 import org.conductoross.conductor.ai.AgentConfig;
 import org.conductoross.conductor.ai.AgentRuntime;
+import org.conductoross.conductor.ai.model.CompileResponse;
 import org.conductoross.conductor.ai.model.ToolDef;
 import org.conductoross.conductor.ai.tools.McpTool;
 import org.junit.jupiter.api.*;
@@ -160,7 +161,7 @@ class Suite4McpTools extends BaseTest {
                 .tools(List.of(mcp))
                 .build();
 
-        Map<String, Object> plan = runtime.plan(agent);
+        CompileResponse plan = runtime.plan(agent);
         Map<String, Object> agentDef = getAgentDef(plan);
 
         Map<String, Object> tool = findToolByName(agentDef, "e2e_s14_plan");
@@ -211,7 +212,7 @@ class Suite4McpTools extends BaseTest {
                 .tools(List.of(worker))
                 .build();
 
-        Map<String, Object> plan = runtime.plan(agent);
+        CompileResponse plan = runtime.plan(agent);
         Map<String, Object> agentDef = getAgentDef(plan);
 
         List<Map<String, Object>> tools = (List<Map<String, Object>>) agentDef.get("tools");
@@ -252,7 +253,7 @@ class Suite4McpTools extends BaseTest {
                 .tools(List.of(mcp))
                 .build();
 
-        Map<String, Object> plan = runtime.plan(agent);
+        CompileResponse plan = runtime.plan(agent);
         Map<String, Object> agentDef = getAgentDef(plan);
         Map<String, Object> tool = findToolByName(agentDef, "e2e_s14_creds_plan");
 

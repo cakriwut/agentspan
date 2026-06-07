@@ -16,6 +16,7 @@ import org.conductoross.conductor.ai.AgentRuntime;
 import org.conductoross.conductor.ai.AgentTool;
 import org.conductoross.conductor.ai.internal.AgentConfigSerializer;
 import org.conductoross.conductor.ai.model.AgentResult;
+import org.conductoross.conductor.ai.model.CompileResponse;
 import org.conductoross.conductor.ai.model.ToolDef;
 import org.conductoross.conductor.ai.skill.Skill;
 import org.conductoross.conductor.ai.skill.SkillLoadError;
@@ -271,11 +272,11 @@ class Suite15Skills extends BaseTest {
                 "Plain wire payload must NOT carry agentFiles. Got keys: " + plainWire.keySet());
 
         // Final integration check: the server accepts the skill payload and returns a valid plan.
-        Map<String, Object> plan = runtime.plan(skillAgent);
+        CompileResponse plan = runtime.plan(skillAgent);
         assertNotNull(plan, "Skill plan() should return a non-null result.");
         assertNotNull(
-                plan.get("workflowDef"),
-                "Skill plan().workflowDef must be present. plan keys: " + plan.keySet()
+                plan.getWorkflowDef(),
+                "Skill plan().workflowDef must be present. plan keys: " + "[workflowDef, requiredWorkers]"
                         + ". COUNTERFACTUAL: if the server rejected the skill payload, this would throw or return null.");
     }
 
@@ -602,9 +603,9 @@ class Suite15Skills extends BaseTest {
                 .tools(List.of(skillTool))
                 .build();
 
-        Map<String, Object> plan = runtime.plan(parent);
+        CompileResponse plan = runtime.plan(parent);
         assertNotNull(plan, "plan() must return a non-null result for skill-in-agent_tool parent.");
-        Map<String, Object> workflowDef = (Map<String, Object>) plan.get("workflowDef");
+        Map<String, Object> workflowDef = plan.getWorkflowDef();
         assertNotNull(
                 workflowDef, "workflowDef must be present. COUNTERFACTUAL: if compilation failed, this would be null.");
 
@@ -622,8 +623,8 @@ class Suite15Skills extends BaseTest {
                 .model(MODEL)
                 .instructions("Plain.")
                 .build();
-        Map<String, Object> plainPlan = runtime.plan(plainParent);
-        Map<String, Object> plainWf = (Map<String, Object>) plainPlan.get("workflowDef");
+        CompileResponse plainPlan = runtime.plan(plainParent);
+        Map<String, Object> plainWf = plainPlan.getWorkflowDef();
         assertFalse(
                 plainWf.toString().contains("test_skill_e2e_s17"),
                 "A parent without the skill tool must not reference the skill name. "

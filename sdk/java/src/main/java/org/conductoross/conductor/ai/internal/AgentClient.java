@@ -3,11 +3,11 @@
 
 package org.conductoross.conductor.ai.internal;
 
-import java.util.HashMap;
 import java.util.Map;
 
 import org.conductoross.conductor.ai.exceptions.AgentAPIException;
 import org.conductoross.conductor.ai.exceptions.AgentNotFoundException;
+import org.conductoross.conductor.ai.model.CompileResponse;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.netflix.conductor.client.exception.ConductorClientException;
@@ -19,10 +19,10 @@ import com.netflix.conductor.client.http.ConductorClientResponse;
 /**
  * Client for agentspan's proprietary agent control-plane ({@code /api/agent/*}).
  *
- * <p>Strictly scoped to the five agentspan-specific endpoints: compile, deploy,
- * start, status, and respond. Standard Conductor endpoints (workflows, tasks,
- * metadata) are handled by the Conductor SDK's own typed clients
- * ({@code WorkflowClient}, {@code TaskClient}, {@code MetadataClient}).
+ * <p>Strictly scoped to five endpoints — compile, deploy, start, status, respond.
+ * Standard Conductor endpoints ({@code /api/workflow/*}, {@code /api/tasks}, etc.)
+ * are handled by the Conductor SDK's own typed clients ({@code WorkflowClient},
+ * {@code TaskClient}, {@code MetadataClient}).
  *
  * <p>Every request goes through the shared {@link ConductorClient}'s native HTTP +
  * auth + serialization layer ({@link ConductorClientRequest} →
@@ -35,7 +35,9 @@ import com.netflix.conductor.client.http.ConductorClientResponse;
  */
 public class AgentClient {
 
-    private static final TypeReference<Map<String, Object>> MAP_TYPE = new TypeReference<Map<String, Object>>() {};
+    private static final TypeReference<CompileResponse> COMPILE_TYPE = new TypeReference<CompileResponse>() {};
+    private static final TypeReference<StartResponse> START_TYPE = new TypeReference<StartResponse>() {};
+    private static final TypeReference<AgentStatusResponse> STATUS_TYPE = new TypeReference<AgentStatusResponse>() {};
 
     protected final ConductorClient client;
 
@@ -44,31 +46,31 @@ public class AgentClient {
     }
 
     /** {@code POST /api/agent/compile} — compile agent config to a workflow def. */
-    public Map<String, Object> compileAgent(Map<String, Object> payload) {
-        return postForMap("/agent/compile", payload);
+    public CompileResponse compileAgent(Map<String, Object> payload) {
+        return post("/agent/compile", payload, COMPILE_TYPE);
     }
 
     /** {@code POST /api/agent/deploy} — compile + register, no execution. */
-    public Map<String, Object> deployAgent(Map<String, Object> payload) {
-        return postForMap("/agent/deploy", payload);
+    public StartResponse deployAgent(Map<String, Object> payload) {
+        return post("/agent/deploy", payload, START_TYPE);
     }
 
     /** {@code POST /api/agent/start} — compile + register + start an execution. */
-    public Map<String, Object> startAgent(Map<String, Object> payload) {
-        return postForMap("/agent/start", payload);
+    public StartResponse startAgent(Map<String, Object> payload) {
+        return post("/agent/start", payload, START_TYPE);
     }
 
     /** {@code GET /api/agent/{executionId}/status} — fetch execution status. */
-    public Map<String, Object> getAgentStatus(String executionId) {
+    public AgentStatusResponse getAgentStatus(String executionId) {
         ConductorClientRequest req = ConductorClientRequest.builder()
                 .method(Method.GET)
                 .path("/agent/{executionId}/status")
                 .addPathParam("executionId", executionId)
                 .build();
-        return executeForMap(req);
+        return executeFor(req, STATUS_TYPE);
     }
 
-    /** {@code POST /api/agent/{executionId}/respond} — respond to a waiting agent. */
+    /** {@code POST /api/agent/{executionId}/respond} — respond to a waiting HITL task. */
     public void respond(String executionId, Map<String, Object> body) {
         ConductorClientRequest req = ConductorClientRequest.builder()
                 .method(Method.POST)
@@ -85,20 +87,19 @@ public class AgentClient {
 
     // ── internals ──────────────────────────────────────────────────────────
 
-    private Map<String, Object> postForMap(String path, Map<String, Object> payload) {
+    private <T> T post(String path, Map<String, Object> payload, TypeReference<T> type) {
         ConductorClientRequest req = ConductorClientRequest.builder()
                 .method(Method.POST)
                 .path(path)
                 .body(payload)
                 .build();
-        return executeForMap(req);
+        return executeFor(req, type);
     }
 
-    private Map<String, Object> executeForMap(ConductorClientRequest req) {
+    private <T> T executeFor(ConductorClientRequest req, TypeReference<T> type) {
         try {
-            ConductorClientResponse<Map<String, Object>> resp = client.execute(req, MAP_TYPE);
-            Map<String, Object> data = resp.getData();
-            return data != null ? data : new HashMap<>();
+            ConductorClientResponse<T> resp = client.execute(req, type);
+            return resp.getData();
         } catch (ConductorClientException e) {
             throw mapException(e);
         }
