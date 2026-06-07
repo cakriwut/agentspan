@@ -78,6 +78,6 @@ ChatModel model = OpenAiChatModel.builder()
     .build();
 
 Agent agent = LangChainBridge.agentBuilder("lc_agent", model, "You are helpful.")
-    .tools(AgentTool.from(new SearchTools()))
+    .tools(ToolRegistry.fromInstance(new SearchTools()))
     .build();
 ```

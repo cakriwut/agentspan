@@ -4,11 +4,11 @@ Tools give agents the ability to take actions. In Agentspan, each tool invocatio
 
 ## Java method tools (`@Tool`)
 
-Annotate methods with `@Tool` and wrap the containing object with `AgentTool.from()`:
+Annotate methods with `@Tool` and convert the containing object to tools with `ToolRegistry.fromInstance()` (returns a `List<ToolDef>`, one per annotated method):
 
 ```java
 import org.conductoross.conductor.ai.annotations.Tool;
-import org.conductoross.conductor.ai.AgentTool;
+import org.conductoross.conductor.ai.internal.ToolRegistry;
 import org.conductoross.conductor.ai.model.ToolContext;
 
 public class SearchTools {
@@ -27,7 +27,7 @@ public class SearchTools {
 Agent agent = Agent.builder()
     .name("research_agent")
     .model("openai/gpt-4o-mini")
-    .tools(AgentTool.from(new SearchTools()))
+    .tools(ToolRegistry.fromInstance(new SearchTools()))
     .build();
 ```
 
@@ -53,7 +53,7 @@ Inject `ToolContext` as the last parameter to access execution metadata, session
 ```java
 @Tool(name = "send_email", description = "Send an email")
 public String sendEmail(String to, String subject, String body, ToolContext ctx) {
-    String apiKey = Credentials.get("SENDGRID_API_KEY", ctx);
+    String apiKey = Credentials.get("SENDGRID_API_KEY");
     String executionId = ctx.getExecutionId();
     // ...
 }
@@ -67,7 +67,7 @@ Declare which secrets a tool needs via `Agent.builder().credentials(...)`. The S
 Agent agent = Agent.builder()
     .name("github_agent")
     .credentials("GITHUB_TOKEN")
-    .tools(AgentTool.from(new GitHubTools()))
+    .tools(ToolRegistry.fromInstance(new GitHubTools()))
     .build();
 
 // Store the secret once via the CLI or API:
@@ -120,14 +120,13 @@ ToolDef mcpTool = McpTool.builder()
 Run shell commands as tool calls. The command runs in your local process; the agent decides the arguments.
 
 ```java
-import org.conductoross.conductor.ai.tools.CliConfig;
+import org.conductoross.conductor.ai.execution.CliConfig;
 
 Agent agent = Agent.builder()
     .name("devops_agent")
     .model("openai/gpt-4o-mini")
     .instructions("Run git commands as requested.")
     .cliConfig(CliConfig.builder()
-        .command("git")
         .allowedCommands(List.of("git status", "git log", "git diff"))
         .timeout(30)
         .build())

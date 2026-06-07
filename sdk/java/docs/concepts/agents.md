@@ -33,17 +33,17 @@ Every field below is optional.
 | `maxTokens(int)` | `int` | `null` | LLM `max_tokens`. |
 | `temperature(double)` | `double` | `null` | LLM sampling temperature. |
 | `thinkingBudgetTokens(int)` | `int` | `null` | Extended thinking budget (Anthropic only). |
-| `timeoutSeconds(int)` | `int` | `600` | Overall agent execution timeout. |
+| `timeoutSeconds(int)` | `int` | `0` | Overall agent execution timeout. `0` lets the server apply its own default. |
 
 ### Tools
 
 ```java
-import org.conductoross.conductor.ai.AgentTool;
+import org.conductoross.conductor.ai.internal.ToolRegistry;
 
 Agent agent = Agent.builder()
     .name("tool_agent")
     .model("openai/gpt-4o-mini")
-    .tools(AgentTool.from(new MyTools()))          // from @Tool-annotated POJO
+    .tools(ToolRegistry.fromInstance(new MyTools()))          // from @Tool-annotated POJO
     .tools(HttpTool.builder()
         .name("search")
         .url("https://api.example.com/search")
@@ -71,15 +71,22 @@ See [Multi-Agent](multi-agent.md) for all strategies.
 ### Guardrails
 
 ```java
-import org.conductoross.conductor.ai.guardrail.GuardrailDef;
+import org.conductoross.conductor.ai.guardrail.RegexGuardrail;
+import org.conductoross.conductor.ai.guardrail.LLMGuardrail;
+import org.conductoross.conductor.ai.enums.Position;
+import org.conductoross.conductor.ai.enums.OnFail;
 
 Agent agent = Agent.builder()
     .name("safe_agent")
     .model("openai/gpt-4o-mini")
     .guardrails(
-        GuardrailDef.regex("no_phone", Position.OUTPUT, "\\d{10}", OnFail.BLOCK),
-        GuardrailDef.llm("tone_check", Position.OUTPUT, "Is the tone professional?")
-    )
+        RegexGuardrail.builder()
+            .name("no_phone").position(Position.OUTPUT)
+            .patterns("\\d{10}").onFail(OnFail.RAISE).build(),
+        LLMGuardrail.builder()
+            .name("tone_check").position(Position.OUTPUT)
+            .model("openai/gpt-4o-mini").policy("The tone must be professional.")
+            .onFail(OnFail.RETRY).build())
     .build();
 ```
 
@@ -98,7 +105,7 @@ Agent agent = Agent.builder()
 
 // In the tool:
 public String createIssue(String title, ToolContext ctx) {
-    String token = Credentials.get("GITHUB_TOKEN", ctx);
+    String token = Credentials.get("GITHUB_TOKEN");
     // ...
 }
 ```
@@ -170,7 +177,7 @@ try (AgentRuntime runtime = new AgentRuntime()) {
 | `startAsync(agent, prompt)` | `CompletableFuture<AgentHandle>` | Non-blocking start. |
 | `stream(agent, prompt)` | `AgentStream` | Blocking iterator over events. |
 | `streamAsync(agent, prompt)` | `CompletableFuture<AgentStream>` | Non-blocking stream. |
-| `plan(agent)` | `Map<String,Object>` | Compile only — returns the workflow definition without executing. |
+| `plan(agent)` | `CompileResponse` | Compile only — returns `getWorkflowDef()` + `getRequiredWorkers()` without executing. |
 | `deploy(Agent...)` | `List<DeploymentInfo>` | Register workflow definitions without running them. |
 | `serve(Agent...)` | `void` | Long-running worker mode — keeps polling indefinitely. |
 | `resume(executionId, agent)` | `AgentHandle` | Resume a suspended execution. |
@@ -181,7 +188,7 @@ try (AgentRuntime runtime = new AgentRuntime()) {
 ```java
 AgentResult result = runtime.run(agent, "prompt");
 
-result.getOutput();          // String — final LLM output
+result.getOutput();          // Object — final LLM output (String or structured object)
 result.getStatus();          // AgentStatus.COMPLETED / FAILED / TERMINATED / TIMED_OUT
 result.getExecutionId();     // String — Conductor workflow ID
 result.getToolCalls();       // List<Map<String,Object>> — all tool invocations

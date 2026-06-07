@@ -299,7 +299,7 @@ The agent definition serialized under the `agentConfig` key by `AgentConfigSeria
 | `instructions` | `String \| Object` | System prompt or `PromptTemplateRef`. |
 | `tools` | `List<ToolConfig>` | Tool definitions. |
 | `agents` | `List<AgentConfig>` | Sub-agents (for multi-agent strategies). |
-| `strategy` | `String` | `"handoff"` (default), `"sequential"`, `"parallel"`, `"router"`, `"swarm"`, `"plan_execute"`, `"manual"`. |
+| `strategy` | `String` | `"handoff"` (default), `"sequential"`, `"parallel"`, `"router"`, `"swarm"`, `"round_robin"`, `"random"`, `"plan_execute"`, `"manual"`. |
 | `router` | `AgentConfig \| WorkerRef` | For `"router"` strategy. |
 | `guardrails` | `List<GuardrailConfig>` | Input/output guardrails. |
 | `maxTurns` | `int` | Default `100`. |

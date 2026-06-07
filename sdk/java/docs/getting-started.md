@@ -4,7 +4,7 @@
 
 - Java 21+
 - Gradle 7+ or Maven 3.6+
-- A running Agentspan server — see [self-hosting](../../self-hosting.md) or start one locally:
+- A running Agentspan server — see [self-hosting](../self-hosting.md) or start one locally:
 
 ```bash
 docker run -p 6767:6767 agentspan/server:latest
@@ -81,9 +81,8 @@ try (AgentRuntime runtime = new AgentRuntime()) {
 Tools are Java methods wrapped as Conductor worker tasks. The method runs locally in your process; the agent calls it remotely via Conductor.
 
 ```java
-import org.conductoross.conductor.ai.AgentTool;
+import org.conductoross.conductor.ai.internal.ToolRegistry;
 import org.conductoross.conductor.ai.annotations.Tool;
-import org.conductoross.conductor.ai.model.ToolContext;
 
 public class WeatherTools {
 
@@ -98,7 +97,7 @@ Agent agent = Agent.builder()
     .name("weather_agent")
     .model("openai/gpt-4o-mini")
     .instructions("Answer weather questions using the get_weather tool.")
-    .tools(AgentTool.from(new WeatherTools()))
+    .tools(ToolRegistry.fromInstance(new WeatherTools()))
     .build();
 
 try (AgentRuntime runtime = new AgentRuntime()) {

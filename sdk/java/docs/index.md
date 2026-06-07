@@ -20,7 +20,7 @@ Build durable AI agents in Java, backed by [Conductor](https://conductor.netflix
     </dependency>
     ```
 
-**Requirements:** Java 21+ · Agentspan server (see [self-hosting](../../self-hosting.md))
+**Requirements:** Java 21+ · Agentspan server (see [self-hosting](../self-hosting.md))
 
 ## Hello World
 

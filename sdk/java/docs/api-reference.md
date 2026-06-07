@@ -47,7 +47,7 @@ CompletableFuture<AgentStream>  streamAsync(Agent agent, String prompt)
 ### Deploy / serve
 
 ```java
-Map<String,Object>         plan(Agent agent)                    // compile only, no run
+CompileResponse            plan(Agent agent)                    // compile only, no run
 List<DeploymentInfo>       deploy(Agent... agents)
 DeploymentInfo             deploy(Agent agent, List<Schedule> schedules)
 CompletableFuture<List<DeploymentInfo>>  deployAsync(Agent... agents)
@@ -88,7 +88,7 @@ Agent.builder()
     .maxTokens(int)
     .temperature(double)
     .thinkingBudgetTokens(int)             // Anthropic extended thinking
-    .timeoutSeconds(int)                   // default 600
+    .timeoutSeconds(int)                   // default 0 (server applies its own default)
 
     // Tools
     .tools(List<ToolDef>)
@@ -159,7 +159,8 @@ Agent.builder()
 ## AgentResult
 
 ```java
-String                   getOutput()
+Object                   getOutput()        // final LLM output (String or structured object)
+<T> T                    getOutput(Class<T> type)   // deserialize structured output
 AgentStatus              getStatus()        // COMPLETED | FAILED | TERMINATED | TIMED_OUT
 String                   getExecutionId()
 List<Map<String,Object>> getToolCalls()
@@ -167,7 +168,6 @@ List<AgentEvent>         getEvents()
 TokenUsage               getTokenUsage()
 boolean                  isSuccess()
 String                   getError()
-Map<String,Object>       getRawResult()
 ```
 
 ---
@@ -179,10 +179,11 @@ String       getExecutionId()
 AgentResult  waitForResult()                             // blocks; default 600s timeout
 AgentResult  waitForResult(long timeoutMs, long pollMs)  // explicit timeout
 boolean      waitUntilWaiting(long timeoutMs)            // wait for HITL pause
+boolean      isWaiting()                                 // true if a HITL task is paused
 void         approve()
 void         approve(String comment)
-void         reject()
 void         reject(String reason)
+void         respond(Map<String,Object> data)            // arbitrary HITL response (MANUAL strategy)
 ```
 
 ---
@@ -212,9 +213,12 @@ stream.reject(event, "reason");
 ## Tool builders
 
 ```java
-// Java method tools
-AgentTool.from(Object pojo)                            // @Tool-annotated methods
-AgentTool.from(Object pojo, String toolName)           // specific method
+// @Tool-annotated POJO → list of worker tools
+ToolRegistry.fromInstance(Object pojo)                 // returns List<ToolDef>
+
+// Sub-agent as a tool
+AgentTool.from(Agent agent)
+AgentTool.from(Agent agent, String description)
 
 // HTTP
 HttpTool.builder().name(String).description(String).url(String).method(String).build()
@@ -272,11 +276,12 @@ Schedules schedules = runtime.schedules();
 schedules.save(Schedule schedule, String agentName)
 schedules.get(String wireName)                         // → ScheduleInfo
 schedules.list(String agentName)                       // → List<ScheduleInfo>
-schedules.runNow(String wireName)
+schedules.runNow(ScheduleInfo info)                    // → String executionId
 schedules.pause(String wireName)
+schedules.pause(String wireName, String reason)
 schedules.resume(String wireName)
 schedules.delete(String wireName)
-schedules.nextNExecutions(String wireName, int n)      // → List<Long> (epoch ms)
+schedules.previewNext(String cron, int n)              // → List<Long> (epoch ms)
 
 // Schedule.builder()
 Schedule.builder()
@@ -298,8 +303,8 @@ Schedule.builder()
 
 ```java
 // In a @Tool method (ToolContext required as last param):
-String value = Credentials.get("SECRET_NAME", ctx);
-String value = Credentials.getOrNull("SECRET_NAME", ctx);  // null if not found
+String value = Credentials.get("SECRET_NAME");
+String value = Credentials.getOrNull("SECRET_NAME");  // null if not found
 
 // Store via CLI:
 // agentspan secrets set SECRET_NAME value

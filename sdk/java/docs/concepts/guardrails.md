@@ -2,10 +2,17 @@
 
 Guardrails validate or modify agent input and output. They run before the agent sees a message (`INPUT`) or after the agent produces a response (`OUTPUT`).
 
+There are three kinds, each with its own builder — all produce a `GuardrailDef`:
+
+- `RegexGuardrail.builder()` — pattern matching (`guardrailType="regex"`)
+- `LLMGuardrail.builder()` — LLM-judged policy (`guardrailType="llm"`)
+- `GuardrailDef.builder().func(...)` — a custom Java function (`guardrailType="custom"`)
+
 ## Quick example
 
 ```java
-import org.conductoross.conductor.ai.guardrail.GuardrailDef;
+import org.conductoross.conductor.ai.guardrail.RegexGuardrail;
+import org.conductoross.conductor.ai.guardrail.LLMGuardrail;
 import org.conductoross.conductor.ai.enums.OnFail;
 import org.conductoross.conductor.ai.enums.Position;
 
@@ -13,57 +20,89 @@ Agent agent = Agent.builder()
     .name("safe_agent")
     .model("openai/gpt-4o-mini")
     .guardrails(
-        // Block output that contains a phone number pattern
-        GuardrailDef.regex("no_phone_numbers", Position.OUTPUT,
-            "\\b\\d{3}[-.]?\\d{3}[-.]?\\d{4}\\b", OnFail.BLOCK),
+        // Block output containing a phone-number pattern
+        RegexGuardrail.builder()
+            .name("no_phone_numbers")
+            .position(Position.OUTPUT)
+            .patterns("\\b\\d{3}[-.]?\\d{3}[-.]?\\d{4}\\b")
+            .onFail(OnFail.RAISE)
+            .build(),
 
-        // Ask the LLM to check tone; fix if wrong
-        GuardrailDef.llm("professional_tone", Position.OUTPUT,
-            "Is the response professional and free of slang?", OnFail.FIX)
-    )
+        // Ask an LLM to enforce a policy; retry the turn if it fails
+        LLMGuardrail.builder()
+            .name("professional_tone")
+            .position(Position.OUTPUT)
+            .model("openai/gpt-4o-mini")
+            .policy("The response must be professional and free of slang.")
+            .onFail(OnFail.RETRY)
+            .build())
     .build();
 ```
 
 ## Guardrail types
 
-### Regex
+### Regex — `RegexGuardrail`
 
-Match a pattern and take action if found (or not found).
-
-```java
-GuardrailDef.regex(
-    "name",             // guardrail ID
-    Position.OUTPUT,    // INPUT or OUTPUT
-    "\\bpassword\\b",   // Java regex pattern
-    OnFail.BLOCK        // what to do on match
-)
-```
-
-### LLM
-
-Ask a language model to evaluate the content. The model answers a yes/no question.
+Match one or more patterns against the content.
 
 ```java
-GuardrailDef.llm(
-    "safe_content",
-    Position.OUTPUT,
-    "Does the response contain harmful or offensive content?",
-    OnFail.BLOCK
-)
+RegexGuardrail.builder()
+    .name("no_secrets")
+    .position(Position.OUTPUT)
+    .patterns("password", "secret", "api[_-]?key")   // varargs or List<String>
+    .message("Output blocked: contained a secret")    // optional
+    .onFail(OnFail.RAISE)
+    .build();
 ```
 
-### Custom (Java function)
+### LLM — `LLMGuardrail`
 
-Write a `GuardrailDef` with a Java function for full control:
+Ask a language model to evaluate the content against a policy.
 
 ```java
-GuardrailDef custom = GuardrailDef.of("length_check", Position.OUTPUT, content -> {
-    if (content.length() > 5000) {
-        return GuardrailResult.fail("Response too long: " + content.length() + " chars");
-    }
-    return GuardrailResult.pass();
-});
+LLMGuardrail.builder()
+    .name("safe_content")
+    .position(Position.OUTPUT)
+    .model("openai/gpt-4o-mini")
+    .policy("Reject any harmful, offensive, or unsafe content.")
+    .onFail(OnFail.RAISE)
+    .build();
 ```
+
+### Custom — `GuardrailDef.builder().func(...)`
+
+Provide a `Function<String, GuardrailResult>` for full control. Runs as a local Conductor worker.
+
+```java
+import org.conductoross.conductor.ai.model.GuardrailDef;
+import org.conductoross.conductor.ai.model.GuardrailResult;
+
+GuardrailDef.builder()
+    .name("length_check")
+    .position(Position.OUTPUT)
+    .func(content -> {
+        if (content.length() > 5000) {
+            return GuardrailResult.fail("Response too long: " + content.length() + " chars");
+        }
+        return GuardrailResult.pass();
+    })
+    .onFail(OnFail.RAISE)
+    .build();
+```
+
+## Common builder options
+
+| Method | Available on | Default | Description |
+|---|---|---|---|
+| `name(String)` | all | **required** | Guardrail ID. |
+| `position(Position)` | all | `OUTPUT` | `INPUT` or `OUTPUT`. |
+| `onFail(OnFail)` | all | `RAISE` | Action when the guardrail fails. |
+| `maxRetries(int)` | all | `3` | Retry budget when `onFail == RETRY`. |
+| `patterns(String...)` / `patterns(List<String>)` | `RegexGuardrail` | — | Regex patterns to match. |
+| `message(String)` | `RegexGuardrail` | — | Custom failure message. |
+| `model(String)` | `LLMGuardrail` | — | Judge model, `"provider/model"`. |
+| `policy(String)` | `LLMGuardrail` | — | Policy the content must satisfy. |
+| `func(Function<String,GuardrailResult>)` | `GuardrailDef` | — | The check, for custom guardrails. |
 
 ## Positions
 
@@ -76,13 +115,14 @@ GuardrailDef custom = GuardrailDef.of("length_check", Position.OUTPUT, content -
 
 | Constant | Effect |
 |---|---|
-| `OnFail.BLOCK` | Terminate the agent run with an error |
+| `OnFail.RAISE` | Terminate the agent run with an error (default) |
+| `OnFail.RETRY` | Re-run the LLM turn, up to `maxRetries` times |
 | `OnFail.FIX` | Ask the LLM to rewrite the output to pass the guardrail |
-| `OnFail.WARN` | Log a warning but continue |
+| `OnFail.HUMAN` | Pause for human review (HITL) |
 
 ## GuardrailResult
 
-Custom guardrails return `GuardrailResult`:
+Custom (`func`) guardrails return `GuardrailResult`:
 
 ```java
 GuardrailResult.pass()                         // guardrail passed

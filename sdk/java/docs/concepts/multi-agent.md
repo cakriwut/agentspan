@@ -11,6 +11,8 @@ Agentspan has one primitive — `Agent` — and multiple strategies for composin
 | `HANDOFF` | Sub-agent is called as a tool; parent LLM decides when and which | Dynamic routing by LLM |
 | `ROUTER` | A dedicated router agent decides which sub-agent runs | Rule-based or LLM-based routing |
 | `SWARM` | Any agent can transfer control to another based on triggers | Open-ended conversation routing |
+| `ROUND_ROBIN` | Sub-agents take turns in a fixed cycle | Structured multi-agent discussions |
+| `RANDOM` | A randomly-selected sub-agent runs each turn | Varied multi-agent discussions |
 | `PLAN_EXECUTE` | A planner agent produces a structured plan; steps execute against it | Complex multi-step tasks with dependencies |
 | `MANUAL` | No automatic orchestration; you drive the loop | Custom control flow |
 
@@ -163,17 +165,24 @@ A planner agent produces a structured `Plan`; a separate executor runs each step
 ```java
 import org.conductoross.conductor.ai.plans.*;
 
+// Each Op names a tool/worker and passes args. Use new Ref("stepId") to wire a
+// later step's input to an earlier step's output. For an LLM-generated step,
+// pass a Generate spec: .generate(Generate.builder().instructions("...").build()).
 Plan plan = Plan.builder()
     .step(Step.builder("fetch_data")
         .operation(Op.builder("get_data").args(Map.of("source", "database")).build())
         .build())
     .step(Step.builder("analyse")
-        .operation(Op.builder("analyse_data").generate(true).build())
         .dependsOn("fetch_data")
+        .operation(Op.builder("analyse_data")
+            .args(Map.of("rows", new Ref("fetch_data")))   // consumes fetch_data's output
+            .build())
         .build())
     .step(Step.builder("summarise")
-        .operation(Op.builder("summarise").generate(true).build())
         .dependsOn("analyse")
+        .operation(Op.builder("summarise")
+            .args(Map.of("analysis", new Ref("analyse")))
+            .build())
         .build())
     .build();
 

@@ -48,15 +48,18 @@ List<ScheduleInfo> all = schedules.list("daily_report");
 // Get a specific schedule by its wire name (agent-name-schedule-name)
 ScheduleInfo info = schedules.get("daily_report-daily");
 
-// Trigger immediately (ignores cron timing)
-schedules.runNow("daily_report-daily");
+// Trigger immediately (ignores cron timing) — runNow takes the ScheduleInfo
+String executionId = schedules.runNow(info);
 
-// Pause and resume
+// Pause and resume (by wire name)
 schedules.pause("daily_report-daily");
 schedules.resume("daily_report-daily");
 
-// Delete
+// Delete (by wire name)
 schedules.delete("daily_report-daily");
+
+// Preview the next N fire times for a cron expression
+List<Long> next = schedules.previewNext("0 9 * * *", 5);   // epoch millis
 ```
 
 ## Schedule.builder() options

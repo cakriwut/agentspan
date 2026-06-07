@@ -221,7 +221,7 @@ try (AgentStream stream = runtime.stream(agent, "Tell me a story")) {
 | `getContent()` | `String` | Message text or thinking content |
 | `getToolName()` | `String` | Tool name for `TOOL_CALL`/`TOOL_RESULT` |
 | `getArgs()` | `Map<String,Object>` | Tool arguments for `TOOL_CALL` |
-| `getResult()` | `String` | Tool result for `TOOL_RESULT` |
+| `getResult()` | `Object` | Tool result for `TOOL_RESULT` |
 | `getExecutionId()` | `String` | Execution that emitted this event |
 
 **HITL approval from a stream** — use the event-targeted overloads so sub-execution approvals route correctly:
@@ -327,8 +327,8 @@ Access the scheduling API lazily (created on first call, shared thereafter).
 ```java
 Schedules schedules = runtime.schedules();
 
-schedules.list("my_agent");          // List<ScheduleInfo>
-schedules.runNow("my_agent-daily");  // trigger immediately
+schedules.list("my_agent");                       // List<ScheduleInfo>
+schedules.runNow(schedules.get("my_agent-daily")); // trigger immediately (takes ScheduleInfo)
 schedules.pause("my_agent-daily");
 schedules.resume("my_agent-daily");
 schedules.delete("my_agent-daily");

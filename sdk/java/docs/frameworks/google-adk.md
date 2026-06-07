@@ -50,9 +50,16 @@ try (AgentRuntime runtime = new AgentRuntime()) {
 If you want to mix ADK agent structure with Agentspan-only features (guardrails, credentials, callbacks), use `agentBuilder()` which returns an `Agent.Builder` you can continue configuring:
 
 ```java
+import org.conductoross.conductor.ai.guardrail.RegexGuardrail;
+import org.conductoross.conductor.ai.enums.Position;
+import org.conductoross.conductor.ai.enums.OnFail;
+
 Agent agent = AdkBridge.agentBuilder(adkAgent)
     .credentials("WEATHER_API_KEY")
-    .guardrails(GuardrailDef.regex("no_pii", Position.OUTPUT, "\\b\\d{3}-\\d{2}-\\d{4}\\b", OnFail.BLOCK))
+    .guardrails(RegexGuardrail.builder()
+        .name("no_pii").position(Position.OUTPUT)
+        .patterns("\\b\\d{3}-\\d{2}-\\d{4}\\b")   // SSN-like
+        .onFail(OnFail.RAISE).build())
     .maxTurns(10)
     .build();
 ```
