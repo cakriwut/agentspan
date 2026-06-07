@@ -1,153 +1,88 @@
-# Agent — Field Reference and Cross-Layer Proof
+# Agent — Field Reference
 
-This page documents every field on `Agent`, the JSON key it produces on the wire, the corresponding server-side `AgentConfig` field it maps to, and its Python SDK equivalent. It is the authoritative source for understanding what the Java `Agent.builder()` actually sends to the server.
+`Agent` is the declarative configuration you build with `Agent.builder()`. Each field
+below lists its builder method, the JSON key it serializes to, and any behavior notes.
 
----
+## Fields
 
-## Field mapping table
-
-| Java field | Builder method | JSON key | Server `AgentConfig` field | Python field | Notes |
-|---|---|---|---|---|---|
-| `name` | `name(String)` | `"name"` | `name` | `name` | Required. Pattern: `^[a-zA-Z_][a-zA-Z0-9_-]*$` |
-| `model` | `model(String)` | `"model"` | `model` | `model` | `"provider/model"` format. Omitted for external agents. |
-| `instructions` | `instructions(String)` | `"instructions"` | `instructions` | `instructions` | Overridden by `instructionsTemplate` if set. |
-| `instructionsTemplate` | `instructionsTemplate(PromptTemplate)` | `"instructions"` (structured) | `instructions` | _(server-managed prompt)_ | Emitted as a `PromptTemplateRef` map instead of a string. Takes precedence over plain instructions. |
-| `introduction` | `introduction(String)` | `"introduction"` | `introduction` | `introduction` | Prepended before the first user message in multi-agent discussions. |
-| `tools` | `tools(ToolDef...)` | `"tools"` | `tools` | `tools` | List of `ToolConfig` maps. Worker tools use `{_worker_ref, description, parameters}` shape for framework agents. |
-| `agents` | `agents(Agent...)` | `"agents"` | `agents` | `agents` | Sub-agents; recursive serialization. Strategy must also be set. |
-| `strategy` | `strategy(Strategy)` | `"strategy"` | `strategy` | `strategy` | Only emitted when `agents` or `planner`/`fallback` slots are present. Default `HANDOFF`. |
-| `router` | `router(Agent)` | `"router"` | `router` | _(callable or Agent)_ | For `ROUTER` strategy. Serialized as nested AgentConfig. |
-| `guardrails` | `guardrails(GuardrailDef...)` | `"guardrails"` | `guardrails` | `guardrails` | List of guardrail configs. |
-| `maxTurns` | `maxTurns(int)` | `"maxTurns"` | `maxTurns` | `max_turns` | Default 25 in Java builder; server default 100. Only emitted if > 0. |
-| `maxTokens` | `maxTokens(int)` | `"maxTokens"` | `maxTokens` | `max_tokens` | Optional LLM token cap. |
-| `temperature` | `temperature(double)` | `"temperature"` | `temperature` | `temperature` | Optional. |
-| `timeoutSeconds` | `timeoutSeconds(int)` | `"timeoutSeconds"` | `timeoutSeconds` | `timeout_seconds` | Always emitted (including `0`). Default 0 → server applies its own default. |
-| `termination` | `termination(TerminationCondition)` | `"termination"` | `termination` | `termination` | `MaxMessageTermination`, `StopMessageTermination`, etc. |
-| `outputType` | `outputType(Class<?>)` | `"outputType"` | `outputType` | `output_type` | Structured output class name. |
-| `handoffs` | `handoffs(Handoff...)` | `"handoffs"` | `handoffs` | `handoffs` | SWARM handoff triggers: `OnTextMention`, `OnToolResult`, `OnCondition`. |
-| `allowedTransitions` | `allowedTransitions(Map)` | `"allowedTransitions"` | `allowedTransitions` | `allowed_transitions` | SWARM: restricts which agents can transfer to which. |
-| `credentials` | `credentials(String...)` | `"credentials"` | `credentials` | `credentials` | Credential names fetched from secrets store at runtime. |
-| `requiredTools` | `requiredTools(String...)` | `"requiredTools"` | `requiredTools` | `required_tools` | Tool names that must be called during the run. |
-| `metadata` | `metadata(Map)` | `"metadata"` | `metadata` | `metadata` | Arbitrary key-value stored with the workflow definition. |
-| `synthesize` | `synthesize(boolean)` | `"synthesize"` | `synthesize` | `synthesize` | Only emitted when **false** (default true is assumed by server). |
-| `stateful` | `stateful(boolean)` | `"stateful"` | _(no dedicated server field — handled via domain isolation)_ | `stateful` | Emitted as `"stateful": true` in agentConfig. Also triggers `runId` generation in `AgentRuntime`. |
-| `sessionId` | `sessionId(String)` | `"sessionId"` | _(not a dedicated server AgentConfig field)_ | _(execution param)_ | Emitted inside `agentConfig` AND as a top-level `AgentRequest` field. Server reads it from each context. |
-| `baseUrl` | `baseUrl(String)` | `"baseUrl"` | `baseUrl` | `base_url` | Per-agent LLM provider endpoint override. |
-| `includeContents` | `includeContents(String)` | `"includeContents"` | `includeContents` | `include_contents` | `"none"` = fresh context; absent = inherit parent context. |
-| `thinkingBudgetTokens` | `thinkingBudgetTokens(int)` | `"thinkingConfig"` (map) | `thinkingConfig` | `thinking_budget_tokens` | Emitted as `{"enabled": true, "budgetTokens": N}`. Anthropic extended thinking only. |
-| `enablePlanning` | `enablePlanning(boolean)` | `"enablePlanning"` | `enablePlanning` | `enable_planning` | Prepends a "plan first" preamble to the system prompt (Google ADK style). Unrelated to `PLAN_EXECUTE`. |
-| `prefillTools` | `prefillTools(List)` | `"prefillTools"` | `prefillTools` | `prefill_tools` | Tool calls executed before the first LLM turn; results injected as context. |
-| `planner` | `planner(Agent)` | `"planner"` | `planner` | `planner` | `PLAN_EXECUTE` named slot. Required when `strategy=PLAN_EXECUTE`. |
-| `fallback` | `fallback(Agent)` | `"fallback"` | `fallback` | `fallback` | `PLAN_EXECUTE` fallback agent when the plan can't compile or fails. |
-| `fallbackMaxTurns` | `fallbackMaxTurns(int)` | `"fallbackMaxTurns"` | `fallbackMaxTurns` | `fallback_max_turns` | `PLAN_EXECUTE` only. |
-| `plannerContext` | `plannerContext(List<Context>)` | `"plannerContext"` | `plannerContext` | `planner_context` | `PLAN_EXECUTE` only. Text/URL context appended to the planner's prompt at runtime. Validated: throws if strategy ≠ `PLAN_EXECUTE`. |
-| `localCodeExecution` | `localCodeExecution(boolean)` | `"codeExecution"` (map) | `codeExecution` | `local_code_execution` | Emitted as a structured `CodeExecutionConfig`. Also injects a `run_code` worker tool. |
-| `allowedLanguages` | `allowedLanguages(List)` | nested in `"codeExecution"` | `codeExecution.allowedLanguages` | `allowed_languages` | Only meaningful when `localCodeExecution=true`. Default `["python"]`. |
-| `codeExecutionTimeout` | `codeExecutionTimeout(int)` | nested in `"codeExecution"` | `codeExecution.timeout` | `code_execution.timeout` | Default 30s. |
-| `allowedCommands` | `allowedCommands(List)` | nested in `"codeExecution"` | `codeExecution.allowedCommands` | `allowed_commands` | Shell commands permitted during code execution. |
-| `cliConfig` | `cliConfig(CliConfig)` | `"cliConfig"` (map) | `cliConfig` | `cli_config` | Injects a `run_command` worker tool with the CLI config. |
-| `gate` | `gate(TextGate)` | `"gate"` (map) | `gate` | `gate` (`TextGate`) | Sequential pipeline gate: emitted as `{"type": "text_contains", "text": ..., "caseSensitive": ...}`. |
-| `stopWhenTaskName` | `stopWhen(String)` | `"stopWhen"` (map) | _(worker-based)_ | `stop_when` (callable) | Java stores the task name; emitted as `{"taskName": name}`. Python stores a callable. |
-| `callbacks` | `callbacks(CallbackHandler...)` | `"callbacks"` | `callbacks` | `callbacks` | Introspected for `before_model`, `after_model`, `before_agent`, `after_agent` methods. |
-| `beforeModelCallback` | `beforeModelCallback(Function)` | → in `"callbacks"` | `callbacks` | `before_model_callback` | Emitted as a callback entry at position `"before_model"`. |
-| `afterModelCallback` | `afterModelCallback(Function)` | → in `"callbacks"` | `callbacks` | `after_model_callback` | Emitted as a callback entry at position `"after_model"`. |
-| `beforeAgentCallback` | `beforeAgentCallback(Function)` | → in `"callbacks"` | `callbacks` | `before_agent_callback` | Emitted as a callback entry at position `"before_agent"`. |
-| `afterAgentCallback` | `afterAgentCallback(Function)` | → in `"callbacks"` | `callbacks` | `after_agent_callback` | Emitted as a callback entry at position `"after_agent"`. |
-| `memory` | `memory(ConversationMemory)` | `"memory"` (map) | `memory` (`MemoryConfig`) | `memory` | Emitted as `{messages, maxMessages}`. For stateful/multi-turn agents. |
-| `reasoningEffort` | `reasoningEffort(String)` | `"reasoningEffort"` | `reasoningEffort` | `reasoning_effort` | OpenAI reasoning models: `"low"`, `"medium"`, `"high"`. Ignored by other models. |
-| `maskedFields` | `maskedFields(String...)` | `"maskedFields"` | `maskedFields` | `masked_fields` | Field names redacted in execution history/UI. |
-| `contextWindowBudget` | `contextWindowBudget(int)` | `"contextWindowBudget"` | `contextWindowBudget` | `context_window_budget` | Token threshold for proactive context condensation. |
-| `framework` | `framework(String)` | _(dispatch key)_ | _(not a field)_ | _(not a field)_ | Controls serialization path, not emitted as a field. `"skill"`, `"openai"`, `"google_adk"` trigger early-exit serialization routes. |
-| `frameworkConfig` | `frameworkConfig(Map)` | _(spread into output)_ | _(not a field)_ | _(not a field)_ | Merged at the top level of the output map for framework agents. |
-
----
-
-## Serialization notes for potentially surprising fields
-
-All fields serialize correctly — none are missing or broken. A few deserve explanation because they serialize non-obviously:
-
-| Java field | How it actually serializes | Note |
-|---|---|---|
-| `sessionId` | `agentMap.put("sessionId", ...)` inside `agentConfig` | Also sent as a top-level field in `AgentRequest`. Both are intentional — the server reads it from each context. |
-| `stateful` | `agentMap.put("stateful", true)` when true | Fully serialized into `agentConfig`. Also triggers `runId` generation in `AgentRuntime` for per-execution domain isolation. Both are needed. |
-| `framework` | NOT in agentConfig — routes to `AgentRequest.frameworkAgent(fw, agent)` | Dispatch key only. The entire serialization path changes: `{agentConfig}` for native agents, `{framework, rawConfig}` for framework-backed. |
-| `frameworkConfig` | Spread (merged) at the top level of the output map | Entries appear alongside `name`, `model`, etc. — not nested under their own key. |
-| `beforeModelCallback` | Emitted inside `agentConfig.callbacks` at position `"before_model"` | Function objects are never serialized — only a task name reference is emitted. The runtime registers the function as a Conductor worker separately. |
-| `afterModelCallback` | Same, position `"after_model"` | Same. |
-| `beforeAgentCallback` | Same, position `"before_agent"` | Same. |
-| `afterAgentCallback` | Same, position `"after_agent"` | Same. |
-
----
-
-## Fields in Python Agent but not in Java Agent
-
-| Python field | JSON key | Server `AgentConfig` field | Notes |
+| Field | Builder method | JSON key | Notes |
 |---|---|---|---|
-| `dependencies` | _(not serialized)_ | _(no server field)_ | Python allows injecting arbitrary deps into ToolContext. Java uses `ToolContext` directly. |
+| `name` | `name(String)` | `name` | Required. Pattern `^[a-zA-Z_][a-zA-Z0-9_-]*$`. |
+| `model` | `model(String)` | `model` | `"provider/model"` format. Omitted for external agents. |
+| `instructions` | `instructions(String)` | `instructions` | System prompt. Overridden by `instructionsTemplate` if set. |
+| `instructionsTemplate` | `instructionsTemplate(PromptTemplate)` | `instructions` (structured) | Emitted as a `PromptTemplateRef` map. Takes precedence over plain instructions. |
+| `introduction` | `introduction(String)` | `introduction` | Prepended before the first user message in multi-agent discussions. |
+| `tools` | `tools(ToolDef...)` | `tools` | List of tool configs. |
+| `agents` | `agents(Agent...)` | `agents` | Sub-agents (recursive). Requires a strategy. |
+| `strategy` | `strategy(Strategy)` | `strategy` | Emitted only when sub-agents or planner/fallback slots are present. Default `HANDOFF`. |
+| `router` | `router(Agent)` | `router` | For `ROUTER` strategy. Nested agent config. |
+| `guardrails` | `guardrails(GuardrailDef...)` | `guardrails` | Input/output guardrail configs. |
+| `maxTurns` | `maxTurns(int)` | `maxTurns` | Default 25. Emitted only if > 0. |
+| `maxTokens` | `maxTokens(int)` | `maxTokens` | LLM token cap. |
+| `temperature` | `temperature(double)` | `temperature` | Sampling temperature. |
+| `timeoutSeconds` | `timeoutSeconds(int)` | `timeoutSeconds` | Always emitted (including `0`). `0` → server applies its default. |
+| `termination` | `termination(TerminationCondition)` | `termination` | e.g. `MaxMessageTermination`, `StopMessageTermination`. |
+| `outputType` | `outputType(Class<?>)` | `outputType` | Structured-output class name. |
+| `handoffs` | `handoffs(Handoff...)` | `handoffs` | SWARM triggers: `OnTextMention`, `OnToolResult`, `OnCondition`. |
+| `allowedTransitions` | `allowedTransitions(Map)` | `allowedTransitions` | SWARM: restricts which agents may transfer to which. |
+| `credentials` | `credentials(String...)` | `credentials` | Secret names fetched from the secrets store at runtime. |
+| `requiredTools` | `requiredTools(String...)` | `requiredTools` | Tool names that must be called during the run. |
+| `metadata` | `metadata(Map)` | `metadata` | Arbitrary key-values stored with the workflow definition. |
+| `synthesize` | `synthesize(boolean)` | `synthesize` | Emitted only when `false` (default `true`). |
+| `stateful` | `stateful(boolean)` | `stateful` | Emitted as `true` when set. Triggers per-execution domain isolation (`runId`). |
+| `sessionId` | `sessionId(String)` | `sessionId` | Emitted inside `agentConfig` and as a top-level `AgentRequest` field. |
+| `baseUrl` | `baseUrl(String)` | `baseUrl` | Per-agent LLM provider endpoint override. |
+| `includeContents` | `includeContents(String)` | `includeContents` | `"none"` = fresh context; absent = inherit parent context. |
+| `thinkingBudgetTokens` | `thinkingBudgetTokens(int)` | `thinkingConfig` | Emitted as `{enabled: true, budgetTokens: N}`. Anthropic extended thinking. |
+| `enablePlanning` | `enablePlanning(boolean)` | `enablePlanning` | Prepends a "plan first" preamble to the system prompt. |
+| `prefillTools` | `prefillTools(List)` | `prefillTools` | Tool calls executed before the first LLM turn; results injected as context. |
+| `planner` | `planner(Agent)` | `planner` | `PLAN_EXECUTE` named slot. |
+| `fallback` | `fallback(Agent)` | `fallback` | `PLAN_EXECUTE` fallback agent. |
+| `fallbackMaxTurns` | `fallbackMaxTurns(int)` | `fallbackMaxTurns` | `PLAN_EXECUTE` only. |
+| `plannerContext` | `plannerContext(List<Context>)` | `plannerContext` | `PLAN_EXECUTE` only. Text/URL context appended to the planner's prompt. Throws at `build()` if strategy ≠ `PLAN_EXECUTE`. |
+| `localCodeExecution` | `localCodeExecution(boolean)` | `codeExecution` | Emitted as a `CodeExecutionConfig`. Injects a `run_code` worker tool. |
+| `allowedLanguages` | `allowedLanguages(List)` | `codeExecution.allowedLanguages` | Default `["python"]`. |
+| `codeExecutionTimeout` | `codeExecutionTimeout(int)` | `codeExecution.timeout` | Default 30s. |
+| `allowedCommands` | `allowedCommands(List)` | `codeExecution.allowedCommands` | Shell commands permitted during code execution. |
+| `cliConfig` | `cliConfig(CliConfig)` | `cliConfig` | Injects a `run_command` worker tool. |
+| `gate` | `gate(TextGate)` | `gate` | Sequential pipeline gate: `{type: "text_contains", text, caseSensitive}`. |
+| `stopWhenTaskName` | `stopWhen(String)` | `stopWhen` | Emitted as `{taskName: name}`. |
+| `callbacks` | `callbacks(CallbackHandler...)` | `callbacks` | Introspected for `before_model`, `after_model`, `before_agent`, `after_agent`. |
+| `beforeModelCallback` | `beforeModelCallback(Function)` | `callbacks` (position `before_model`) | Emitted as a callback entry. |
+| `afterModelCallback` | `afterModelCallback(Function)` | `callbacks` (position `after_model`) | Emitted as a callback entry. |
+| `beforeAgentCallback` | `beforeAgentCallback(Function)` | `callbacks` (position `before_agent`) | Emitted as a callback entry. |
+| `afterAgentCallback` | `afterAgentCallback(Function)` | `callbacks` (position `after_agent`) | Emitted as a callback entry. |
+| `memory` | `memory(ConversationMemory)` | `memory` | Emitted as `{messages, maxMessages}`. Multi-turn message history. |
+| `reasoningEffort` | `reasoningEffort(String)` | `reasoningEffort` | OpenAI reasoning models: `"low"`, `"medium"`, `"high"`. Ignored by other models. |
+| `maskedFields` | `maskedFields(String...)` | `maskedFields` | Field names redacted in execution history/UI. |
+| `contextWindowBudget` | `contextWindowBudget(int)` | `contextWindowBudget` | Token threshold for proactive context condensation. |
+| `framework` | `framework(String)` | _(dispatch key)_ | Selects the serialization path; not emitted as a field. |
+| `frameworkConfig` | `frameworkConfig(Map)` | _(merged at top level)_ | For framework agents; entries merged into the output map. |
 
-`memory`, `reasoning_effort`, `masked_fields`, and `context_window_budget` are now full equivalents in both SDKs (see the main table above) — `dependencies` is the only remaining Python-only field, and it has no server-side counterpart.
+## Serialization behavior
 
-## Fields in server AgentConfig but in neither Java nor Python Agent
+A few fields serialize non-obviously:
 
-| Server field | Type | Notes |
-|---|---|---|
-| `description` | `String` | Agent description for UI display. Set by the Agentspan UI/platform, not by SDKs. |
-
-Note: `gate` (`TextGate`) and `enable_planning` exist in **both** Python and Java — they are full equivalents.
-
----
-
-## Serialization rules
-
-### Strategy emission
-
-Strategy is **only serialized if sub-agents or PLAN_EXECUTE named slots are present**:
-
-```java
-boolean hasAgents = agent.getAgents() != null && !agent.getAgents().isEmpty();
-boolean hasNamedSlots = agent.getPlanner() != null || agent.getFallback() != null;
-if (hasAgents || hasNamedSlots) {
-    agentMap.put("strategy", agent.getStrategy().toJsonValue());
-}
-```
-
-This prevents a bare `Agent.builder().name("x").model("y").build()` from emitting `"strategy": "handoff"` unnecessarily.
-
-### Framework dispatch
-
-`AgentConfigSerializer.serializeAgent()` has three early-exit paths:
-
-| Condition | Output |
-|---|---|
-| `framework == "skill"` | Emits `{name, model, _framework: "skill", ...frameworkConfig}` |
-| `framework == "openai"` or `"google_adk"` | Emits framework-specific map with `_worker_ref` tool shape |
-| all others (native) | Emits full AgentConfig map |
-
-`AgentRuntime` routes framework agents via `AgentRequest.frameworkAgent(Framework, Agent)` so the server receives `{framework, rawConfig}` rather than `{agentConfig}`.
-
-### synthesize default
-
-`synthesize` defaults to `true` in the builder. It is **only emitted when `false`** — the server assumes true when the field is absent. Setting `synthesize(true)` explicitly produces no wire output.
-
-### plannerContext validation
-
-`plannerContext` throws `IllegalArgumentException` at `build()` time if set on a non-`PLAN_EXECUTE` agent. This catches misconfiguration before the server can reject it.
-
-### Callbacks
-
-The four function-typed callbacks (`beforeModel`, `afterModel`, `beforeAgent`, `afterAgent`) and the `callbacks: List<CallbackHandler>` field are all serialized into a single `"callbacks"` list on the wire. Each callback becomes a Conductor SIMPLE task reference at the appropriate position. The function objects themselves are never sent — the runtime registers them as local workers.
-
----
+- **Strategy** is emitted only when sub-agents or `PLAN_EXECUTE` named slots (`planner`/`fallback`)
+  are present, so a plain single agent does not carry a redundant `"strategy": "handoff"`.
+- **Framework dispatch** — `framework` is a dispatch key, not a field. Native agents serialize
+  as `{agentConfig}`; framework-backed agents (`"skill"`, `"openai"`, `"google_adk"`) take an
+  early-exit path and serialize as `{framework, rawConfig}`, with `frameworkConfig` merged into
+  the top level of the output.
+- **synthesize** defaults to `true` and is emitted only when `false`.
+- **Callbacks** — the four function-typed callbacks and the `callbacks` list all serialize into a
+  single `callbacks` list. Function objects are never sent; each becomes a Conductor task
+  reference at its position, and the runtime registers the function as a local worker.
 
 ## Defaults
 
-| Field | Java builder default | Server default |
-|---|---|---|
-| `strategy` | `HANDOFF` | `"handoff"` |
-| `maxTurns` | `25` | `100` |
-| `timeoutSeconds` | `0` (→ server default) | server-configured |
-| `codeExecutionTimeout` | `30` seconds | 30 seconds |
-| `synthesize` | `true` | `true` |
-| `stateful` | `false` | `false` |
-| `enablePlanning` | `false` | `false` |
-| `localCodeExecution` | `false` | `false` |
+| Field | Builder default |
+|---|---|
+| `strategy` | `HANDOFF` |
+| `maxTurns` | `25` |
+| `timeoutSeconds` | `0` (→ server default) |
+| `codeExecutionTimeout` | `30` seconds |
+| `synthesize` | `true` |
+| `stateful` | `false` |
+| `enablePlanning` | `false` |
+| `localCodeExecution` | `false` |
