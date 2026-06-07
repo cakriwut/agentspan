@@ -54,7 +54,10 @@ public class Agent {
     private final int timeoutSeconds;
     private final TerminationCondition termination;
     private final Class<?> outputType;
+    /** Session key for stateful/multi-turn agents. Sent on the /start payload,
+     *  NOT included in the compiled agentConfig — it is an execution parameter. */
     private final String sessionId;
+
     private final List<Handoff> handoffs;
     private final Map<String, List<String>> allowedTransitions;
     /** Plan-first preamble flag (Google ADK style). Renamed from
@@ -577,16 +580,31 @@ public class Agent {
          * Restrict which agents can transfer to which other agents.
          * Keys are source agent names; values are lists of allowed target names.
          */
+        /**
+         * Set SWARM strategy handoff triggers — rules that transfer control from this
+         * agent to another based on text mentions or tool results.
+         *
+         * <p>Use {@link org.conductoross.conductor.ai.handoff.OnTextMention#of(String, String)},
+         * {@link org.conductoross.conductor.ai.handoff.OnToolResult#of(String, String)}, or
+         * {@link org.conductoross.conductor.ai.handoff.OnCondition} to build entries.
+         */
         public Builder handoffs(List<Handoff> handoffs) {
             this.handoffs = new ArrayList<>(handoffs);
             return this;
         }
 
+        /** Varargs convenience for {@link #handoffs(List)}. */
         public Builder handoffs(Handoff... handoffs) {
             this.handoffs = new ArrayList<>(Arrays.asList(handoffs));
             return this;
         }
 
+        /**
+         * Restrict agent-to-agent transfers in a SWARM — only the listed target agents
+         * are reachable from each source agent.
+         * Keys are source agent names; values are lists of allowed target names.
+         * Omit to allow unrestricted transfers.
+         */
         public Builder allowedTransitions(Map<String, List<String>> allowedTransitions) {
             this.allowedTransitions = allowedTransitions;
             return this;
@@ -868,13 +886,29 @@ public class Agent {
             return this;
         }
 
-        /** Set the framework type (e.g. {@code "skill"}) for framework-backed agents. */
+        /**
+         * Mark this agent as framework-backed and set its framework identifier.
+         * The runtime sends the agent via {@code framework + rawConfig} so the server
+         * routes it through the matching normalizer (see {@link org.conductoross.conductor.ai.enums.Framework}).
+         *
+         * <p>Prefer the bridge classes ({@link org.conductoross.conductor.ai.frameworks.OpenAIAgent},
+         * {@link org.conductoross.conductor.ai.frameworks.AdkBridge}, etc.) — they set
+         * this field automatically. Direct use is for custom normalizers.
+         *
+         * @param framework wire value matching a server normalizer, e.g. {@code "openai"},
+         *                  {@code "google_adk"}, {@code "langchain"}, {@code "skill"}
+         */
         public Builder framework(String framework) {
             this.framework = framework;
             return this;
         }
 
-        /** Set the raw framework configuration map sent verbatim to the server. */
+        /**
+         * Set framework-specific configuration merged into the {@code rawConfig} map
+         * sent to the server's normalizer. Only meaningful when {@link #framework(String)}
+         * is also set. The map is spread at the top level of the wire payload — e.g.
+         * {@code handoffs}, {@code output_type} for OpenAI; sub-agent definitions for ADK.
+         */
         public Builder frameworkConfig(Map<String, Object> frameworkConfig) {
             this.frameworkConfig = frameworkConfig;
             return this;

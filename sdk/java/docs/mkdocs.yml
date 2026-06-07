@@ -40,6 +40,7 @@ nav:
   - Getting Started: getting-started.md
   - Core Concepts:
       - Agents: concepts/agents.md
+      - Agent Field Reference: agent-structure.md
       - Tools: concepts/tools.md
       - Multi-Agent: concepts/multi-agent.md
       - Guardrails: concepts/guardrails.md

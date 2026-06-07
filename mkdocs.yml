@@ -85,6 +85,7 @@ nav:
       - Getting Started: java-sdk/getting-started.md
       - Core Concepts:
           - Agents: java-sdk/concepts/agents.md
+          - Agent Field Reference: java-sdk/agent-structure.md
           - Tools: java-sdk/concepts/tools.md
           - Multi-Agent: java-sdk/concepts/multi-agent.md
           - Guardrails: java-sdk/concepts/guardrails.md
