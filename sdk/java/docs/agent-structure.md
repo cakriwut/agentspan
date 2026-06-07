@@ -30,8 +30,8 @@ This page documents every field on `Agent`, the JSON key it produces on the wire
 | `requiredTools` | `requiredTools(String...)` | `"requiredTools"` | `requiredTools` | `required_tools` | Tool names that must be called during the run. |
 | `metadata` | `metadata(Map)` | `"metadata"` | `metadata` | `metadata` | Arbitrary key-value stored with the workflow definition. |
 | `synthesize` | `synthesize(boolean)` | `"synthesize"` | `synthesize` | `synthesize` | Only emitted when **false** (default true is assumed by server). |
-| `stateful` | `stateful(boolean)` | `"stateful"` | _(not a server AgentConfig field)_ | `stateful` | Triggers per-execution `runId` domain in `AgentRequest`; not part of the compiled agentConfig. |
-| `sessionId` | `sessionId(String)` | _(not in agentConfig)_ | _(not a server AgentConfig field)_ | _(execution param)_ | Sent on the `/start` payload, **not** in the compiled agentConfig. |
+| `stateful` | `stateful(boolean)` | `"stateful"` | _(no dedicated server field — handled via domain isolation)_ | `stateful` | Emitted as `"stateful": true` in agentConfig. Also triggers `runId` generation in `AgentRuntime`. |
+| `sessionId` | `sessionId(String)` | `"sessionId"` | _(not a dedicated server AgentConfig field)_ | _(execution param)_ | Emitted inside `agentConfig` AND as a top-level `AgentRequest` field. Server reads it from each context. |
 | `baseUrl` | `baseUrl(String)` | `"baseUrl"` | `baseUrl` | `base_url` | Per-agent LLM provider endpoint override. |
 | `includeContents` | `includeContents(String)` | `"includeContents"` | `includeContents` | `include_contents` | `"none"` = fresh context; absent = inherit parent context. |
 | `thinkingBudgetTokens` | `thinkingBudgetTokens(int)` | `"thinkingConfig"` (map) | `thinkingConfig` | `thinking_budget_tokens` | Emitted as `{"enabled": true, "budgetTokens": N}`. Anthropic extended thinking only. |
@@ -58,20 +58,20 @@ This page documents every field on `Agent`, the JSON key it produces on the wire
 
 ---
 
-## Fields NOT in the compiled agentConfig
+## Serialization notes for potentially surprising fields
 
-These Java fields exist on `Agent` but are **not** part of the compiled agentConfig sent to the server — they are used as execution parameters or serialization controls:
+All fields serialize correctly — none are missing or broken. A few deserve explanation because they serialize non-obviously:
 
-| Java field | Where it actually goes | Why |
+| Java field | How it actually serializes | Note |
 |---|---|---|
-| `sessionId` | `AgentRequest.sessionId` (start payload only) | Execution parameter — identifies the conversation session, not the agent definition. |
-| `stateful` | Triggers `runId` generation in `AgentRuntime.startAsync` | Controls per-execution domain isolation, not a compilable property. |
-| `framework` | Routes to `AgentRequest.frameworkAgent(fw, agent)` | Serialization dispatch key, not a wire field. |
-| `frameworkConfig` | Spread into the output map for framework agents | Merged, not emitted under its own key. |
-| `beforeModelCallback` | Registered as a Conductor worker task | Function — serialized as a callback task reference, not inline. |
-| `afterModelCallback` | Same | Same. |
-| `beforeAgentCallback` | Same | Same. |
-| `afterAgentCallback` | Same | Same. |
+| `sessionId` | `agentMap.put("sessionId", ...)` inside `agentConfig` | Also sent as a top-level field in `AgentRequest`. Both are intentional — the server reads it from each context. |
+| `stateful` | `agentMap.put("stateful", true)` when true | Fully serialized into `agentConfig`. Also triggers `runId` generation in `AgentRuntime` for per-execution domain isolation. Both are needed. |
+| `framework` | NOT in agentConfig — routes to `AgentRequest.frameworkAgent(fw, agent)` | Dispatch key only. The entire serialization path changes: `{agentConfig}` for native agents, `{framework, rawConfig}` for framework-backed. |
+| `frameworkConfig` | Spread (merged) at the top level of the output map | Entries appear alongside `name`, `model`, etc. — not nested under their own key. |
+| `beforeModelCallback` | Emitted inside `agentConfig.callbacks` at position `"before_model"` | Function objects are never serialized — only a task name reference is emitted. The runtime registers the function as a Conductor worker separately. |
+| `afterModelCallback` | Same, position `"after_model"` | Same. |
+| `beforeAgentCallback` | Same, position `"before_agent"` | Same. |
+| `afterAgentCallback` | Same, position `"after_agent"` | Same. |
 
 ---
 
