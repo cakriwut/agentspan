@@ -45,6 +45,8 @@ import org.conductoross.conductor.ai.termination.TokenUsageTermination;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.netflix.conductor.client.http.WorkflowClient;
+
 import io.orkes.conductor.client.ApiClient;
 
 /**
@@ -70,6 +72,9 @@ public class AgentRuntime implements AutoCloseable {
     private final ApiClient conductorClient;
     /** Agent control-plane client (/api/agent/*) built on the shared Conductor client. */
     private final AgentClient agentClient;
+    /** Standard Conductor workflow client for /api/workflow/* — used by AgentHandle to
+     *  enrich results with token usage and tool calls after execution completes. */
+    private final WorkflowClient workflowClient;
 
     private final WorkerManager workerManager;
     private final AgentConfigSerializer serializer;
@@ -104,6 +109,7 @@ public class AgentRuntime implements AutoCloseable {
         this.config = config;
         this.conductorClient = conductorClient;
         this.agentClient = new AgentClient(conductorClient);
+        this.workflowClient = new WorkflowClient(conductorClient);
         this.workerManager = new WorkerManager(config, conductorClient);
         this.serializer = new AgentConfigSerializer();
         logger.info("AgentRuntime initialized: {}", conductorClient.getBasePath());
@@ -333,7 +339,7 @@ public class AgentRuntime implements AutoCloseable {
             String executionId = extractExecutionId(response);
 
             logger.info("Agent '{}' started with execution ID: {}", agent.getName(), executionId);
-            return new AgentHandle(executionId, agentClient);
+            return new AgentHandle(executionId, agentClient, workflowClient);
         });
     }
 
@@ -495,7 +501,7 @@ public class AgentRuntime implements AutoCloseable {
      */
     public AgentHandle resume(String executionId, Agent agent) {
         prepareWorkers(agent);
-        return new AgentHandle(executionId, agentClient);
+        return new AgentHandle(executionId, agentClient, workflowClient);
     }
 
     /**

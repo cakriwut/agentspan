@@ -56,7 +56,7 @@ class AgentHandleErrorTest {
     @Test
     @org.junit.jupiter.api.Timeout(5)
     void consecutiveErrorsFastFail() {
-        AgentHandle handle = new AgentHandle("exec-1", alwaysErrorClient());
+        AgentHandle handle = new AgentHandle("exec-1", alwaysErrorClient(), null);
 
         RuntimeException ex =
                 assertThrows(RuntimeException.class, () -> handle.waitForResult(600_000, 1)); // 600s timeout, 1ms poll
@@ -71,7 +71,7 @@ class AgentHandleErrorTest {
     @Test
     void singleErrorDoesNotFastFail() {
         // One error followed by success → normal completion.
-        AgentHandle handle = new AgentHandle("exec-2", oneErrorThenCompleteClient());
+        AgentHandle handle = new AgentHandle("exec-2", oneErrorThenCompleteClient(), null);
         AgentResult r = assertDoesNotThrow(
                 () -> handle.waitForResult(10_000, 1),
                 "A single transient error followed by success must still complete normally.");

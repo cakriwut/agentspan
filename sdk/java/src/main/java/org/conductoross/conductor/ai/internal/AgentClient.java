@@ -15,8 +15,6 @@ import com.netflix.conductor.client.http.ConductorClient;
 import com.netflix.conductor.client.http.ConductorClientRequest;
 import com.netflix.conductor.client.http.ConductorClientRequest.Method;
 import com.netflix.conductor.client.http.ConductorClientResponse;
-import com.netflix.conductor.client.http.WorkflowClient;
-import com.netflix.conductor.common.run.Workflow;
 
 /**
  * Client for agentspan's proprietary agent control-plane ({@code /api/agent/*}),
@@ -38,11 +36,9 @@ public class AgentClient {
     private static final TypeReference<Map<String, Object>> MAP_TYPE = new TypeReference<Map<String, Object>>() {};
 
     protected final ConductorClient client;
-    private final WorkflowClient workflowClient;
 
     public AgentClient(ConductorClient client) {
         this.client = client;
-        this.workflowClient = new WorkflowClient(client);
     }
 
     /** {@code POST /api/agent/compile} — compile agent config to a workflow def. */
@@ -80,22 +76,6 @@ public class AgentClient {
                 .build();
         try {
             client.execute(req);
-        } catch (ConductorClientException e) {
-            throw mapException(e);
-        }
-    }
-
-    /**
-     * Raw workflow data (tasks, domain, run_id) via the Conductor
-     * {@link WorkflowClient} ({@code GET /api/workflow/{id}}), converted to the
-     * Map shape callers expect.
-     */
-    @SuppressWarnings("unchecked")
-    public Map<String, Object> getWorkflow(String executionId) {
-        try {
-            Workflow workflow = workflowClient.getWorkflow(executionId, true);
-            if (workflow == null) return new HashMap<>();
-            return JsonMapper.fromJson(JsonMapper.toJson(workflow), Map.class);
         } catch (ConductorClientException e) {
             throw mapException(e);
         }
