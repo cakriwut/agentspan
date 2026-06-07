@@ -86,6 +86,7 @@ nav:
       - Core Concepts:
           - Agents: java-sdk/concepts/agents.md
           - Agent Field Reference: java-sdk/agent-structure.md
+          - Agent JSON Schema: java-sdk/agent-schema.md
           - Tools: java-sdk/concepts/tools.md
           - Multi-Agent: java-sdk/concepts/multi-agent.md
           - Guardrails: java-sdk/concepts/guardrails.md

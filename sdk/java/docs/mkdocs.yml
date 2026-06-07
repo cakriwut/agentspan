@@ -41,6 +41,7 @@ nav:
   - Core Concepts:
       - Agents: concepts/agents.md
       - Agent Field Reference: agent-structure.md
+      - Agent JSON Schema: agent-schema.md
       - Tools: concepts/tools.md
       - Multi-Agent: concepts/multi-agent.md
       - Guardrails: concepts/guardrails.md
