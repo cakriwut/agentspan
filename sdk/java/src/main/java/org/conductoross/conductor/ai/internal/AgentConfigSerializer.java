@@ -212,9 +212,37 @@ public class AgentConfigSerializer {
             agentMap.put("maxTokens", agent.getMaxTokens());
         }
 
+        // Context window budget for proactive condensation
+        if (agent.getContextWindowBudget() != null) {
+            agentMap.put("contextWindowBudget", agent.getContextWindowBudget());
+        }
+
         // Temperature
         if (agent.getTemperature() != null) {
             agentMap.put("temperature", agent.getTemperature());
+        }
+
+        // Reasoning effort (OpenAI reasoning models)
+        if (agent.getReasoningEffort() != null && !agent.getReasoningEffort().isEmpty()) {
+            agentMap.put("reasoningEffort", agent.getReasoningEffort());
+        }
+
+        // Masked fields (redacted in execution history / UI)
+        if (agent.getMaskedFields() != null && !agent.getMaskedFields().isEmpty()) {
+            agentMap.put("maskedFields", agent.getMaskedFields());
+        }
+
+        // Conversation memory
+        if (agent.getMemory() != null) {
+            Map<String, Object> memMap = new LinkedHashMap<>();
+            if (agent.getMemory().getMessages() != null
+                    && !agent.getMemory().getMessages().isEmpty()) {
+                memMap.put("messages", agent.getMemory().getMessages());
+            }
+            if (agent.getMemory().getMaxMessages() != null) {
+                memMap.put("maxMessages", agent.getMemory().getMaxMessages());
+            }
+            agentMap.put("memory", memMap);
         }
 
         // Termination condition

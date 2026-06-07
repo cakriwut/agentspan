@@ -970,4 +970,51 @@ class SerializerTest {
                 .build());
         assertTrue(e.getMessage().contains("PLAN_EXECUTE"));
     }
+
+    // ── Parity fields: reasoningEffort, maskedFields, contextWindowBudget, memory ──
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void parity_fields_serialized() {
+        org.conductoross.conductor.ai.model.ConversationMemory memory =
+                new org.conductoross.conductor.ai.model.ConversationMemory(20)
+                        .addSystem("You are concise.")
+                        .addUser("hi");
+
+        Agent agent = Agent.builder()
+                .name("parity_agent")
+                .model("openai/o3-mini")
+                .instructions("test")
+                .reasoningEffort("high")
+                .maskedFields("ssn", "card_number")
+                .contextWindowBudget(8000)
+                .memory(memory)
+                .build();
+
+        Map<String, Object> out = ser.serialize(agent);
+
+        assertEquals("high", out.get("reasoningEffort"), "reasoningEffort must serialize");
+        assertEquals(List.of("ssn", "card_number"), out.get("maskedFields"), "maskedFields must serialize");
+        assertEquals(8000, out.get("contextWindowBudget"), "contextWindowBudget must serialize");
+
+        Map<String, Object> mem = (Map<String, Object>) out.get("memory");
+        assertNotNull(mem, "memory must serialize as a map");
+        assertEquals(20, mem.get("maxMessages"), "memory.maxMessages must serialize");
+        List<Map<String, Object>> msgs = (List<Map<String, Object>>) mem.get("messages");
+        assertEquals(2, msgs.size(), "memory.messages must carry both messages");
+        assertEquals("system", msgs.get(0).get("role"));
+        assertEquals("You are concise.", msgs.get(0).get("message"));
+        assertEquals("user", msgs.get(1).get("role"));
+    }
+
+    @Test
+    void parity_fields_absent_when_unset() {
+        Agent agent =
+                Agent.builder().name("plain_agent").model("openai/gpt-4o-mini").build();
+        Map<String, Object> out = ser.serialize(agent);
+        assertFalse(out.containsKey("reasoningEffort"), "reasoningEffort omitted when unset");
+        assertFalse(out.containsKey("maskedFields"), "maskedFields omitted when unset");
+        assertFalse(out.containsKey("contextWindowBudget"), "contextWindowBudget omitted when unset");
+        assertFalse(out.containsKey("memory"), "memory omitted when unset");
+    }
 }

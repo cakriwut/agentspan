@@ -13,6 +13,7 @@ import java.util.regex.Pattern;
 import org.conductoross.conductor.ai.enums.Strategy;
 import org.conductoross.conductor.ai.execution.CliConfig;
 import org.conductoross.conductor.ai.handoff.Handoff;
+import org.conductoross.conductor.ai.model.ConversationMemory;
 import org.conductoross.conductor.ai.model.GuardrailDef;
 import org.conductoross.conductor.ai.model.PrefillToolCall;
 import org.conductoross.conductor.ai.model.PromptTemplate;
@@ -104,6 +105,14 @@ public class Agent {
     private final String framework;
     private final Map<String, Object> frameworkConfig;
     private final CliConfig cliConfig;
+    /** Conversation memory for stateful/multi-turn agents. Serialized as {@code memory}. */
+    private final ConversationMemory memory;
+    /** OpenAI reasoning-model effort: {@code "low"}, {@code "medium"}, {@code "high"}. */
+    private final String reasoningEffort;
+    /** Field names to redact in execution history and UI (Conductor {@code maskedFields}). */
+    private final List<String> maskedFields;
+    /** Token threshold for proactive context condensation. */
+    private final Integer contextWindowBudget;
 
     private Agent(Builder builder) {
         this.name = builder.name;
@@ -167,6 +176,10 @@ public class Agent {
         this.framework = builder.framework;
         this.frameworkConfig = builder.frameworkConfig;
         this.cliConfig = builder.cliConfig;
+        this.memory = builder.memory;
+        this.reasoningEffort = builder.reasoningEffort;
+        this.maskedFields = builder.maskedFields != null ? new ArrayList<>(builder.maskedFields) : null;
+        this.contextWindowBudget = builder.contextWindowBudget;
     }
 
     /**
@@ -396,6 +409,22 @@ public class Agent {
         return cliConfig;
     }
 
+    public ConversationMemory getMemory() {
+        return memory;
+    }
+
+    public String getReasoningEffort() {
+        return reasoningEffort;
+    }
+
+    public List<String> getMaskedFields() {
+        return maskedFields;
+    }
+
+    public Integer getContextWindowBudget() {
+        return contextWindowBudget;
+    }
+
     public static Builder builder() {
         return new Builder();
     }
@@ -465,6 +494,10 @@ public class Agent {
         private String framework;
         private Map<String, Object> frameworkConfig;
         private CliConfig cliConfig;
+        private ConversationMemory memory;
+        private String reasoningEffort;
+        private List<String> maskedFields;
+        private Integer contextWindowBudget;
 
         /** Set the agent name (required). Must match {@code ^[a-zA-Z_][a-zA-Z0-9_-]*$}. */
         public Builder name(String name) {
@@ -917,6 +950,49 @@ public class Agent {
         /** Configure CLI command execution for this agent. */
         public Builder cliConfig(CliConfig cliConfig) {
             this.cliConfig = cliConfig;
+            return this;
+        }
+
+        /**
+         * Attach conversation memory for stateful / multi-turn agents.
+         * Serialized to the server's {@code MemoryConfig} as {@code {messages, maxMessages}}.
+         */
+        public Builder memory(ConversationMemory memory) {
+            this.memory = memory;
+            return this;
+        }
+
+        /**
+         * Set the reasoning effort for OpenAI reasoning models (o-series, gpt-5-codex, etc.):
+         * {@code "low"}, {@code "medium"}, or {@code "high"}. Ignored by non-reasoning models.
+         */
+        public Builder reasoningEffort(String reasoningEffort) {
+            this.reasoningEffort = reasoningEffort;
+            return this;
+        }
+
+        /**
+         * Field names whose values are redacted in execution history and the UI
+         * (maps to Conductor's {@code WorkflowDef.maskedFields}).
+         */
+        public Builder maskedFields(List<String> maskedFields) {
+            this.maskedFields = maskedFields;
+            return this;
+        }
+
+        /** Varargs convenience for {@link #maskedFields(List)}. */
+        public Builder maskedFields(String... maskedFields) {
+            this.maskedFields = Arrays.asList(maskedFields);
+            return this;
+        }
+
+        /**
+         * Token budget for proactive context condensation. When the estimated prompt
+         * token count exceeds this value, condensation fires — even below the model's
+         * actual context window.
+         */
+        public Builder contextWindowBudget(int contextWindowBudget) {
+            this.contextWindowBudget = contextWindowBudget;
             return this;
         }
 

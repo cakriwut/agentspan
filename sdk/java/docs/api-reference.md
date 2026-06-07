@@ -88,6 +88,8 @@ Agent.builder()
     .maxTokens(int)
     .temperature(double)
     .thinkingBudgetTokens(int)             // Anthropic extended thinking
+    .reasoningEffort(String)               // OpenAI reasoning models: "low"|"medium"|"high"
+    .contextWindowBudget(int)              // token threshold for proactive condensation
     .timeoutSeconds(int)                   // default 0 (server applies its own default)
 
     // Tools
@@ -130,6 +132,10 @@ Agent.builder()
     // Stateful (session isolation)
     .sessionId(String)
     .stateful(boolean)
+    .memory(ConversationMemory)            // multi-turn message history
+
+    // Privacy
+    .maskedFields(String...)               // redact fields in history/UI
 
     // Advanced
     .outputType(Class<?>)                  // structured output

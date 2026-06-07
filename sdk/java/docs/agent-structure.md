@@ -53,6 +53,10 @@ This page documents every field on `Agent`, the JSON key it produces on the wire
 | `afterModelCallback` | `afterModelCallback(Function)` | → in `"callbacks"` | `callbacks` | `after_model_callback` | Emitted as a callback entry at position `"after_model"`. |
 | `beforeAgentCallback` | `beforeAgentCallback(Function)` | → in `"callbacks"` | `callbacks` | `before_agent_callback` | Emitted as a callback entry at position `"before_agent"`. |
 | `afterAgentCallback` | `afterAgentCallback(Function)` | → in `"callbacks"` | `callbacks` | `after_agent_callback` | Emitted as a callback entry at position `"after_agent"`. |
+| `memory` | `memory(ConversationMemory)` | `"memory"` (map) | `memory` (`MemoryConfig`) | `memory` | Emitted as `{messages, maxMessages}`. For stateful/multi-turn agents. |
+| `reasoningEffort` | `reasoningEffort(String)` | `"reasoningEffort"` | `reasoningEffort` | `reasoning_effort` | OpenAI reasoning models: `"low"`, `"medium"`, `"high"`. Ignored by other models. |
+| `maskedFields` | `maskedFields(String...)` | `"maskedFields"` | `maskedFields` | `masked_fields` | Field names redacted in execution history/UI. |
+| `contextWindowBudget` | `contextWindowBudget(int)` | `"contextWindowBudget"` | `contextWindowBudget` | `context_window_budget` | Token threshold for proactive context condensation. |
 | `framework` | `framework(String)` | _(dispatch key)_ | _(not a field)_ | _(not a field)_ | Controls serialization path, not emitted as a field. `"skill"`, `"openai"`, `"google_adk"` trigger early-exit serialization routes. |
 | `frameworkConfig` | `frameworkConfig(Map)` | _(spread into output)_ | _(not a field)_ | _(not a field)_ | Merged at the top level of the output map for framework agents. |
 
@@ -75,17 +79,13 @@ All fields serialize correctly — none are missing or broken. A few deserve exp
 
 ---
 
-## Fields in Python Agent (and server) but not in Java Agent
-
-These are real gaps — Python serializes them to the server, they exist in `AgentConfig`, but the Java `Agent.builder()` does not expose them.
+## Fields in Python Agent but not in Java Agent
 
 | Python field | JSON key | Server `AgentConfig` field | Notes |
 |---|---|---|---|
-| `memory` | `"memory"` | `memory` (`MemoryConfig`) | Conversation memory (session messages, max_messages). Java has no memory abstraction. |
-| `reasoning_effort` | `"reasoningEffort"` | `reasoningEffort` | OpenAI reasoning models: `"low"`, `"medium"`, `"high"`. |
-| `masked_fields` | `"maskedFields"` | `maskedFields` | Field names redacted in execution history and UI. |
-| `context_window_budget` | `"contextWindowBudget"` | `contextWindowBudget` | Proactive context condensation threshold (tokens). |
 | `dependencies` | _(not serialized)_ | _(no server field)_ | Python allows injecting arbitrary deps into ToolContext. Java uses `ToolContext` directly. |
+
+`memory`, `reasoning_effort`, `masked_fields`, and `context_window_budget` are now full equivalents in both SDKs (see the main table above) — `dependencies` is the only remaining Python-only field, and it has no server-side counterpart.
 
 ## Fields in server AgentConfig but in neither Java nor Python Agent
 
