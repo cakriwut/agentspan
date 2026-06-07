@@ -97,6 +97,7 @@ nav:
           - Google ADK: java-sdk/frameworks/google-adk.md
       - Spring Boot: java-sdk/spring-boot.md
       - API Reference: java-sdk/api-reference.md
+      - Control-Plane API: java-sdk/agent-client-api.md
   - Reference:
       - Providers: providers.md
       - AI Models: ai-models.md

@@ -52,3 +52,4 @@ nav:
       - Google ADK: frameworks/google-adk.md
   - Spring Boot: spring-boot.md
   - API Reference: api-reference.md
+  - Control-Plane API: agent-client-api.md
