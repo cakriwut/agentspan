@@ -75,28 +75,23 @@ These Java fields exist on `Agent` but are **not** part of the compiled agentCon
 
 ---
 
-## Fields in the server but not in Java Agent
+## Fields in Python Agent (and server) but not in Java Agent
 
-These `AgentConfig` fields exist on the server side but the Java SDK does not expose them:
+These are real gaps — Python serializes them to the server, they exist in `AgentConfig`, but the Java `Agent.builder()` does not expose them.
+
+| Python field | JSON key | Server `AgentConfig` field | Notes |
+|---|---|---|---|
+| `memory` | `"memory"` | `memory` (`MemoryConfig`) | Conversation memory (session messages, max_messages). Java has no memory abstraction. |
+| `reasoning_effort` | `"reasoningEffort"` | `reasoningEffort` | OpenAI reasoning models: `"low"`, `"medium"`, `"high"`. |
+| `masked_fields` | `"maskedFields"` | `maskedFields` | Field names redacted in execution history and UI. |
+| `context_window_budget` | `"contextWindowBudget"` | `contextWindowBudget` | Proactive context condensation threshold (tokens). |
+| `dependencies` | _(not serialized)_ | _(no server field)_ | Python allows injecting arbitrary deps into ToolContext. Java uses `ToolContext` directly. |
+
+## Fields in server AgentConfig but in neither Java nor Python Agent
 
 | Server field | Type | Notes |
 |---|---|---|
-| `description` | `String` | Agent description for UI display. No Java builder setter. |
-| `memory` | `MemoryConfig` | Conversation memory configuration. Python SDK has `memory` param; Java does not. |
-| `reasoningEffort` | `String` | OpenAI reasoning models: `"low"`, `"medium"`, `"high"`. Not in Java Agent. |
-| `maskedFields` | `List<String>` | Field names redacted in execution history. Not in Java Agent. |
-| `contextWindowBudget` | `Integer` | Proactive context condensation threshold. Not in Java Agent. |
-
----
-
-## Fields in Python Agent but not in Java Agent
-
-| Python field | Java equivalent | Gap |
-|---|---|---|
-| `memory` | _(none)_ | Python supports `ConversationMemory`; Java has no memory abstraction. |
-| `dependencies` | _(none)_ | Python allows injecting arbitrary deps into ToolContext. Java uses `ToolContext` directly. |
-| `reasoning_effort` | _(none)_ | Not exposed in Java Agent. |
-| `masked_fields` | _(none)_ | Not exposed in Java Agent. |
+| `description` | `String` | Agent description for UI display. Set by the Agentspan UI/platform, not by SDKs. |
 
 Note: `gate` (`TextGate`) and `enable_planning` exist in **both** Python and Java — they are full equivalents.
 
