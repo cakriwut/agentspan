@@ -35,7 +35,18 @@ import io.orkes.conductor.client.ApiClient;
 @EnabledIf("schedulerAvailable")
 class ScheduleIntegrationTest {
 
-    private static final String SERVER = System.getenv().getOrDefault("AGENTSPAN_SERVER_URL", "http://localhost:6767");
+    // Base server URL WITHOUT a trailing "/api"; this suite appends "/api/..." itself.
+    // AGENTSPAN_SERVER_URL conventionally INCLUDES "/api" (see BaseTest), so normalize it
+    // away here — otherwise every URL gets a double "/api" and the scheduler probe 404s,
+    // silently skipping the whole suite.
+    private static final String SERVER = stripApiSuffix(
+            System.getenv().getOrDefault("AGENTSPAN_SERVER_URL", "http://localhost:6767"));
+
+    private static String stripApiSuffix(String url) {
+        if (url.endsWith("/")) url = url.substring(0, url.length() - 1);
+        if (url.endsWith("/api")) url = url.substring(0, url.length() - 4);
+        return url;
+    }
     private static final HttpClient HTTP =
             HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(5)).build();
 
