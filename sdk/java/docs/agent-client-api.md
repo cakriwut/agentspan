@@ -2,6 +2,17 @@
 
 `AgentClient` is the Java SDK's interface to the Agentspan server's proprietary agent control-plane (`/api/agent/*`). It is an internal class built on the same `ConductorClient` as `TaskClient` and `WorkflowClient` — every request goes through the same auth/transport layer.
 
+## Methods
+
+| Method | HTTP | Input | Output | Description |
+|---|---|---|---|---|
+| [`compile`](#compile) | `POST /api/agent/compile` | `StartRequest` | `CompileResponse` | Compile to workflow def — no side effects |
+| [`deploy`](#deploy) | `POST /api/agent/deploy` | `StartRequest` | `StartResponse` | Register workflow def without starting |
+| [`start`](#start) | `POST /api/agent/start` | `StartRequest` | `StartResponse` | Compile + register + start execution |
+| [`getAgentStatus`](#getagentstatus) | `GET /api/agent/{id}/status` | path: `executionId` | status map | Poll execution status; includes HITL pending-tool |
+| [`respond`](#respond) | `POST /api/agent/{id}/respond` | free-form map | `204 No Content` | Resume a paused HITL task |
+| [`getWorkflow`](#getworkflow) | `GET /api/workflow/{id}` | path: `executionId` | `Workflow` (typed) | Post-completion enrichment — token usage + tool calls |
+
 ---
 
 ## compile
