@@ -6,12 +6,14 @@
 
 | Method | HTTP | Input | Output | Description |
 |---|---|---|---|---|
-| [`compile`](#compile) | `POST /api/agent/compile` | `StartRequest` | `CompileResponse` | Compile to workflow def — no side effects |
-| [`deploy`](#deploy) | `POST /api/agent/deploy` | `StartRequest` | `StartResponse` | Register workflow def without starting |
-| [`start`](#start) | `POST /api/agent/start` | `StartRequest` | `StartResponse` | Compile + register + start execution |
+| [`compileAgent`](#compile) | `POST /api/agent/compile` | `StartRequest` | `CompileResponse` | Compile to workflow def — no side effects |
+| [`deployAgent`](#deploy) | `POST /api/agent/deploy` | `StartRequest` | `StartResponse` | Register workflow def without starting |
+| [`startAgent`](#start) | `POST /api/agent/start` | `StartRequest` | `StartResponse` | Compile + register + start execution |
 | [`getAgentStatus`](#getagentstatus) | `GET /api/agent/{id}/status` | path: `executionId` | status map | Poll execution status; includes HITL pending-tool |
 | [`respond`](#respond) | `POST /api/agent/{id}/respond` | free-form map | `204 No Content` | Resume a paused HITL task |
-| [`getWorkflow`](#getworkflow) | `GET /api/workflow/{id}` | path: `executionId` | `Workflow` (typed) | Post-completion enrichment — token usage + tool calls |
+
+!!! note "Workflow data — `WorkflowClient`, not `AgentClient`"
+    Fetching raw workflow data (`GET /api/workflow/{id}`) is done via the standard Conductor `WorkflowClient`, not `AgentClient`. `AgentClient` owns only the agentspan-proprietary `/api/agent/*` endpoints. See [WorkflowClient usage](#workflowclient-usage) below.
 
 ---
 
@@ -223,23 +225,20 @@ The exact keys depend on the `response_schema` the tool declared. The SDK sends:
 
 ---
 
-## getWorkflow
+## WorkflowClient usage
 
-Fetch the raw Conductor workflow for an execution — all tasks, timings, domain mappings, and per-task output data.
+Raw workflow data is fetched via the standard Conductor `WorkflowClient` — not `AgentClient`. The separation is intentional: `AgentClient` owns the agentspan-proprietary `/api/agent/*` control-plane; workflow reads come from the standard `/api/workflow/*` endpoint which has a first-class typed client.
 
-**HTTP:** `GET /api/workflow/{executionId}` _(standard Conductor endpoint, via `WorkflowClient`)_
+**HTTP:** `GET /api/workflow/{executionId}` _(standard Conductor endpoint, via `WorkflowClient.getWorkflow(id, true)`)_
 
-!!! note "This is not a polling method"
-    `getWorkflow` is called **once**, after completion, to enrich the `AgentResult`. It is not used for status polling — that is `getAgentStatus`.
+### Where and why
 
-### How the SDK uses it
-
-`AgentClient.getWorkflow` is called internally inside `AgentHandle.buildResult()` **after** `getAgentStatus` returns a terminal status. It walks the full task list once to compute two things that the `/status` endpoint does not aggregate:
+`WorkflowClient.getWorkflow` is called inside `AgentHandle.buildResult()` **once**, after `getAgentStatus` returns a terminal status. It walks the full task list to compute two things the `/status` endpoint does not aggregate:
 
 - **Token usage** — sums `promptTokens` / `completionTokens` / `tokenUsed` across every `LLM_CHAT_COMPLETE` task → populates `AgentResult.getTokenUsage()`
-- **Tool calls** — collects every worker SIMPLE task (name, input args, output result) → populates `AgentResult.getToolCalls()`
+- **Tool calls** — collects every worker SIMPLE task whose `referenceTaskName` starts with `call_` → populates `AgentResult.getToolCalls()`
 
-Callers do not need to call this directly; it fires automatically when `run()` / `waitForResult()` returns.
+This fires automatically when `run()` / `waitForResult()` returns. Callers never call it directly.
 
 ### Response
 

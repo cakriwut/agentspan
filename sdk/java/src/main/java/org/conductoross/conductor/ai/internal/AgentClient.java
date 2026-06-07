@@ -17,16 +17,18 @@ import com.netflix.conductor.client.http.ConductorClientRequest.Method;
 import com.netflix.conductor.client.http.ConductorClientResponse;
 
 /**
- * Client for agentspan's proprietary agent control-plane ({@code /api/agent/*}),
- * built on the SAME Conductor {@link ConductorClient}/ApiClient as
- * {@code TaskClient}, {@link WorkflowClient} and {@code MetadataClient}.
+ * Client for agentspan's proprietary agent control-plane ({@code /api/agent/*}).
  *
- * <p>A peer of {@link WorkflowClient}: it accepts a {@link ConductorClient} and
- * issues every request through the SDK's native HTTP + auth + serialization
- * layer ({@link ConductorClientRequest} → {@link ConductorClient#execute}). No
- * hand-rolled HTTP. Conductor's {@link ConductorClientException} is mapped back
- * to agentspan's {@link AgentAPIException}/{@link AgentNotFoundException} so the
- * SDK's error contract is preserved for callers.
+ * <p>Strictly scoped to the five agentspan-specific endpoints: compile, deploy,
+ * start, status, and respond. Standard Conductor endpoints (workflows, tasks,
+ * metadata) are handled by the Conductor SDK's own typed clients
+ * ({@code WorkflowClient}, {@code TaskClient}, {@code MetadataClient}).
+ *
+ * <p>Every request goes through the shared {@link ConductorClient}'s native HTTP +
+ * auth + serialization layer ({@link ConductorClientRequest} →
+ * {@link ConductorClient#execute}). No hand-rolled HTTP. Conductor's
+ * {@link ConductorClientException} is mapped to agentspan's
+ * {@link AgentAPIException}/{@link AgentNotFoundException}.
  *
  * <p>Paths are relative to the client's base path (the server's {@code /api}
  * root), so {@code "/agent/start"} resolves to {@code /api/agent/start}.
