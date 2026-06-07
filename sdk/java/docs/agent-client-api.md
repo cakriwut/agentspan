@@ -214,9 +214,21 @@ The exact keys depend on the `response_schema` the tool declared. The SDK sends:
 
 ## getWorkflow
 
-Fetch raw Conductor workflow data (all tasks, domains, run metadata) for an execution. Used by the SDK to verify sub-workflow counts, `taskToDomain` mappings, and task statuses in tests and after completion.
+Fetch the raw Conductor workflow for an execution — all tasks, timings, domain mappings, and per-task output data.
 
 **HTTP:** `GET /api/workflow/{executionId}` _(standard Conductor endpoint, via `WorkflowClient`)_
+
+!!! note "This is not a polling method"
+    `getWorkflow` is called **once**, after completion, to enrich the `AgentResult`. It is not used for status polling — that is `getAgentStatus`.
+
+### How the SDK uses it
+
+`AgentClient.getWorkflow` is called internally inside `AgentHandle.buildResult()` **after** `getAgentStatus` returns a terminal status. It walks the full task list once to compute two things that the `/status` endpoint does not aggregate:
+
+- **Token usage** — sums `promptTokens` / `completionTokens` / `tokenUsed` across every `LLM_CHAT_COMPLETE` task → populates `AgentResult.getTokenUsage()`
+- **Tool calls** — collects every worker SIMPLE task (name, input args, output result) → populates `AgentResult.getToolCalls()`
+
+Callers do not need to call this directly; it fires automatically when `run()` / `waitForResult()` returns.
 
 ### Response
 
@@ -238,7 +250,19 @@ Full Conductor `Workflow` object serialised to `Map<String,Object>`. Key fields:
       "referenceTaskName": "my_agent_llm__1",
       "status": "COMPLETED",
       "scheduledTime": 1780743315000,
-      "endTime": 1780743318500
+      "endTime": 1780743318500,
+      "outputData": {
+        "promptTokens": 312,
+        "completionTokens": 47,
+        "tokenUsed": 359
+      }
+    },
+    {
+      "taskType": "my_tool_a",
+      "referenceTaskName": "call_abc123__1",
+      "status": "COMPLETED",
+      "inputData": { "query": "hello" },
+      "outputData": { "result": "world" }
     }
   ]
 }
