@@ -18,6 +18,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+import org.conductoross.conductor.ai.enums.Framework;
 import org.conductoross.conductor.ai.enums.Strategy;
 import org.conductoross.conductor.ai.execution.CliCommandExecutor;
 import org.conductoross.conductor.ai.execution.CliConfig;
@@ -338,17 +339,14 @@ public class AgentRuntime implements AutoCloseable {
 
     /**
      * Build an {@link AgentRequest} pre-populated with the agent definition.
-     * Framework-backed agents (openai, google_adk, langgraph, skill) use
-     * {@code framework + rawConfig}; native agents use {@code agentConfig}.
-     * {@link AgentConfigSerializer.AsJson} handles serialization to the wire format.
-     * Callers chain additional fields (prompt, runId, etc.) before calling build().
+     * The agent's framework string is resolved to a {@link Framework} enum value;
+     * if it matches a known framework the request uses {@code framework + rawConfig},
+     * otherwise it uses {@code agentConfig} (native path).
      */
     private static AgentRequest.Builder agentRequest(Agent agent) {
-        String framework = agent.getFramework();
-        if (framework != null && !framework.isEmpty()) {
-            return AgentRequest.frameworkAgent(framework, agent);
-        }
-        return AgentRequest.nativeAgent(agent);
+        return Framework.of(agent.getFramework())
+                .map(fw -> AgentRequest.frameworkAgent(fw, agent))
+                .orElseGet(() -> AgentRequest.nativeAgent(agent));
     }
 
     /**

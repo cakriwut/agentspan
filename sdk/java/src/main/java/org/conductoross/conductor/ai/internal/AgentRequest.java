@@ -3,116 +3,60 @@
 
 package org.conductoross.conductor.ai.internal;
 
+import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 
 import org.conductoross.conductor.ai.Agent;
+import org.conductoross.conductor.ai.enums.Framework;
 import org.conductoross.conductor.ai.plans.Plan;
 
-import com.fasterxml.jackson.annotation.JsonInclude;
-import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.core.JsonGenerator;
+import com.fasterxml.jackson.databind.JsonSerializer;
+import com.fasterxml.jackson.databind.SerializerProvider;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 
 /**
  * Request payload for {@code POST /api/agent/compile}, {@code /deploy}, and {@code /start}.
  *
- * <p>All three endpoints share the same server-side {@code StartRequest} DTO. Fields that
- * are not relevant to an endpoint (e.g. {@code prompt} for compile) are left null and
- * omitted from the wire by {@link JsonInclude#NON_NULL}.
+ * <p>All three endpoints share the same server-side {@code StartRequest} DTO. A single
+ * {@link Agent} field carries the agent definition. The {@link Serializer} writes it
+ * under either {@code "agentConfig"} (native agents) or {@code "framework"} +
+ * {@code "rawConfig"} (framework-backed agents) — no duplication.
  *
- * <p>Agent definition is carried in one of two shapes:
- * <ul>
- *   <li><b>Native agents</b>: {@code agentConfig} holds the {@link Agent} object.
- *       {@link AgentConfigSerializer.AsJson} serializes it to the camelCase map
- *       the server's {@code AgentConfig} DTO expects.</li>
- *   <li><b>Framework-backed agents</b> (OpenAI, Google ADK, LangChain, Skill):
- *       {@code framework} identifies the normalizer; {@code rawConfig} holds the
- *       {@link Agent} object serialized the same way via the same serializer.</li>
- * </ul>
- *
- * <p>Build via {@link #nativeAgent(Agent)} or {@link #frameworkAgent(String, Agent)},
- * then chain builder methods for execution-specific fields ({@code prompt}, {@code runId}, etc.).
+ * <p>Build via {@link #nativeAgent(Agent)} or {@link #frameworkAgent(Framework, Agent)},
+ * then chain builder methods for execution-specific fields.
  */
-@JsonInclude(JsonInclude.Include.NON_NULL)
+@JsonSerialize(using = AgentRequest.Serializer.class)
 public final class AgentRequest {
 
-    // ── Agent definition (mutually exclusive) ────────────────────────────
+    // ── Agent definition ────────────────────────────────────────────────
+    /** The agent to compile / deploy / start. Always present. */
+    final Agent agent;
 
     /**
-     * Native agent definition. Serialized to the server's {@code AgentConfig} wire format
-     * by {@link AgentConfigSerializer.AsJson}.
+     * Non-null for framework-backed agents; {@code null} for native agents.
+     * Determines whether {@link Serializer} writes {@code "agentConfig"} or
+     * {@code "framework"} + {@code "rawConfig"}.
      */
-    @JsonProperty("agentConfig")
-    @JsonSerialize(using = AgentConfigSerializer.AsJson.class)
-    private final Agent agentConfig;
-
-    /** Framework identifier: {@code "openai"}, {@code "google_adk"}, {@code "langchain"}, {@code "skill"}, etc. */
-    @JsonProperty("framework")
-    private final String framework;
-
-    /**
-     * Framework-specific agent config. Serialized by {@link AgentConfigSerializer.AsJson}
-     * — same format as {@link #agentConfig}, routed through the matching server-side normalizer.
-     */
-    @JsonProperty("rawConfig")
-    @JsonSerialize(using = AgentConfigSerializer.AsJson.class)
-    private final Agent rawConfig;
+    final Framework framework;
 
     // ── Execution fields (only meaningful for /start) ────────────────────
-
-    /** User's input message. Required for {@code /start}; omitted for compile/deploy. */
-    @JsonProperty("prompt")
-    private final String prompt;
-
-    /** Session/memory identifier for stateful agents. */
-    @JsonProperty("sessionId")
-    private final String sessionId;
-
-    /**
-     * Per-execution isolation UUID for stateful agents. The server maps all worker
-     * tasks to this domain so concurrent executions don't steal each other's tasks.
-     */
-    @JsonProperty("runId")
-    private final String runId;
-
-    /**
-     * Deterministic plan for {@code PLAN_EXECUTE} strategy. Bypasses the planner LLM.
-     * Serialized as {@code "static_plan"} by {@link Plan.AsJson} to match the server's
-     * {@code @JsonProperty("static_plan")} on {@code StartRequest.staticPlan}.
-     */
-    @JsonProperty("static_plan")
-    @JsonSerialize(using = Plan.AsJson.class)
-    private final Plan staticPlan;
+    final String prompt;
+    final String sessionId;
+    final String runId;
+    final Plan staticPlan;
 
     // ── Optional fields ──────────────────────────────────────────────────
-
-    /** Media file URLs or base64 strings attached to the prompt. */
-    @JsonProperty("media")
-    private final List<String> media;
-
-    /**
-     * Arbitrary key-value context injected into the workflow input.
-     * Intentionally untyped — the server treats it as a free-form map.
-     */
-    @JsonProperty("context")
-    private final Map<String, Object> context;
-
-    /** Client-supplied deduplication key; the server deduplicates starts with the same key. */
-    @JsonProperty("idempotencyKey")
-    private final String idempotencyKey;
-
-    /** Credential names the server should inject at runtime. */
-    @JsonProperty("credentials")
-    private final List<String> credentials;
-
-    /** Per-execution timeout override (seconds). */
-    @JsonProperty("timeoutSeconds")
-    private final Integer timeoutSeconds;
+    final List<String> media;
+    final Map<String, Object> context;
+    final String idempotencyKey;
+    final List<String> credentials;
+    final Integer timeoutSeconds;
 
     private AgentRequest(Builder b) {
-        this.agentConfig = b.agentConfig;
+        this.agent = b.agent;
         this.framework = b.framework;
-        this.rawConfig = b.rawConfig;
         this.prompt = b.prompt;
         this.sessionId = b.sessionId;
         this.runId = b.runId;
@@ -124,22 +68,21 @@ public final class AgentRequest {
         this.timeoutSeconds = b.timeoutSeconds;
     }
 
-    /** Start building a request for a native (non-framework) agent. */
+    /** Build a request for a native (non-framework) agent. */
     public static Builder nativeAgent(Agent agent) {
-        return new Builder().agentConfig(agent);
+        return new Builder(agent, null);
     }
 
-    /** Start building a request for a framework-backed agent (OpenAI, ADK, LangChain, Skill). */
-    public static Builder frameworkAgent(String framework, Agent agent) {
-        return new Builder().framework(framework).rawConfig(agent);
+    /** Build a request for a framework-backed agent (OpenAI, ADK, Skill). */
+    public static Builder frameworkAgent(Framework framework, Agent agent) {
+        return new Builder(agent, framework);
     }
 
     // ── Builder ──────────────────────────────────────────────────────────
 
     public static final class Builder {
-        private Agent agentConfig;
-        private String framework;
-        private Agent rawConfig;
+        private final Agent agent;
+        private final Framework framework;
         private String prompt;
         private String sessionId;
         private String runId;
@@ -150,19 +93,9 @@ public final class AgentRequest {
         private List<String> credentials;
         private Integer timeoutSeconds;
 
-        private Builder agentConfig(Agent v) {
-            this.agentConfig = v;
-            return this;
-        }
-
-        private Builder framework(String v) {
-            this.framework = v;
-            return this;
-        }
-
-        private Builder rawConfig(Agent v) {
-            this.rawConfig = v;
-            return this;
+        private Builder(Agent agent, Framework framework) {
+            this.agent = agent;
+            this.framework = framework;
         }
 
         public Builder prompt(String v) {
@@ -212,6 +145,58 @@ public final class AgentRequest {
 
         public AgentRequest build() {
             return new AgentRequest(this);
+        }
+    }
+
+    // ── Jackson serializer ───────────────────────────────────────────────
+
+    /**
+     * Writes the correct JSON shape based on whether a {@link Framework} is set:
+     * <ul>
+     *   <li>Native: {@code "agentConfig": serialize(agent)}</li>
+     *   <li>Framework: {@code "framework": "openai", "rawConfig": serialize(agent)}</li>
+     * </ul>
+     * All other fields are written with explicit null-checks so no field is emitted
+     * when not set ({@code @JsonInclude(NON_NULL)} is not needed on the class).
+     */
+    static final class Serializer extends JsonSerializer<AgentRequest> {
+        private static final AgentConfigSerializer AGENT_SERIALIZER = new AgentConfigSerializer();
+
+        @Override
+        public void serialize(AgentRequest r, JsonGenerator gen, SerializerProvider provider) throws IOException {
+            gen.writeStartObject();
+
+            // Agent definition — mutually exclusive key based on framework
+            if (r.framework == null) {
+                gen.writeObjectField("agentConfig", AGENT_SERIALIZER.serialize(r.agent));
+            } else {
+                gen.writeStringField("framework", r.framework.wireValue());
+                gen.writeObjectField("rawConfig", AGENT_SERIALIZER.serialize(r.agent));
+            }
+
+            // Execution fields
+            if (r.prompt != null) gen.writeStringField("prompt", r.prompt);
+            if (r.sessionId != null) gen.writeStringField("sessionId", r.sessionId);
+            if (r.runId != null) gen.writeStringField("runId", r.runId);
+            if (r.staticPlan != null) gen.writeObjectField("static_plan", r.staticPlan.toJson());
+
+            // Optional fields
+            if (r.media != null) {
+                gen.writeFieldName("media");
+                provider.defaultSerializeValue(r.media, gen);
+            }
+            if (r.context != null) {
+                gen.writeFieldName("context");
+                provider.defaultSerializeValue(r.context, gen);
+            }
+            if (r.idempotencyKey != null) gen.writeStringField("idempotencyKey", r.idempotencyKey);
+            if (r.credentials != null) {
+                gen.writeFieldName("credentials");
+                provider.defaultSerializeValue(r.credentials, gen);
+            }
+            if (r.timeoutSeconds != null) gen.writeNumberField("timeoutSeconds", r.timeoutSeconds);
+
+            gen.writeEndObject();
         }
     }
 }
