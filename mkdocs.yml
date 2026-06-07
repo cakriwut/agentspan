@@ -96,8 +96,10 @@ nav:
           - OpenAI Agents SDK: java-sdk/frameworks/openai.md
           - Google ADK: java-sdk/frameworks/google-adk.md
       - Spring Boot: java-sdk/spring-boot.md
-      - API Reference: java-sdk/api-reference.md
-      - Control-Plane API: java-sdk/agent-client-api.md
+      - API Reference:
+          - AgentRuntime: java-sdk/agent-runtime-api.md
+          - AgentClient (internal): java-sdk/agent-client-api.md
+          - Public API summary: java-sdk/api-reference.md
   - Reference:
       - Providers: providers.md
       - AI Models: ai-models.md
