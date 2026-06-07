@@ -133,6 +133,28 @@ These are *correct per the schema* (both forms validate) but worth noting:
 - **Tool retry fields.** The Java serializer may emit `retryCount` / `retryDelaySeconds` /
   `retryPolicy` on a tool. These are not in the server `ToolConfig` model, so the `tool` definition
   keeps `additionalProperties: true`.
+- **`cliConfig.workingDir`.** The Java serializer emits `workingDir` inside `cliConfig`; the server
+  `CliConfig` model has no such field (it is ignored server-side). The schema includes it so Java
+  output validates.
+
+## Reverse verification
+
+As an independent check that the schema is *complete* (the forward pass started from inventories,
+which could omit a field), the schema is reverse-engineered back into models and diffed against the
+live source by [`generated/generate.py`](generated/generate.py). It emits a Python dataclass
+([`generated/agent_config.py`](generated/agent_config.py)) and a Java record
+([`generated/AgentConfigModel.java`](generated/AgentConfigModel.java)) **directly from the schema**,
+then asserts:
+
+| Check | Result |
+|---|---|
+| (a) generated dataclass/record fields are field-for-field identical to the schema (root + 16 nested) | ✅ |
+| (b) a generated instance serializes to schema-valid JSON | ✅ |
+| (c) every server `AgentConfig` field — root **and** all 13 nested models (`ToolConfig`, `GuardrailConfig`, `TerminationConfig`, …) — is present in the schema | ✅ **0 gaps** |
+
+The generated Java record also compiles under `javac`. The only properties the schema carries
+beyond the server models are the documented SDK-emitted/tolerated extras: `sessionId`, `stateful`,
+`localCodeExecution` (root) and `cliConfig.workingDir` — nothing was missed.
 
 ## Scope
 
