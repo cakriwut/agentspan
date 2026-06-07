@@ -80,6 +80,23 @@ nav:
       - LangGraph Code Review Bot: examples/langgraph.md
       - OpenAI Agents SDK Customer Support: examples/openai-agents-sdk.md
       - Google ADK Research Assistant: examples/google-adk.md
+  - Java SDK:
+      - Overview: java-sdk/index.md
+      - Getting Started: java-sdk/getting-started.md
+      - Core Concepts:
+          - Agents: java-sdk/concepts/agents.md
+          - Tools: java-sdk/concepts/tools.md
+          - Multi-Agent: java-sdk/concepts/multi-agent.md
+          - Guardrails: java-sdk/concepts/guardrails.md
+          - Termination: java-sdk/concepts/termination.md
+          - Scheduling: java-sdk/concepts/scheduling.md
+          - Skills: java-sdk/concepts/skills.md
+      - Frameworks:
+          - LangChain4j: java-sdk/frameworks/langchain4j.md
+          - OpenAI Agents SDK: java-sdk/frameworks/openai.md
+          - Google ADK: java-sdk/frameworks/google-adk.md
+      - Spring Boot: java-sdk/spring-boot.md
+      - API Reference: java-sdk/api-reference.md
   - Reference:
       - Providers: providers.md
       - AI Models: ai-models.md
