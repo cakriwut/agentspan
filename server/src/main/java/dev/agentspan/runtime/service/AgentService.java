@@ -47,6 +47,9 @@ import dev.agentspan.runtime.compiler.MultiAgentCompiler;
 import dev.agentspan.runtime.credentials.ExecutionTokenService;
 import dev.agentspan.runtime.model.*;
 import dev.agentspan.runtime.normalizer.NormalizerRegistry;
+import dev.agentspan.runtime.ocg.OcgAgentFactory;
+import dev.agentspan.runtime.ocg.OcgAgentToolInjector;
+import dev.agentspan.runtime.ocg.OcgSubAgentService;
 import dev.agentspan.runtime.util.ModelParser;
 import dev.agentspan.runtime.util.ProviderValidator;
 
@@ -74,6 +77,9 @@ public class AgentService {
 
     @Autowired(required = false)
     private SkillRegistryService skillRegistryService;
+
+    @Autowired(required = false)
+    private OcgSubAgentService ocgSubAgentService;
 
     /** Package-private constructor for testing with ExecutionTokenService */
     AgentService(
@@ -1161,6 +1167,7 @@ public class AgentService {
      * Otherwise, use the native {@code agentConfig} field directly.
      */
     private AgentConfig resolveConfig(StartRequest request) {
+        AgentConfig config;
         if (request.getFramework() != null && !request.getFramework().isEmpty()) {
             log.info("Normalizing framework '{}' agent config", request.getFramework());
             if ("skill".equals(request.getFramework())
@@ -1171,9 +1178,41 @@ public class AgentService {
                 }
                 request.setRawConfig(skillRegistryService.resolveRawConfig(request.getSkillRef()));
             }
-            return normalizerRegistry.normalize(request.getFramework(), request.getRawConfig());
+            config = normalizerRegistry.normalize(request.getFramework(), request.getRawConfig());
+        } else {
+            config = request.getAgentConfig();
         }
-        return request.getAgentConfig();
+        return maybeInjectOcgAgentTool(config);
+    }
+
+    /**
+     * Silently append the OCG sub-agent as an {@code agent_tool} on the
+     * top-level config when OCG is enabled. Pre-flight has been removed —
+     * the main agent's LLM decides whether to call OCG.
+     *
+     * <p>Logic lives in {@link OcgAgentToolInjector} so the rules (skip
+     * self, skip duplicates, only top-level) are unit-testable without the
+     * full service stack.</p>
+     */
+    private AgentConfig maybeInjectOcgAgentTool(AgentConfig config) {
+        boolean enabled = ocgSubAgentService != null && ocgSubAgentService.isEnabled();
+        AgentConfig result = OcgAgentToolInjector.inject(config, enabled);
+        if (enabled
+                && result != null
+                && result.getTools() != null
+                && !result.getTools().isEmpty()
+                && OcgAgentToolInjector.OCG_AGENT_TOOL_NAME.equals(
+                        result.getTools().get(result.getTools().size() - 1).getName())
+                && !OcgAgentFactory.AGENT_NAME.equals(result.getName())) {
+            // Logged only when injection actually happened on this call (last
+            // tool == ocg_agent and we aren't compiling the OCG agent itself).
+            // Duplicate-skip and self-skip paths stay silent.
+            log.info(
+                    "Auto-injected '{}' agent_tool into '{}'",
+                    OcgAgentToolInjector.OCG_AGENT_TOOL_NAME,
+                    config != null ? config.getName() : "<null>");
+        }
+        return result;
     }
 
     // ── SSE Streaming ──────────────────────────────────────────────

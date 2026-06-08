@@ -44,8 +44,8 @@ class EnrichToolsScriptTest {
     private List<Map<String, Object>> enrich(String knownNamesJson, String toolCallsJson) throws Exception {
         // All optional config maps are empty so every name falls through to the
         // generic SIMPLE-or-unknown branch. That's the path the harness uses.
-        String script =
-                JavaScriptBuilder.enrichToolsScript("{}", "{}", "{}", "{}", "{}", "{}", "{}", "{}", knownNamesJson);
+        String script = JavaScriptBuilder.enrichToolsScript(
+                "{}", "{}", "{}", "{}", "{}", "{}", "{}", "{}", "{}", knownNamesJson);
         // Wrap so the script's IIFE return is captured AND we get a JSON string
         // back — Graal's Value.toString() is JS source, not JSON.
         String wrapped = "var $ = {"

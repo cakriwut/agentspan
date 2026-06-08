@@ -526,6 +526,7 @@ public class JavaScriptBuilder {
             String cliConfigJson,
             String humanConfigJson,
             String wmqConfigJson,
+            String ocgConfigJson,
             String knownToolNamesJson) {
         return iife("  var httpCfg = " + httpConfigJson + ";" + "  var mcpCfg = "
                 + mcpConfigJson + ";" + "  var mediaCfg = "
@@ -534,7 +535,8 @@ public class JavaScriptBuilder {
                 + ragConfigJson + ";" + "  var cliCfg = "
                 + cliConfigJson + ";" + "  var humanCfg = "
                 + humanConfigJson + ";" + "  var wmqCfg = "
-                + wmqConfigJson + ";" + "  var knownNames = " + knownToolNamesJson + ";"
+                + wmqConfigJson + ";" + "  var ocgCfg = "
+                + ocgConfigJson + ";" + "  var knownNames = " + knownToolNamesJson + ";"
                 + "  var agentState = $.agentState || {};"
                 + "  var tcs = $.toolCalls || [];"
                 + "  var result = [];"
@@ -546,7 +548,7 @@ public class JavaScriptBuilder {
                 // SIMPLE task gets queued under the unknown name with no worker
                 // polling for it and the workflow hangs forever.
                 + "    var isCfg = !!(httpCfg[n] || mcpCfg[n] || agentToolCfg[n] ||"
-                + "                  mediaCfg[n] || ragCfg[n] || humanCfg[n] || wmqCfg[n]);"
+                + "                  mediaCfg[n] || ragCfg[n] || humanCfg[n] || wmqCfg[n] || ocgCfg[n]);"
                 // Reject any name not in the agent's declared tools. The
                 // previous gate (``hasKnownNames``) skipped this check when
                 // ``knownNames`` was empty, which allowed an agent declared
@@ -635,6 +637,15 @@ public class JavaScriptBuilder {
                 + "      var inp = tc.inputParameters || {};"
                 + "      for (var k in inp) { merged[k] = inp[k]; }"
                 + "      t.inputParameters = merged;"
+                + "    } else if (ocgCfg[n]) {"
+                // OCG tools dispatch to per-operation OCG_* system tasks. The
+                // OCG URL is resolved server-side from OcgProperties, so the
+                // script only needs to set the task type and forward the
+                // LLM-supplied arguments verbatim as inputParameters.
+                + "      t.type = ocgCfg[n].taskType;"
+                + "      t.name = ocgCfg[n].taskType.toLowerCase();"
+                + "      t.inputParameters = tc.inputParameters || {};"
+                + "      if ($.agentspanCtx) { t.inputParameters.__agentspan_ctx__ = $.agentspanCtx; }"
                 + "    } else if (humanCfg[n]) {"
                 + "      t.type = 'HUMAN';"
                 + "      t.name = n;"
@@ -1119,6 +1130,7 @@ public class JavaScriptBuilder {
             String ragConfigJson,
             String humanConfigJson,
             String wmqConfigJson,
+            String ocgConfigJson,
             String knownToolNamesJson) {
         return iife("  var httpCfg = " + httpConfigJson + ";" + "  var mcpCfg = $.mcpConfig || {};"
                 + "  var apiCfg = $.apiConfig || {};"
@@ -1127,7 +1139,8 @@ public class JavaScriptBuilder {
                 + agentToolConfigJson + ";" + "  var ragCfg = "
                 + ragConfigJson + ";" + "  var humanCfg = "
                 + humanConfigJson + ";" + "  var wmqCfg = "
-                + wmqConfigJson + ";" + "  var knownNames = " + knownToolNamesJson + ";"
+                + wmqConfigJson + ";" + "  var ocgCfg = "
+                + ocgConfigJson + ";" + "  var knownNames = " + knownToolNamesJson + ";"
                 + "  var agentState = $.agentState || {};"
                 + "  var tcs = $.toolCalls || [];"
                 + "  var result = [];"
@@ -1137,7 +1150,7 @@ public class JavaScriptBuilder {
                 // for context). Without this the SIMPLE task gets queued under
                 // an unknown name and the workflow hangs forever.
                 + "    var isCfg = !!(httpCfg[n] || mcpCfg[n] || apiCfg[n] || agentToolCfg[n] ||"
-                + "                  mediaCfg[n] || ragCfg[n] || humanCfg[n] || wmqCfg[n]);"
+                + "                  mediaCfg[n] || ragCfg[n] || humanCfg[n] || wmqCfg[n] || ocgCfg[n]);"
                 // See ``enrichToolsScript`` above — empty knownNames means
                 // NO tool is callable by the LLM (locks down the prefill-only
                 // leak path).
@@ -1254,6 +1267,11 @@ public class JavaScriptBuilder {
                 + "      var inp = tc.inputParameters || {};"
                 + "      for (var k in inp) { merged[k] = inp[k]; }"
                 + "      t.inputParameters = merged;"
+                + "    } else if (ocgCfg[n]) {"
+                + "      t.type = ocgCfg[n].taskType;"
+                + "      t.name = ocgCfg[n].taskType.toLowerCase();"
+                + "      t.inputParameters = tc.inputParameters || {};"
+                + "      if ($.agentspanCtx) { t.inputParameters.__agentspan_ctx__ = $.agentspanCtx; }"
                 + "    } else if (humanCfg[n]) {"
                 + "      t.type = 'HUMAN';"
                 + "      t.name = n;"
