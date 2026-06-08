@@ -172,6 +172,41 @@ class OcgRequestTaskTest {
     }
 
     @Test
+    void authorizationHeaderAttachedWhenApiKeySet() throws Exception {
+        HttpClient http = mock(HttpClient.class);
+        stubSend(http, stub(200, "{\"citations\":[]}"));
+        OcgProperties p = props("http://ocg.local");
+        p.setApiKey("secret-key-123");
+        OcgRequestTask task = new OcgRequestTask("OCG_QUERY", OcgRequestTask.OP_QUERY, p, http);
+
+        TaskModel t = taskWith(Map.of("query", "x"));
+        task.start(null, t, null);
+
+        ArgumentCaptor<HttpRequest> req = ArgumentCaptor.forClass(HttpRequest.class);
+        org.mockito.Mockito.verify(http).send(req.capture(), any());
+        // Bearer scheme — pinning both the header name and the prefix so a
+        // refactor can't silently change to e.g. ``X-API-Key`` without
+        // tripping a test.
+        assertThat(req.getValue().headers().firstValue("Authorization")).hasValue("Bearer secret-key-123");
+    }
+
+    @Test
+    void noAuthorizationHeaderWhenApiKeyUnset() throws Exception {
+        HttpClient http = mock(HttpClient.class);
+        stubSend(http, stub(200, "{\"citations\":[]}"));
+        // props(...) does not set an api key → header must be omitted so
+        // unauthenticated local OCG instances keep working.
+        OcgRequestTask task = new OcgRequestTask("OCG_QUERY", OcgRequestTask.OP_QUERY, props("http://ocg.local"), http);
+
+        TaskModel t = taskWith(Map.of("query", "x"));
+        task.start(null, t, null);
+
+        ArgumentCaptor<HttpRequest> req = ArgumentCaptor.forClass(HttpRequest.class);
+        org.mockito.Mockito.verify(http).send(req.capture(), any());
+        assertThat(req.getValue().headers().firstValue("Authorization")).isEmpty();
+    }
+
+    @Test
     void disabledPropertiesYieldsFailedTask() throws Exception {
         HttpClient http = mock(HttpClient.class);
         OcgRequestTask task = new OcgRequestTask("OCG_QUERY", OcgRequestTask.OP_QUERY, props(""), http);

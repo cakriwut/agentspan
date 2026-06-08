@@ -131,6 +131,9 @@ public class OcgRequestTask extends WorkflowSystemTask {
     HttpRequest buildRequest(Map<String, Object> input) throws Exception {
         String baseUrl = trimTrailingSlash(properties.getUrl());
         HttpRequest.Builder b = HttpRequest.newBuilder().timeout(READ_TIMEOUT).header("Accept", "application/json");
+        if (properties.hasApiKey()) {
+            b.header("Authorization", "Bearer " + properties.getApiKey());
+        }
 
         switch (operation) {
             case OP_QUERY -> {

@@ -26,6 +26,13 @@ public class OcgProperties {
     /** Base URL of the OCG service. Empty / null disables the entire OCG feature. */
     private String url;
 
+    /**
+     * Bearer token sent on every OCG HTTP request as
+     * {@code Authorization: Bearer <apiKey>}. Empty / null means no auth
+     * header — useful for local dev against an unauthenticated OCG instance.
+     */
+    private String apiKey;
+
     /** Model used by the OCG sub-agent's LLM turns. */
     private String model = "openai/gpt-4o-mini";
 
@@ -38,5 +45,9 @@ public class OcgProperties {
 
     public boolean isEnabled() {
         return url != null && !url.isBlank();
+    }
+
+    public boolean hasApiKey() {
+        return apiKey != null && !apiKey.isBlank();
     }
 }
