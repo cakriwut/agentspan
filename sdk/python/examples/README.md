@@ -207,7 +207,6 @@ python examples/adk/01_basic_agent.py
 | 09 | [Human-in-the-Loop](09_human_in_the_loop.py) | Tool approval gate — approve or reject before execution | `approval_required=True` |
 | 09b | [HITL with Feedback](09b_hitl_with_feedback.py) | Custom feedback via `respond()` — editorial review with revision notes | `handle.respond()` |
 | 09c | [HITL with Streaming](09c_hitl_streaming.py) | Real-time event stream with approval pauses | `stream()` + `approve()` |
-| 27 | [User Proxy Agent](27_user_proxy_agent.py) | Human stand-in agent for interactive conversations | `UserProxyAgent` |
 
 ## Guardrails & Safety
 
@@ -340,7 +339,6 @@ Quick lookup — find the right example for any SDK feature:
 | `SemanticMemory` | 25 |
 | `TokenUsage` | 23 |
 | OpenTelemetry tracing | 26 |
-| `UserProxyAgent` | 27 |
 | `GPTAssistantAgent` | 28 |
 | `@worker_task` as tools | 14 |
 | `@tool(external=True)` | 33 |

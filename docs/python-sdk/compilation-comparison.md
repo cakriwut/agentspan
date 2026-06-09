@@ -36,7 +36,6 @@ Server: http://localhost:6767/api
 | 22_llm_guardrails | agent | MATCH |  |
 | 23_token_tracking | agent | MATCH |  |
 | 25_semantic_memory | agent | MATCH |  |
-| 27_user_proxy_agent | conversation | MATCH |  |
 | 29_agent_introductions | design_review | MATCH |  |
 | 30_multimodal_agent | creative_pipeline | MATCH |  |
 | 31_tool_guardrails | agent | MATCH |  |
