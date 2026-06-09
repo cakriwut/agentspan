@@ -2476,66 +2476,104 @@ public class AgentCompiler {
      *       — caller's explicit declaration wins</li>
      * </ul>
      */
-    @SuppressWarnings("unchecked")
     void mergeAutoExposedTools(AgentConfig config) {
         if (config == null || metadataDAO == null) return;
-        List<WorkflowDef> defs;
-        try {
-            defs = metadataDAO.getAllWorkflowDefsLatestVersions();
-        } catch (Exception e) {
-            // Defensive — a transient DAO failure shouldn't fail the compile;
-            // the merge is a convenience layer, not a correctness requirement.
-            log.warn("auto-expose merge: metadataDAO lookup failed, skipping. {}", e.getMessage());
-            return;
-        }
-        if (defs == null || defs.isEmpty()) return;
+        List<WorkflowDef> defs = safelyFetchAllWorkflowDefs();
+        if (defs.isEmpty()) return;
 
-        List<ToolConfig> tools = config.getTools();
-        Set<String> existingNames = new HashSet<>();
-        if (tools != null) {
-            for (ToolConfig t : tools) {
-                if (t.getName() != null) existingNames.add(t.getName());
-            }
-        }
-
-        List<ToolConfig> merged = null;
+        Set<String> takenNames = collectToolNames(config);
+        List<ToolConfig> toAppend = new ArrayList<>();
         for (WorkflowDef def : defs) {
-            Map<String, Object> md = def.getMetadata();
-            if (md == null) continue;
-            Object spec = md.get(AUTO_EXPOSE_AS_TOOL_METADATA_KEY);
-            if (!(spec instanceof Map<?, ?> specMap)) continue;
-            Object nameObj = specMap.get("name");
-            if (!(nameObj instanceof String toolName) || toolName.isEmpty()) continue;
-
-            // Self-recursion guard: the workflow being compiled cannot have
-            // itself appended as a tool. Match on the workflow def's name
-            // (the Conductor registration name, e.g. "_ocg_agent"), since
-            // that's what config.getName() resolves to during the
-            // sub-agent's own compile.
-            if (def.getName().equals(config.getName())) continue;
-
-            // Duplicate guard: skip names already present on the config.
-            if (existingNames.contains(toolName)) continue;
-
-            Object descObj = specMap.get("description");
-            String description = descObj instanceof String s ? s : "";
-
-            if (merged == null) {
-                merged = new ArrayList<>(tools != null ? tools : List.of());
-            }
-            merged.add(ToolConfig.builder()
-                    .name(toolName)
-                    .toolType("agent_tool")
-                    .description(description)
-                    .config(Map.of("workflowName", def.getName()))
-                    .build());
-            existingNames.add(toolName);
-            log.info(
-                    "Auto-exposed workflow '{}' as agent_tool '{}' on '{}'", def.getName(), toolName, config.getName());
+            tryBuildAgentTool(def, config.getName(), takenNames).ifPresent(tool -> {
+                toAppend.add(tool);
+                log.info(
+                        "Auto-exposed workflow '{}' as agent_tool '{}' on '{}'",
+                        def.getName(),
+                        tool.getName(),
+                        config.getName());
+            });
         }
-        if (merged != null) {
-            config.setTools(merged);
+        if (!toAppend.isEmpty()) {
+            appendTools(config, toAppend);
         }
+    }
+
+    /**
+     * Yield an {@code agent_tool} {@link ToolConfig} for {@code def} if and only if
+     * {@code def} carries a well-formed auto-expose marker, is not the workflow being
+     * compiled, and its tool name isn't already taken. Mutates {@code takenNames} on
+     * success so subsequent calls in the same pass dedupe against this one too.
+     *
+     * <p>Guard clauses on the unhappy paths; one happy-path return at the bottom. The
+     * caller has no control-flow keywords — just consumes the {@link Optional}.</p>
+     */
+    private static Optional<ToolConfig> tryBuildAgentTool(
+            WorkflowDef def, String compileTargetName, Set<String> takenNames) {
+        AutoExposeSpec spec = readAutoExposeSpec(def);
+        if (spec == null) return Optional.empty();
+        if (def.getName().equals(compileTargetName)) return Optional.empty();
+        if (!takenNames.add(spec.toolName())) return Optional.empty();
+        return Optional.of(buildAgentTool(def.getName(), spec));
+    }
+
+    /** Typed view of an {@link #AUTO_EXPOSE_AS_TOOL_METADATA_KEY} entry. */
+    private record AutoExposeSpec(String toolName, String description) {}
+
+    /**
+     * Pull all latest WorkflowDefs from the DAO, swallowing any transient
+     * failure as a warn-and-empty. The merge is a convenience layer, not a
+     * correctness requirement — a failed lookup shouldn't fail the compile.
+     */
+    private List<WorkflowDef> safelyFetchAllWorkflowDefs() {
+        try {
+            List<WorkflowDef> defs = metadataDAO.getAllWorkflowDefsLatestVersions();
+            return defs == null ? List.of() : defs;
+        } catch (Exception e) {
+            log.warn("auto-expose merge: metadataDAO lookup failed, skipping. {}", e.getMessage());
+            return List.of();
+        }
+    }
+
+    /** Names of every tool already declared on {@code config}. */
+    private static Set<String> collectToolNames(AgentConfig config) {
+        if (config.getTools() == null) return new HashSet<>();
+        Set<String> names = new HashSet<>();
+        for (ToolConfig t : config.getTools()) {
+            if (t.getName() != null) names.add(t.getName());
+        }
+        return names;
+    }
+
+    /**
+     * Read the auto-expose marker off a {@link WorkflowDef}, returning null
+     * when the marker is absent or malformed. Type-checks the spec map and
+     * its {@code name} field; defaults missing description to empty string.
+     */
+    private static AutoExposeSpec readAutoExposeSpec(WorkflowDef def) {
+        Map<String, Object> metadata = def.getMetadata();
+        if (metadata == null || !(metadata.get(AUTO_EXPOSE_AS_TOOL_METADATA_KEY) instanceof Map<?, ?> spec)) {
+            return null;
+        }
+        if (!(spec.get("name") instanceof String toolName) || toolName.isEmpty()) return null;
+        String description = spec.get("description") instanceof String s ? s : "";
+        return new AutoExposeSpec(toolName, description);
+    }
+
+    /** Build the agent_tool ToolConfig the LLM tool list ends up seeing. */
+    private static ToolConfig buildAgentTool(String workflowName, AutoExposeSpec spec) {
+        return ToolConfig.builder()
+                .name(spec.toolName())
+                .toolType("agent_tool")
+                .description(spec.description())
+                .config(Map.of("workflowName", workflowName))
+                .build();
+    }
+
+    /** Copy-on-write the tools list with the appended entries set back on {@code config}. */
+    private static void appendTools(AgentConfig config, List<ToolConfig> toAppend) {
+        List<ToolConfig> merged = new ArrayList<>(config.getTools() != null ? config.getTools() : List.of());
+        merged.addAll(toAppend);
+        config.setTools(merged);
     }
 
     // Setters for configuration
