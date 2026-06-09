@@ -1,13 +1,14 @@
 // Copyright (c) 2025 Agentspan
 // Licensed under the MIT License. See LICENSE file in the project root for details.
 
-package org.conductoross.conductor.ai;
+package org.conductoross.conductor.ai.tools;
 
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import org.conductoross.conductor.ai.Agent;
 import org.conductoross.conductor.ai.internal.AgentConfigSerializer;
 import org.conductoross.conductor.ai.model.ToolDef;
 import org.conductoross.conductor.ai.skill.Skill;

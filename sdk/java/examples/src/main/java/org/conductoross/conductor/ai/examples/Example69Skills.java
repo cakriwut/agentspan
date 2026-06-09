@@ -4,7 +4,7 @@
 package org.conductoross.conductor.ai.examples;
 
 import org.conductoross.conductor.ai.Agent;
-import org.conductoross.conductor.ai.AgentTool;
+import org.conductoross.conductor.ai.tools.AgentTool;
 import org.conductoross.conductor.ai.AgentRuntime;
 import org.conductoross.conductor.ai.model.AgentResult;
 import org.conductoross.conductor.ai.skill.Skill;
