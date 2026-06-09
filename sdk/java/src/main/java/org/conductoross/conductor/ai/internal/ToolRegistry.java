@@ -65,7 +65,7 @@ public class ToolRegistry {
                         }
                     }
 
-                    ToolContext context = new ToolContext(null, null, null, agentState);
+                    ToolContext context = new ToolContext(null, null, null, agentState, CredentialContext.current());
                     Object[] methodArgs = buildMethodArgs(method, inputData, context);
                     Object result = method.invoke(obj, methodArgs);
 

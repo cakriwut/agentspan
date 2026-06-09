@@ -5,11 +5,10 @@ package org.conductoross.conductor.ai.examples;
 
 import org.conductoross.conductor.ai.Agent;
 import org.conductoross.conductor.ai.AgentRuntime;
-import org.conductoross.conductor.ai.Credentials;
 import org.conductoross.conductor.ai.annotations.Tool;
-import org.conductoross.conductor.ai.exceptions.CredentialNotFoundException;
 import org.conductoross.conductor.ai.internal.ToolRegistry;
 import org.conductoross.conductor.ai.model.AgentResult;
+import org.conductoross.conductor.ai.model.ToolContext;
 import org.conductoross.conductor.ai.model.ToolDef;
 
 import java.io.IOException;
@@ -27,12 +26,12 @@ import java.util.Map;
  * <p>Demonstrates the {@code credentials} field on {@code @Tool}. Declared
  * credential names are resolved by the server before each tool call. The
  * worker fetches the value via {@code POST /api/workers/secrets} using the
- * execution token, then makes it available to the tool body via
- * {@link org.conductoross.conductor.ai.Credentials#get(String)}.
+ * execution token, then makes it available to the tool body via the per-call
+ * {@link org.conductoross.conductor.ai.model.ToolContext#getCredential(String)}.
  *
  * <p>Java is tier-1-only — {@code System.getenv()} is immutable at JVM
  * runtime, so unlike Python/.NET/TypeScript there is no env-injection mode.
- * Tools MUST read declared credentials via {@code Credentials.get(name)}; reading
+ * Tools MUST read declared credentials via {@code ctx.getCredential(name)}; reading
  * via {@code System.getenv} would only see whatever the JVM inherited from
  * the shell at startup. See {@code docs/design/secret-injection-contract.md} §6.
  *
@@ -58,13 +57,13 @@ public class Example16CredentialsTool {
             description = "List public repositories for a GitHub username (most recently updated)",
             credentials = {"GITHUB_TOKEN"}
         )
-        public Map<String, Object> listGithubRepos(String username, int limit) {
+        public Map<String, Object> listGithubRepos(String username, int limit, ToolContext ctx) {
             try {
                 int n = limit > 0 ? Math.min(limit, 10) : 5;
                 // GITHUB_TOKEN was resolved by the worker before this handler ran
-                // (via POST /api/workers/secrets) and is available through the
-                // Credentials thread-local accessor — no env-var mutation involved.
-                String token = Credentials.getOrNull("GITHUB_TOKEN");
+                // (via POST /api/workers/secrets) and is available on the per-call
+                // ToolContext — no env-var mutation involved.
+                String token = ctx.getCredentialOrNull("GITHUB_TOKEN");
                 HttpRequest.Builder reqBuilder = HttpRequest.newBuilder()
                     .uri(URI.create("https://api.github.com/users/" + username
                         + "/repos?per_page=" + n + "&sort=updated"))
@@ -96,9 +95,9 @@ public class Example16CredentialsTool {
             description = "Get profile information for a GitHub user",
             credentials = {"GITHUB_TOKEN"}
         )
-        public Map<String, Object> getGithubUser(String username) {
+        public Map<String, Object> getGithubUser(String username, ToolContext ctx) {
             try {
-                String token = Credentials.getOrNull("GITHUB_TOKEN");
+                String token = ctx.getCredentialOrNull("GITHUB_TOKEN");
                 HttpRequest.Builder reqBuilder = HttpRequest.newBuilder()
                     .uri(URI.create("https://api.github.com/users/" + username))
                     .timeout(Duration.ofSeconds(10))

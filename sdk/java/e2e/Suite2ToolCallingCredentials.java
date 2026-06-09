@@ -13,11 +13,11 @@ import java.util.*;
 import org.conductoross.conductor.ai.Agent;
 import org.conductoross.conductor.ai.AgentConfig;
 import org.conductoross.conductor.ai.AgentRuntime;
-import org.conductoross.conductor.ai.Credentials;
 import org.conductoross.conductor.ai.annotations.Tool;
 import org.conductoross.conductor.ai.exceptions.AgentspanException;
 import org.conductoross.conductor.ai.internal.ToolRegistry;
 import org.conductoross.conductor.ai.model.AgentResult;
+import org.conductoross.conductor.ai.model.ToolContext;
 import org.conductoross.conductor.ai.model.ToolDef;
 import org.junit.jupiter.api.*;
 
@@ -28,7 +28,7 @@ import org.junit.jupiter.api.*;
  * runtime injection must verify the same four guarantees:
  * <ol>
  *   <li>No cred in store → tool task TERMINAL-fails (no retries on config bug)</li>
- *   <li>Cred set via API → tool sees the stored value at runtime via {@code Credentials.get()}</li>
+ *   <li>Cred set via API → tool sees the stored value at runtime via {@code ctx.getCredential()}</li>
  *   <li>Cred updated via API → next run sees the new value (no token snapshotting)</li>
  *   <li>Cred deleted → tool task TERMINAL-fails again</li>
  * </ol>
@@ -37,7 +37,7 @@ import org.junit.jupiter.api.*;
  * "env vars not used as fallback" security check from Python's Step 3 is
  * structurally satisfied by language design. We test it explicitly anyway
  * (set a JVM-startup env var; verify the SDK doesn't surface it via
- * {@code Credentials.get()}).</p>
+ * {@code ctx.getCredential()}).</p>
  *
  * <p>This is the test that would catch URL drift on {@code /api/workers/secrets},
  * silent-swallow regressions in {@code WorkerCredentialFetcher}, or any
@@ -60,8 +60,8 @@ class Suite2ToolCallingCredentials extends BaseTest {
                 name = "paid_tool_a",
                 description = "Tool that needs E2E_JAVA_CRED_A. Returns first 3 chars of the credential.",
                 credentials = {"E2E_JAVA_CRED_A"})
-        public Map<String, Object> paidToolA(String x) {
-            String value = Credentials.getOrNull(CRED_A);
+        public Map<String, Object> paidToolA(String x, ToolContext ctx) {
+            String value = ctx.getCredentialOrNull(CRED_A);
             if (value == null) {
                 throw new IllegalStateException("Credential " + CRED_A + " not in Secrets context. "
                         + "WorkerManager should have failed the task terminally before reaching here.");
