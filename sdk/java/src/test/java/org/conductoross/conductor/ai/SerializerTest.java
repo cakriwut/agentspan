@@ -518,27 +518,6 @@ class SerializerTest {
         assertEquals("supervisor", handoffs.get(0).get("target"));
     }
 
-    // ── UserProxyAgent ────────────────────────────────────────────────────
-
-    @Test
-    @SuppressWarnings("unchecked")
-    void user_proxy_agent_sets_metadata() {
-        Agent proxy = UserProxyAgent.create("human_user", "ALWAYS", "Continue.", "openai/gpt-4o-mini");
-        Map<String, Object> out = ser.serialize(proxy);
-
-        Map<String, Object> metadata = (Map<String, Object>) out.get("metadata");
-        assertNotNull(metadata, "UserProxyAgent must set metadata");
-        assertEquals("user_proxy", metadata.get("_agent_type"));
-        assertEquals("ALWAYS", metadata.get("_human_input_mode"));
-    }
-
-    @Test
-    void user_proxy_agent_rejects_invalid_mode() {
-        assertThrows(
-                IllegalArgumentException.class,
-                () -> UserProxyAgent.create("u", "INVALID_MODE", "ok", "openai/gpt-4o-mini"));
-    }
-
     // ── MediaTools ────────────────────────────────────────────────────────
 
     @Test

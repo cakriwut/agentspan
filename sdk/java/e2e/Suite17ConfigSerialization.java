@@ -11,7 +11,6 @@ import org.conductoross.conductor.ai.Agent;
 import org.conductoross.conductor.ai.AgentConfig;
 import org.conductoross.conductor.ai.AgentRuntime;
 import org.conductoross.conductor.ai.ClaudeCode;
-import org.conductoross.conductor.ai.UserProxyAgent;
 import org.conductoross.conductor.ai.enums.OnFail;
 import org.conductoross.conductor.ai.enums.Position;
 import org.conductoross.conductor.ai.enums.Strategy;
@@ -36,7 +35,7 @@ import org.junit.jupiter.api.*;
  * <p>Verifies that agent fields and features serialize correctly into the compiled
  * agentDef via the SDK → /agent/compile → compiled-output round-trip. Covered:
  * stateful, baseUrl, TextGate, before/after_agent callbacks, StopMessageTermination,
- * RegexGuardrail, LLMGuardrail, OnCondition handoff, UserProxyAgent, ClaudeCode model,
+ * RegexGuardrail, LLMGuardrail, OnCondition handoff, ClaudeCode model,
  * MediaTools, WaitForMessageTool, HumanTool, GPTAssistantAgent, deploy(), and the
  * parity fields reasoningEffort / contextWindowBudget / maskedFields / memory.
  *
@@ -438,58 +437,6 @@ class Suite17ConfigSerialization extends BaseTest {
                 hasSupervisor,
                 "No handoff to 'e2e_java_supervisor' found. Handoffs: " + handoffs
                         + ". COUNTERFACTUAL: OnCondition target must appear in handoffs.");
-    }
-
-    /**
-     * UserProxyAgent creates an agent with metadata _agent_type == "user_proxy".
-     *
-     * COUNTERFACTUAL: if metadata is missing, the server won't treat it as a human proxy.
-     */
-    @Test
-    @Order(10)
-    @SuppressWarnings("unchecked")
-    void test_user_proxy_agent_metadata_serialized() {
-        Agent user = UserProxyAgent.create("e2e_java_user_proxy", "ALWAYS", "Continue.", MODEL);
-        Agent assistant = Agent.builder()
-                .name("e2e_java_proxy_assistant")
-                .model(MODEL)
-                .instructions("Assist the user.")
-                .build();
-        Agent team = Agent.builder()
-                .name("e2e_java_proxy_team")
-                .model(MODEL)
-                .instructions("Coordinate.")
-                .agents(user, assistant)
-                .strategy(Strategy.ROUND_ROBIN)
-                .build();
-
-        CompileResponse plan = runtime.plan(team);
-        Map<String, Object> agentDef = getAgentDef(plan);
-
-        List<Map<String, Object>> agents = (List<Map<String, Object>>) agentDef.get("agents");
-        assertNotNull(agents, "agentDef has no 'agents'");
-
-        Map<String, Object> userDef = agents.stream()
-                .filter(a -> "e2e_java_user_proxy".equals(a.get("name")))
-                .findFirst()
-                .orElseGet(() -> {
-                    fail("UserProxyAgent not found in agents: "
-                            + agents.stream().map(a -> (String) a.get("name")).collect(Collectors.toList()));
-                    return null;
-                });
-
-        Map<String, Object> metadata = (Map<String, Object>) userDef.get("metadata");
-        assertNotNull(
-                metadata, "UserProxyAgent has no 'metadata'. COUNTERFACTUAL: UserProxyAgent must set _agent_type.");
-        assertEquals(
-                "user_proxy",
-                metadata.get("_agent_type"),
-                "_agent_type should be 'user_proxy' but got: " + metadata.get("_agent_type")
-                        + ". COUNTERFACTUAL: UserProxyAgent must set metadata._agent_type='user_proxy'.");
-        assertEquals(
-                "ALWAYS",
-                metadata.get("_human_input_mode"),
-                "_human_input_mode should be 'ALWAYS' but got: " + metadata.get("_human_input_mode"));
     }
 
     /**

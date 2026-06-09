@@ -24,7 +24,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  * }</pre>
  */
 @ConfigurationProperties(prefix = "conductor.agent")
-public class AgentspanProperties {
+public class AgentProperties {
 
     private int workerPollIntervalMs = 100;
     private int workerThreadCount = 1;
