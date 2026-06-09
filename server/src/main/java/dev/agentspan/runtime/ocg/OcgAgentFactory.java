@@ -44,11 +44,23 @@ public final class OcgAgentFactory {
                     + "supporting citations.";
 
     /**
-     * System prompt for the OCG sub-agent. Supplied verbatim by the feature
-     * spec — explains the retrieval/aggregation split and the two-step
-     * pattern callers must follow.
+     * Marker {@link #build} replaces with the current UTC date so the LLM
+     * doesn't hallucinate date ranges. Computed at compile time, refreshes
+     * on every server restart.
      */
-    static final String OCG_SYSTEM_PROMPT = "You are querying an OCG (Observability Context Graph). It is a RETRIEVAL\n"
+    static final String TODAY_PLACEHOLDER = "{{TODAY}}";
+
+    /**
+     * System prompt template for the OCG sub-agent. {@link #TODAY_PLACEHOLDER}
+     * is replaced with today's UTC date in {@link #build} so any
+     * "recent" / relative-date query gets bounded against a real anchor
+     * instead of whatever year the model felt like inventing.
+     */
+    static final String OCG_SYSTEM_PROMPT = "Today's date is " + TODAY_PLACEHOLDER + " (UTC). When a user asks for\n"
+            + "\"recent\" / \"last week\" / any relative range, anchor on this date.\n"
+            + "Never invent a date range — if no range is implied by the user, omit\n"
+            + "start_time/end_time from the request.\n\n"
+            + "You are querying an OCG (Observability Context Graph). It is a RETRIEVAL\n"
             + "engine over a knowledge graph of entities (messages, channels, people)\n"
             + "linked by claims and relationships. It is NOT an aggregation engine.\n\n"
             + "It can answer:\n"
@@ -87,11 +99,14 @@ public final class OcgAgentFactory {
     private OcgAgentFactory() {}
 
     public static AgentConfig build(OcgProperties props) {
+        String prompt = OCG_SYSTEM_PROMPT.replace(
+                TODAY_PLACEHOLDER,
+                java.time.LocalDate.now(java.time.ZoneOffset.UTC).toString());
         return AgentConfig.builder()
                 .name(AGENT_NAME)
                 .description("Retrieval sub-agent over the Open Context Graph (OCG).")
                 .model(props.getModel())
-                .instructions(OCG_SYSTEM_PROMPT)
+                .instructions(prompt)
                 .tools(buildTools())
                 .maxTurns(10)
                 .build();
