@@ -9,6 +9,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import java.net.http.HttpClient;
@@ -21,12 +23,18 @@ import org.mockito.ArgumentCaptor;
 
 import com.netflix.conductor.model.TaskModel;
 
+import dev.agentspan.runtime.ocg.operation.OcgGetEntityOperation;
+import dev.agentspan.runtime.ocg.operation.OcgMemoryDeleteOperation;
+import dev.agentspan.runtime.ocg.operation.OcgNeighborhoodOperation;
+import dev.agentspan.runtime.ocg.operation.OcgQueryOperation;
+
 /**
  * Unit tests for {@link OcgRequestTask}.
  *
- * <p>Each operation is exercised against a mocked {@link HttpClient} to pin the
- * URL/method contract with the OCG service and the projection + capping
- * behaviour.</p>
+ * <p>Exercises the thin orchestrator with each strategy plugged in to
+ * pin the per-endpoint URL/method contract, projection, capping, and
+ * error handling. End-to-end behaviour through the strategy is the
+ * surface most likely to drift when an operation is refactored.</p>
  */
 class OcgRequestTaskTest {
 
@@ -59,13 +67,13 @@ class OcgRequestTaskTest {
     void queryOperationPostsToAgentQueryEndpoint() throws Exception {
         HttpClient http = mock(HttpClient.class);
         stubSend(http, stub(200, "{\"citations\":[{\"source_item_id\":\"a\",\"title\":\"t1\",\"snippet\":\"s\"}]}"));
-        OcgRequestTask task = new OcgRequestTask("OCG_QUERY", OcgRequestTask.OP_QUERY, props("http://ocg.local"), http);
+        OcgRequestTask task = new OcgRequestTask(new OcgQueryOperation(), props("http://ocg.local"), http);
 
         TaskModel t = taskWith(Map.of("query", "find foo", "max_results", 50));
         task.start(null, t, null);
 
         ArgumentCaptor<HttpRequest> req = ArgumentCaptor.forClass(HttpRequest.class);
-        org.mockito.Mockito.verify(http).send(req.capture(), any());
+        verify(http).send(req.capture(), any());
         assertThat(req.getValue().uri().toString()).isEqualTo("http://ocg.local/api/v1/agent/query");
         assertThat(req.getValue().method()).isEqualTo("POST");
         assertThat(t.getStatus()).isEqualTo(TaskModel.Status.COMPLETED);
@@ -80,14 +88,13 @@ class OcgRequestTaskTest {
     void getEntityOperationGetsToEntitiesEndpoint() throws Exception {
         HttpClient http = mock(HttpClient.class);
         stubSend(http, stub(200, "{\"id\":\"e1\",\"type\":\"message\",\"title\":\"hello\"}"));
-        OcgRequestTask task =
-                new OcgRequestTask("OCG_GET_ENTITY", OcgRequestTask.OP_GET_ENTITY, props("http://ocg.local/"), http);
+        OcgRequestTask task = new OcgRequestTask(new OcgGetEntityOperation(), props("http://ocg.local/"), http);
 
         TaskModel t = taskWith(Map.of("entity_id", "e1"));
         task.start(null, t, null);
 
         ArgumentCaptor<HttpRequest> req = ArgumentCaptor.forClass(HttpRequest.class);
-        org.mockito.Mockito.verify(http).send(req.capture(), any());
+        verify(http).send(req.capture(), any());
         // Trailing slash on the configured URL is trimmed.
         assertThat(req.getValue().uri().toString()).isEqualTo("http://ocg.local/api/v1/entities/e1");
         assertThat(req.getValue().method()).isEqualTo("GET");
@@ -98,14 +105,13 @@ class OcgRequestTaskTest {
     void neighborhoodOperationIncludesDepthAndLimitQueryParams() throws Exception {
         HttpClient http = mock(HttpClient.class);
         stubSend(http, stub(200, "{\"center\":{\"id\":\"e1\"},\"edges\":[]}"));
-        OcgRequestTask task =
-                new OcgRequestTask("OCG_NEIGHBORHOOD", OcgRequestTask.OP_NEIGHBORHOOD, props("http://ocg.local"), http);
+        OcgRequestTask task = new OcgRequestTask(new OcgNeighborhoodOperation(), props("http://ocg.local"), http);
 
         TaskModel t = taskWith(Map.of("entity_id", "e1", "depth", 1, "limit", 5));
         task.start(null, t, null);
 
         ArgumentCaptor<HttpRequest> req = ArgumentCaptor.forClass(HttpRequest.class);
-        org.mockito.Mockito.verify(http).send(req.capture(), any());
+        verify(http).send(req.capture(), any());
         assertThat(req.getValue().uri().toString())
                 .isEqualTo("http://ocg.local/api/v1/graph/neighborhood/e1?depth=1&limit=5");
     }
@@ -114,25 +120,28 @@ class OcgRequestTaskTest {
     void memoryDeleteOperationDispatchesDeleteWithQueryString() throws Exception {
         HttpClient http = mock(HttpClient.class);
         stubSend(http, stub(200, "{\"deleted\":true}"));
-        OcgRequestTask task = new OcgRequestTask(
-                "OCG_MEMORY_DELETE", OcgRequestTask.OP_MEMORY_DELETE, props("http://ocg.local"), http);
+        OcgRequestTask task = new OcgRequestTask(new OcgMemoryDeleteOperation(), props("http://ocg.local"), http);
 
         TaskModel t = taskWith(Map.of("key", "k1", "agent", "agent:foo", "user", "user:bar"));
         task.start(null, t, null);
 
         ArgumentCaptor<HttpRequest> req = ArgumentCaptor.forClass(HttpRequest.class);
-        org.mockito.Mockito.verify(http).send(req.capture(), any());
+        verify(http).send(req.capture(), any());
         assertThat(req.getValue().method()).isEqualTo("DELETE");
-        // URL-encoded query params; agent and user appear in declared order.
+        // Spring's UriComponentsBuilder encodes only characters that RFC 3986
+        // reserves for query values — ``:`` is not reserved there, so it
+        // stays raw. The previous hand-rolled URLEncoder.encode was over-
+        // encoding to ``%3A``; OCG accepts both, but the standards-compliant
+        // form is what the new builder produces.
         assertThat(req.getValue().uri().toString())
-                .isEqualTo("http://ocg.local/api/v1/memories/k1?agent=agent%3Afoo&user=user%3Abar");
+                .isEqualTo("http://ocg.local/api/v1/memories/k1?agent=agent:foo&user=user:bar");
     }
 
     @Test
     void non2xxResponseSurfacesAsFailedStatus() throws Exception {
         HttpClient http = mock(HttpClient.class);
         stubSend(http, stub(503, "service unavailable"));
-        OcgRequestTask task = new OcgRequestTask("OCG_QUERY", OcgRequestTask.OP_QUERY, props("http://ocg.local"), http);
+        OcgRequestTask task = new OcgRequestTask(new OcgQueryOperation(), props("http://ocg.local"), http);
 
         TaskModel t = taskWith(Map.of("query", "x"));
         task.start(null, t, null);
@@ -161,7 +170,7 @@ class OcgRequestTaskTest {
         stubSend(http, stub(200, big.toString()));
         OcgProperties p = props("http://ocg.local");
         p.setResponseCapChars(256);
-        OcgRequestTask task = new OcgRequestTask("OCG_QUERY", OcgRequestTask.OP_QUERY, p, http);
+        OcgRequestTask task = new OcgRequestTask(new OcgQueryOperation(), p, http);
 
         TaskModel t = taskWith(Map.of("query", "x"));
         task.start(null, t, null);
@@ -178,13 +187,13 @@ class OcgRequestTaskTest {
         stubSend(http, stub(200, "{\"citations\":[]}"));
         OcgProperties p = props("http://ocg.local");
         p.setApiKey("secret-key-123");
-        OcgRequestTask task = new OcgRequestTask("OCG_QUERY", OcgRequestTask.OP_QUERY, p, http);
+        OcgRequestTask task = new OcgRequestTask(new OcgQueryOperation(), p, http);
 
         TaskModel t = taskWith(Map.of("query", "x"));
         task.start(null, t, null);
 
         ArgumentCaptor<HttpRequest> req = ArgumentCaptor.forClass(HttpRequest.class);
-        org.mockito.Mockito.verify(http).send(req.capture(), any());
+        verify(http).send(req.capture(), any());
         // Bearer scheme — pinning both the header name and the prefix so a
         // refactor can't silently change to e.g. ``X-API-Key`` without
         // tripping a test.
@@ -197,20 +206,20 @@ class OcgRequestTaskTest {
         stubSend(http, stub(200, "{\"citations\":[]}"));
         // props(...) does not set an api key → header must be omitted so
         // unauthenticated local OCG instances keep working.
-        OcgRequestTask task = new OcgRequestTask("OCG_QUERY", OcgRequestTask.OP_QUERY, props("http://ocg.local"), http);
+        OcgRequestTask task = new OcgRequestTask(new OcgQueryOperation(), props("http://ocg.local"), http);
 
         TaskModel t = taskWith(Map.of("query", "x"));
         task.start(null, t, null);
 
         ArgumentCaptor<HttpRequest> req = ArgumentCaptor.forClass(HttpRequest.class);
-        org.mockito.Mockito.verify(http).send(req.capture(), any());
+        verify(http).send(req.capture(), any());
         assertThat(req.getValue().headers().firstValue("Authorization")).isEmpty();
     }
 
     @Test
     void disabledPropertiesYieldsFailedTask() throws Exception {
         HttpClient http = mock(HttpClient.class);
-        OcgRequestTask task = new OcgRequestTask("OCG_QUERY", OcgRequestTask.OP_QUERY, props(""), http);
+        OcgRequestTask task = new OcgRequestTask(new OcgQueryOperation(), props(""), http);
 
         TaskModel t = taskWith(Map.of("query", "x"));
         task.start(null, t, null);
@@ -218,6 +227,6 @@ class OcgRequestTaskTest {
         assertThat(t.getStatus()).isEqualTo(TaskModel.Status.FAILED);
         assertThat(t.getReasonForIncompletion()).contains("not configured");
         // Importantly: no HTTP call attempted when disabled.
-        org.mockito.Mockito.verifyNoInteractions(http);
+        verifyNoInteractions(http);
     }
 }
