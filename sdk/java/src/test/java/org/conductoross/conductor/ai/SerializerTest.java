@@ -602,38 +602,6 @@ class SerializerTest {
         assertEquals("human", tool(out, "human_tool").get("toolType"));
     }
 
-    // ── ClaudeCode ────────────────────────────────────────────────────────
-
-    @Test
-    void claude_code_model_string_format() {
-        ClaudeCode cc = new ClaudeCode("opus");
-        assertTrue(cc.toModelString().startsWith("claude-code/"), "toModelString() must start with 'claude-code/'");
-        assertTrue(cc.toModelString().contains("opus"));
-    }
-
-    @Test
-    void claude_code_permission_modes() {
-        for (ClaudeCode.PermissionMode mode : ClaudeCode.PermissionMode.values()) {
-            ClaudeCode cc = new ClaudeCode("sonnet", mode);
-            assertNotNull(cc.toModelString());
-            assertTrue(cc.toModelString().startsWith("claude-code/"));
-        }
-    }
-
-    @Test
-    void claude_code_model_in_agent_serialized() {
-        ClaudeCode cc = new ClaudeCode("sonnet");
-        Agent agent = Agent.builder()
-                .name("cc_agent")
-                .model(cc.toModelString())
-                .instructions("test")
-                .build();
-
-        Map<String, Object> out = ser.serialize(agent);
-        String model = (String) out.get("model");
-        assertTrue(model.startsWith("claude-code/"), "model in serialized output must start with 'claude-code/'");
-    }
-
     // ── GPTAssistantAgent ─────────────────────────────────────────────────
 
     @Test

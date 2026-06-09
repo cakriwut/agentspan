@@ -10,7 +10,6 @@ import java.util.stream.Collectors;
 import org.conductoross.conductor.ai.Agent;
 import org.conductoross.conductor.ai.AgentConfig;
 import org.conductoross.conductor.ai.AgentRuntime;
-import org.conductoross.conductor.ai.ClaudeCode;
 import org.conductoross.conductor.ai.enums.OnFail;
 import org.conductoross.conductor.ai.enums.Position;
 import org.conductoross.conductor.ai.enums.Strategy;
@@ -35,7 +34,7 @@ import org.junit.jupiter.api.*;
  * <p>Verifies that agent fields and features serialize correctly into the compiled
  * agentDef via the SDK → /agent/compile → compiled-output round-trip. Covered:
  * stateful, baseUrl, TextGate, before/after_agent callbacks, StopMessageTermination,
- * RegexGuardrail, LLMGuardrail, OnCondition handoff, ClaudeCode model,
+ * RegexGuardrail, LLMGuardrail, OnCondition handoff,
  * MediaTools, WaitForMessageTool, HumanTool, GPTAssistantAgent, deploy(), and the
  * parity fields reasoningEffort / contextWindowBudget / maskedFields / memory.
  *
@@ -531,50 +530,6 @@ class Suite17ConfigSerialization extends BaseTest {
                 tool.get("toolType"),
                 "HumanTool toolType should be 'human' but got: " + tool.get("toolType")
                         + ". COUNTERFACTUAL: HumanTool must serialize toolType='human'.");
-    }
-
-    /**
-     * ClaudeCode model string produces "claude-code/{model}" format.
-     *
-     * COUNTERFACTUAL: if the model string is wrong, the agent runs on the wrong LLM.
-     */
-    @Test
-    @Order(14)
-    void test_claude_code_model_string() {
-        ClaudeCode cc = new ClaudeCode("opus", ClaudeCode.PermissionMode.ACCEPT_EDITS);
-
-        String modelString = cc.toModelString();
-        assertTrue(
-                modelString.startsWith("claude-code/"),
-                "ClaudeCode model string should start with 'claude-code/' but got: " + modelString
-                        + ". COUNTERFACTUAL: ClaudeCode.toModelString() must return 'claude-code/{model}'.");
-        assertTrue(
-                modelString.contains("opus"), "ClaudeCode model string should contain 'opus' but got: " + modelString);
-    }
-
-    /**
-     * ClaudeCode agent serializes with the correct model string in agentDef.model.
-     *
-     * COUNTERFACTUAL: if not serialized correctly, server uses a different LLM.
-     */
-    @Test
-    @Order(15)
-    void test_claude_code_agent_plan() {
-        ClaudeCode cc = new ClaudeCode("sonnet");
-        Agent agent = Agent.builder()
-                .name("e2e_java_claude_code_agent")
-                .model(cc.toModelString())
-                .instructions("Use Claude Code.")
-                .build();
-
-        CompileResponse plan = runtime.plan(agent);
-        Map<String, Object> agentDef = getAgentDef(plan);
-
-        String model = (String) agentDef.get("model");
-        assertTrue(
-                model != null && model.startsWith("claude-code/"),
-                "agentDef.model should start with 'claude-code/' but got: " + model
-                        + ". COUNTERFACTUAL: ClaudeCode.toModelString() in Agent.model() must be preserved.");
     }
 
     /**
