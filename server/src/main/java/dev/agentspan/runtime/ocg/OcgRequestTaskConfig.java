@@ -5,7 +5,7 @@
 
 package dev.agentspan.runtime.ocg;
 
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -31,7 +31,9 @@ import dev.agentspan.runtime.ocg.operation.OcgQueryOperation;
  */
 @Configuration
 @EnableConfigurationProperties(OcgProperties.class)
-@ConditionalOnProperty(prefix = "agentspan.ocg", name = "url")
+// Empty agentspan.ocg.url means "feature off" — must use an expression
+// because @ConditionalOnProperty matches empty strings.
+@ConditionalOnExpression("'${agentspan.ocg.url:}'.length() > 0")
 public class OcgRequestTaskConfig {
 
     @Bean(OcgQueryOperation.TASK_TYPE)
