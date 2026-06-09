@@ -1097,12 +1097,6 @@ Callbacks are registered as Conductor workers (same as tools). The server dispat
 
 ### 4.13 Extended Agent Types
 
-#### UserProxyAgent
-
-Human stand-in agent for multi-agent conversations:
-- Modes: `ALWAYS` (always ask), `TERMINATE` (ask on termination), `NEVER` (auto-respond)
-- Wraps HITL interaction as an agent in the team
-
 #### GPTAssistantAgent
 
 Wraps OpenAI Assistants API:
@@ -1582,12 +1576,11 @@ A single mega-workflow that processes an article request through a complete publ
 - Tool guardrail: validates tool inputs before execution
 
 #### Stage 5 — Editorial Approval
-**Features:** HITL (all modes), UserProxyAgent, human_tool, streaming + HITL
+**Features:** HITL (all modes), human_tool, streaming + HITL
 
 - `approval_required=True` on publish tool → durable pause
 - `human_tool()` for inline editorial questions
 - `handle.respond()` with feedback for revision loop
-- UserProxyAgent participates as editorial reviewer
 - Streaming events show real-time progress + pause notification
 
 #### Stage 6 — Translation & Discussion
@@ -1860,7 +1853,6 @@ Every feature must be traceable from concept → Python reference → wire forma
 | 62 | Callbacks | `callback.py:CallbackHandler` | `agentConfig.callbacks` | Worker dispatch | Stage 3 |
 | 63 | PromptTemplate | `agent.py:PromptTemplate` | `instructions.type="prompt_template"` | Server-side lookup | Stage 1 |
 | 64 | Token tracking | `result.py:TokenUsage` | Status response | LLM_CHAT_COMPLETE | All |
-| 65 | UserProxyAgent | `ext.py:UserProxyAgent` | AgentConfig + HUMAN | Hybrid | Stage 5 |
 | 66 | GPTAssistantAgent | `ext.py:GPTAssistantAgent` | AgentConfig + threads | Hybrid | Stage 8 |
 | 67 | Extended thinking | `agent.py:thinking_budget_tokens` | `agentConfig.thinkingConfig` | LLM param | Cross-cutting |
 | 68 | Include contents | `agent.py:include_contents` | `agentConfig.includeContents` | Prompt injection | Cross-cutting |
@@ -1904,7 +1896,7 @@ Recommended order for implementing a new SDK:
 10. **Memory** — ConversationMemory, SemanticMemory
 11. **Termination + Handoffs** — composable conditions
 12. **Code execution** — all executor types
-13. **Extended types** — UserProxyAgent, GPTAssistantAgent
+13. **Extended types** — GPTAssistantAgent
 14. **Callbacks** — lifecycle hooks
 15. **Framework integration** — detection, extraction, compilation to AgentConfig (TypeScript: Vercel AI SDK; Python: LangGraph, LangChain)
 16. **Testing framework** — mock, expect, assertions, record/replay
@@ -1965,7 +1957,6 @@ These cover every feature of the native SDK. Each new SDK must implement all of 
 | 24 | `code_execution` | CodeExecutionConfig |
 | 25 | `semantic_memory` | SemanticMemory + MemoryStore |
 | 26 | `opentelemetry_tracing` | OTel integration |
-| 27 | `user_proxy_agent` | UserProxyAgent |
 | 28 | `gpt_assistant_agent` | GPTAssistantAgent |
 | 29 | `agent_introductions` | introduction field |
 | 30 | `multimodal_agent` | Media tools (image, audio, video, pdf) |

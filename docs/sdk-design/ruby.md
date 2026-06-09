@@ -42,7 +42,6 @@ agentspan-ruby/
       http_client.rb              # REST wrapper (Faraday or Net::HTTP)
       errors.rb                   # Exception hierarchy
       ext/
-        user_proxy_agent.rb
         gpt_assistant_agent.rb
       testing/
         mock.rb                   # mock_run
@@ -1865,18 +1864,10 @@ editorial_question = Agentspan.human_tool(
   }
 )
 
-editorial_reviewer = Agentspan::UserProxyAgent.new(
-  name: "editorial_reviewer",
-  model: LLM_MODEL,
-  instructions: "You are the editorial reviewer. Provide feedback on article quality.",
-  human_input_mode: "TERMINATE"
-)
-
 editorial_agent = Agentspan::Agent.new("editorial_approval",
   model: LLM_MODEL,
   instructions: "Review the article, ask questions, get approval before publishing.",
   tools: [publish_article, editorial_question],
-  agents: [editorial_reviewer],
   strategy: Agentspan::Strategy::HANDOFF
 )
 ```

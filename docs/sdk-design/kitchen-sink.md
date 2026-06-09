@@ -150,7 +150,6 @@ The workflow processes this through 9 stages, each targeting a specific feature 
 - `#41` `handle.reject(reason)` / `stream.reject(reason)`
 - `#42` `handle.send(message)` / `stream.send(message)` (feedback)
 - `#14` `human_tool()` for inline editorial questions
-- `#65` `UserProxyAgent` as editorial reviewer
 
 **Expected behavior:**
 - `publish_article` tool has `approval_required=True` → workflow pauses with `WAITING` event
@@ -158,7 +157,6 @@ The workflow processes this through 9 stages, each targeting a specific feature 
 - Second HITL interaction: `stream.reject("Title needs improvement")` — rejection
 - Third HITL interaction: `stream.approve()` — approval
 - `human_tool("ask_editor")` allows agent to ask editor questions during review
-- `UserProxyAgent("editorial_reviewer")` participates in review discussion
 
 **Assertions:**
 - `WAITING` event emitted at least once
