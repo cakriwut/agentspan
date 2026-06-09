@@ -10,12 +10,14 @@ import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.netflix.conductor.common.metadata.workflow.SubWorkflowParams;
 import com.netflix.conductor.common.metadata.workflow.WorkflowDef;
 import com.netflix.conductor.common.metadata.workflow.WorkflowTask;
+import com.netflix.conductor.dao.MetadataDAO;
 
 import dev.agentspan.runtime.model.*;
 import dev.agentspan.runtime.util.JavaScriptBuilder;
@@ -39,10 +41,33 @@ public class AgentCompiler {
             "message", "${workflow.input.prompt}",
             "media", "${workflow.input.media}");
 
+    /**
+     * Metadata key on a {@link WorkflowDef} that marks the workflow as one
+     * that should be silently appended to every top-level agent's tool list
+     * at compile time. The value is a {@code Map<String,Object>} with at
+     * least {@code name} and {@code description}; both are surfaced to the
+     * agent's LLM via the {@code agent_tool} routing.
+     *
+     * <p>This is the single registration mechanism for "server-side
+     * capability the user's LLM can call." A new sub-agent only has to:
+     * (a) compile and register its WorkflowDef via {@link MetadataDAO},
+     * (b) stamp this metadata key. {@link #compile} picks it up generically
+     * — no per-feature injection class required.</p>
+     */
+    public static final String AUTO_EXPOSE_AS_TOOL_METADATA_KEY = "agentspan.autoExposeAsTool";
+
     private int timeoutSeconds = 0;
     private int llmRetryCount = 3;
     private int contextMaxSizeBytes = 32768;
     private int contextMaxValueSizeBytes = 4096;
+
+    /**
+     * Optional — only injected at runtime. Tests that construct
+     * {@code new AgentCompiler()} directly leave this null, and the
+     * auto-exposed-tool merge step becomes a no-op for them.
+     */
+    @Autowired(required = false)
+    private MetadataDAO metadataDAO;
 
     /**
      * Sanitizes an agent name for use as a Conductor task reference name.
@@ -90,8 +115,19 @@ public class AgentCompiler {
 
     /**
      * Main entry point: compile an AgentConfig into a WorkflowDef.
+     *
+     * <p>Before strategy dispatch, any workflow registered in the metadata
+     * store with the {@link #AUTO_EXPOSE_AS_TOOL_METADATA_KEY} flag is
+     * silently appended to {@code config.tools} as an {@code agent_tool}.
+     * That's how the OCG sub-agent (and any future server-side sub-agent)
+     * becomes LLM-visible without per-feature injection code. Only the
+     * top-level compile runs this merge — nested sub-agents go through
+     * {@link #compileSubAgent}, which deliberately skips it so a specialist
+     * sub-agent isn't polluted with an unrelated retrieval tool.</p>
      */
     public WorkflowDef compile(AgentConfig config) {
+        mergeAutoExposedTools(config);
+
         WorkflowDef wf;
 
         // Passthrough check MUST be first — passthrough configs have null model.
@@ -2424,6 +2460,82 @@ public class AgentCompiler {
             caps.addAll(collectCapabilities(config.getFallback()));
         }
         return caps;
+    }
+
+    /**
+     * Append every {@link MetadataDAO}-registered workflow that carries the
+     * {@link #AUTO_EXPOSE_AS_TOOL_METADATA_KEY} marker to {@code config.tools}
+     * as an {@code agent_tool}.
+     *
+     * <p>Mutates {@code config} in place. Skips when:</p>
+     * <ul>
+     *   <li>{@link #metadataDAO} is absent (unit-test path)</li>
+     *   <li>The workflow being compiled IS the auto-exposed one
+     *       — no self-recursion</li>
+     *   <li>A tool with that name is already declared on the config
+     *       — caller's explicit declaration wins</li>
+     * </ul>
+     */
+    @SuppressWarnings("unchecked")
+    void mergeAutoExposedTools(AgentConfig config) {
+        if (config == null || metadataDAO == null) return;
+        List<WorkflowDef> defs;
+        try {
+            defs = metadataDAO.getAllWorkflowDefsLatestVersions();
+        } catch (Exception e) {
+            // Defensive — a transient DAO failure shouldn't fail the compile;
+            // the merge is a convenience layer, not a correctness requirement.
+            log.warn("auto-expose merge: metadataDAO lookup failed, skipping. {}", e.getMessage());
+            return;
+        }
+        if (defs == null || defs.isEmpty()) return;
+
+        List<ToolConfig> tools = config.getTools();
+        Set<String> existingNames = new HashSet<>();
+        if (tools != null) {
+            for (ToolConfig t : tools) {
+                if (t.getName() != null) existingNames.add(t.getName());
+            }
+        }
+
+        List<ToolConfig> merged = null;
+        for (WorkflowDef def : defs) {
+            Map<String, Object> md = def.getMetadata();
+            if (md == null) continue;
+            Object spec = md.get(AUTO_EXPOSE_AS_TOOL_METADATA_KEY);
+            if (!(spec instanceof Map<?, ?> specMap)) continue;
+            Object nameObj = specMap.get("name");
+            if (!(nameObj instanceof String toolName) || toolName.isEmpty()) continue;
+
+            // Self-recursion guard: the workflow being compiled cannot have
+            // itself appended as a tool. Match on the workflow def's name
+            // (the Conductor registration name, e.g. "_ocg_agent"), since
+            // that's what config.getName() resolves to during the
+            // sub-agent's own compile.
+            if (def.getName().equals(config.getName())) continue;
+
+            // Duplicate guard: skip names already present on the config.
+            if (existingNames.contains(toolName)) continue;
+
+            Object descObj = specMap.get("description");
+            String description = descObj instanceof String s ? s : "";
+
+            if (merged == null) {
+                merged = new ArrayList<>(tools != null ? tools : List.of());
+            }
+            merged.add(ToolConfig.builder()
+                    .name(toolName)
+                    .toolType("agent_tool")
+                    .description(description)
+                    .config(Map.of("workflowName", def.getName()))
+                    .build());
+            existingNames.add(toolName);
+            log.info(
+                    "Auto-exposed workflow '{}' as agent_tool '{}' on '{}'", def.getName(), toolName, config.getName());
+        }
+        if (merged != null) {
+            config.setTools(merged);
+        }
     }
 
     // Setters for configuration

@@ -66,6 +66,12 @@ public class OcgRequestTask extends WorkflowSystemTask {
     private static final Duration READ_TIMEOUT = Duration.ofSeconds(30);
     private static final String TRUNCATE_SUFFIX = "...[truncated]";
 
+    /**
+     * Every OCG endpoint sits under {@code /api/v1}. Keeping it as a single
+     * constant rather than inline so a future version bump is one-line.
+     */
+    private static final String API_PREFIX = "/api/v1";
+
     private final String operation;
     private final OcgProperties properties;
     private final HttpClient httpClient;
@@ -143,21 +149,21 @@ public class OcgRequestTask extends WorkflowSystemTask {
                 copyIfPresent(input, body, "traversal_level");
                 copyIfPresent(input, body, "start_time");
                 copyIfPresent(input, body, "end_time");
-                return b.uri(URI.create(baseUrl + "/agent/query"))
+                return b.uri(URI.create(baseUrl + API_PREFIX + "/agent/query"))
                         .header("Content-Type", "application/json")
                         .POST(BodyPublishers.ofString(MAPPER.writeValueAsString(body), StandardCharsets.UTF_8))
                         .build();
             }
             case OP_GET_ENTITY -> {
                 String entityId = requiredString(input, "entity_id");
-                return b.uri(URI.create(baseUrl + "/entities/" + urlEncode(entityId)))
+                return b.uri(URI.create(baseUrl + API_PREFIX + "/entities/" + urlEncode(entityId)))
                         .GET()
                         .build();
             }
             case OP_NEIGHBORHOOD -> {
                 String entityId = requiredString(input, "entity_id");
                 String query = "?depth=" + intOr(input.get("depth"), 2) + "&limit=" + intOr(input.get("limit"), 50);
-                return b.uri(URI.create(baseUrl + "/graph/neighborhood/" + urlEncode(entityId) + query))
+                return b.uri(URI.create(baseUrl + API_PREFIX + "/graph/neighborhood/" + urlEncode(entityId) + query))
                         .GET()
                         .build();
             }
@@ -165,14 +171,14 @@ public class OcgRequestTask extends WorkflowSystemTask {
                 String repoId = requiredString(input, "repo_id");
                 String path = requiredString(input, "path");
                 String query = "?path=" + urlEncode(path) + "&limit=" + intOr(input.get("limit"), 20);
-                return b.uri(URI.create(baseUrl + "/code/history/" + urlEncode(repoId) + query))
+                return b.uri(URI.create(baseUrl + API_PREFIX + "/code/history/" + urlEncode(repoId) + query))
                         .GET()
                         .build();
             }
             case OP_MEMORY_SET -> {
                 Map<String, Object> body = new LinkedHashMap<>(input);
                 body.remove("__agentspan_ctx__");
-                return b.uri(URI.create(baseUrl + "/memories"))
+                return b.uri(URI.create(baseUrl + API_PREFIX + "/memories"))
                         .header("Content-Type", "application/json")
                         .POST(BodyPublishers.ofString(MAPPER.writeValueAsString(body), StandardCharsets.UTF_8))
                         .build();
@@ -184,7 +190,7 @@ public class OcgRequestTask extends WorkflowSystemTask {
                 copyIfPresent(input, body, "user");
                 copyIfPresent(input, body, "confidence_boost");
                 copyIfPresent(input, body, "source_ref");
-                return b.uri(URI.create(baseUrl + "/memories/" + urlEncode(key) + "/reinforce"))
+                return b.uri(URI.create(baseUrl + API_PREFIX + "/memories/" + urlEncode(key) + "/reinforce"))
                         .header("Content-Type", "application/json")
                         .POST(BodyPublishers.ofString(MAPPER.writeValueAsString(body), StandardCharsets.UTF_8))
                         .build();
@@ -200,7 +206,7 @@ public class OcgRequestTask extends WorkflowSystemTask {
                     q.append("user=").append(urlEncode(user));
                 }
                 String suffix = q.length() > 0 ? "?" + q : "";
-                return b.uri(URI.create(baseUrl + "/memories/" + urlEncode(key) + suffix))
+                return b.uri(URI.create(baseUrl + API_PREFIX + "/memories/" + urlEncode(key) + suffix))
                         .DELETE()
                         .build();
             }

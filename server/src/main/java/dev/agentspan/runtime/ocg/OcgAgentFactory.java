@@ -25,6 +25,25 @@ public final class OcgAgentFactory {
     public static final String AGENT_NAME = "_ocg_agent";
 
     /**
+     * Tool name as the main agent's LLM sees it. Distinct from {@link #AGENT_NAME}
+     * because workflows registered server-side use the underscore-prefix
+     * convention while LLM-visible tool names don't.
+     */
+    public static final String TOOL_NAME = "ocg_agent";
+
+    /**
+     * Description shown to the main agent's LLM in its tool spec list. Kept
+     * concrete enough that the model can decide <em>when</em> to delegate
+     * without leaking implementation details into the user-facing prompt.
+     */
+    public static final String TOOL_DESCRIPTION =
+            "Delegate to the OCG (Open Context Graph) retrieval agent when you need "
+                    + "context from the knowledge graph — message search, entity lookup, "
+                    + "code history, or stored memories. Provide a focused natural-language "
+                    + "query (under ~15 content words). Returns a synthesized answer with "
+                    + "supporting citations.";
+
+    /**
      * System prompt for the OCG sub-agent. Supplied verbatim by the feature
      * spec — explains the retrieval/aggregation split and the two-step
      * pattern callers must follow.

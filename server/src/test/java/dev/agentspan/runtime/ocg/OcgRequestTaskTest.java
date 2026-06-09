@@ -66,7 +66,7 @@ class OcgRequestTaskTest {
 
         ArgumentCaptor<HttpRequest> req = ArgumentCaptor.forClass(HttpRequest.class);
         org.mockito.Mockito.verify(http).send(req.capture(), any());
-        assertThat(req.getValue().uri().toString()).isEqualTo("http://ocg.local/agent/query");
+        assertThat(req.getValue().uri().toString()).isEqualTo("http://ocg.local/api/v1/agent/query");
         assertThat(req.getValue().method()).isEqualTo("POST");
         assertThat(t.getStatus()).isEqualTo(TaskModel.Status.COMPLETED);
         // Projection keeps citations[].source_item_id but JSON-serializes the
@@ -89,7 +89,7 @@ class OcgRequestTaskTest {
         ArgumentCaptor<HttpRequest> req = ArgumentCaptor.forClass(HttpRequest.class);
         org.mockito.Mockito.verify(http).send(req.capture(), any());
         // Trailing slash on the configured URL is trimmed.
-        assertThat(req.getValue().uri().toString()).isEqualTo("http://ocg.local/entities/e1");
+        assertThat(req.getValue().uri().toString()).isEqualTo("http://ocg.local/api/v1/entities/e1");
         assertThat(req.getValue().method()).isEqualTo("GET");
         assertThat(t.getStatus()).isEqualTo(TaskModel.Status.COMPLETED);
     }
@@ -106,7 +106,8 @@ class OcgRequestTaskTest {
 
         ArgumentCaptor<HttpRequest> req = ArgumentCaptor.forClass(HttpRequest.class);
         org.mockito.Mockito.verify(http).send(req.capture(), any());
-        assertThat(req.getValue().uri().toString()).isEqualTo("http://ocg.local/graph/neighborhood/e1?depth=1&limit=5");
+        assertThat(req.getValue().uri().toString())
+                .isEqualTo("http://ocg.local/api/v1/graph/neighborhood/e1?depth=1&limit=5");
     }
 
     @Test
@@ -124,7 +125,7 @@ class OcgRequestTaskTest {
         assertThat(req.getValue().method()).isEqualTo("DELETE");
         // URL-encoded query params; agent and user appear in declared order.
         assertThat(req.getValue().uri().toString())
-                .isEqualTo("http://ocg.local/memories/k1?agent=agent%3Afoo&user=user%3Abar");
+                .isEqualTo("http://ocg.local/api/v1/memories/k1?agent=agent%3Afoo&user=user%3Abar");
     }
 
     @Test
