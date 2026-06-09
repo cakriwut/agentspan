@@ -3,7 +3,7 @@
 
 package org.conductoross.conductor.ai.examples.langgraph;
 
-import org.conductoross.conductor.ai.Agentspan;
+import org.conductoross.conductor.ai.AgentRuntime;
 import org.conductoross.conductor.ai.model.AgentResult;
 
 import dev.langchain4j.agent.tool.P;
@@ -60,6 +60,7 @@ public class Example04SimpleStateGraph {
     }
 
     public static void main(String[] args) {
+        AgentRuntime runtime = new AgentRuntime();
         // apiKey is required by LangChain4j's builder but unused — Agentspan
         // runs the LLM call on the server with server-registered credentials.
         ChatModel model = OpenAiChatModel.builder()
@@ -72,7 +73,7 @@ public class Example04SimpleStateGraph {
         agent.toolsFromObject(tools);
 
         // Drop-in overload — fold the system prompt into the user message.
-        AgentResult result = Agentspan.run(
+        AgentResult result = runtime.run(
                 agent,
                 "You implement a three-stage query pipeline. "
                 + "ALWAYS call validate_query first, then refine_query, then "
@@ -83,6 +84,6 @@ public class Example04SimpleStateGraph {
         System.out.println("Status: " + result.getStatus());
         result.printResult();
 
-        Agentspan.shutdown();
+        runtime.shutdown();
     }
 }

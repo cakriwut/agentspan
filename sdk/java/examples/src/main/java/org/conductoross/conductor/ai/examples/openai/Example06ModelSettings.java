@@ -6,7 +6,7 @@ package org.conductoross.conductor.ai.examples.openai;
 import org.conductoross.conductor.ai.examples.Settings;
 
 import org.conductoross.conductor.ai.Agent;
-import org.conductoross.conductor.ai.Agentspan;
+import org.conductoross.conductor.ai.AgentRuntime;
 import org.conductoross.conductor.ai.frameworks.OpenAIAgent;
 import org.conductoross.conductor.ai.model.AgentResult;
 
@@ -37,6 +37,7 @@ import org.conductoross.conductor.ai.model.AgentResult;
 public class Example06ModelSettings {
 
     public static void main(String[] args) {
+        AgentRuntime runtime = new AgentRuntime();
         // Creative agent — high-temperature intent (0.9) per Python original.
         Agent creativeAgent = OpenAIAgent.builder()
                 .name("creative_writer")
@@ -56,17 +57,17 @@ public class Example06ModelSettings {
                 .build();
 
         System.out.println("=== Creative Agent (temp=0.9) ===");
-        AgentResult creative = Agentspan.run(
+        AgentResult creative = runtime.run(
                 creativeAgent,
                 "Write a two-sentence story about a robot learning to paint.");
         creative.printResult();
 
         System.out.println("\n=== Precise Agent (temp=0.1) ===");
-        AgentResult precise = Agentspan.run(
+        AgentResult precise = runtime.run(
                 preciseAgent,
                 "Review this Python code: `data = eval(user_input)`");
         precise.printResult();
 
-        Agentspan.shutdown();
+        runtime.shutdown();
     }
 }

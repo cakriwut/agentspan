@@ -5,7 +5,7 @@ package org.conductoross.conductor.ai.examples;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.conductoross.conductor.ai.Agent;
-import org.conductoross.conductor.ai.Agentspan;
+import org.conductoross.conductor.ai.AgentRuntime;
 import org.conductoross.conductor.ai.annotations.Tool;
 import org.conductoross.conductor.ai.internal.AgentConfigSerializer;
 import org.conductoross.conductor.ai.internal.ToolRegistry;
@@ -53,6 +53,7 @@ public class Example57PlanDryRun {
     }
 
     public static void main(String[] args) throws Exception {
+        AgentRuntime runtime = new AgentRuntime();
         Agent agent = Agent.builder()
             .name("research_writer_57")
             .model(Settings.LLM_MODEL)
@@ -89,10 +90,10 @@ public class Example57PlanDryRun {
 
         // ── Now actually run the agent ─────────────────────────────────────
         System.out.println("\n=== Running Agent ===");
-        AgentResult result = Agentspan.run(agent,
+        AgentResult result = runtime.run(agent,
             "Research the history of the internet and write a brief report.");
         result.printResult();
 
-        Agentspan.shutdown();
+        runtime.shutdown();
     }
 }

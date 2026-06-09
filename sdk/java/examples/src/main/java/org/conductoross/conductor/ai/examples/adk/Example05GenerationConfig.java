@@ -5,7 +5,7 @@ package org.conductoross.conductor.ai.examples.adk;
 
 import org.conductoross.conductor.ai.examples.Settings;
 
-import org.conductoross.conductor.ai.Agentspan;
+import org.conductoross.conductor.ai.AgentRuntime;
 import org.conductoross.conductor.ai.model.AgentResult;
 
 import com.google.adk.agents.LlmAgent;
@@ -21,6 +21,7 @@ import com.google.genai.types.GenerateContentConfig;
  */
 public class Example05GenerationConfig {
     public static void main(String[] args) {
+        AgentRuntime runtime = new AgentRuntime();
         // Precise agent — low temperature for factual responses
         LlmAgent factualAgent = LlmAgent.builder()
             .name("fact_checker")
@@ -48,15 +49,15 @@ public class Example05GenerationConfig {
             .build();
 
         System.out.println("=== Factual Agent (temp=0.1) ===");
-        AgentResult result = Agentspan.run(factualAgent,
+        AgentResult result = runtime.run(factualAgent,
             "What is the speed of light in a vacuum?");
         result.printResult();
 
         System.out.println("\n=== Creative Agent (temp=0.9) ===");
-        result = Agentspan.run(creativeAgent,
+        result = runtime.run(creativeAgent,
             "Write a two-sentence story about a cat who discovered a hidden library.");
         result.printResult();
 
-        Agentspan.shutdown();
+        runtime.shutdown();
     }
 }

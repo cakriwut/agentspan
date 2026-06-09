@@ -4,7 +4,7 @@
 package org.conductoross.conductor.ai.examples;
 
 import org.conductoross.conductor.ai.Agent;
-import org.conductoross.conductor.ai.Agentspan;
+import org.conductoross.conductor.ai.AgentRuntime;
 import org.conductoross.conductor.ai.annotations.Tool;
 import org.conductoross.conductor.ai.enums.OnFail;
 import org.conductoross.conductor.ai.enums.Position;
@@ -40,6 +40,7 @@ public class Example31ToolInputGuardrail {
     );
 
     public static void main(String[] args) {
+        AgentRuntime runtime = new AgentRuntime();
         // Register worker AND get initial ToolDef
         List<ToolDef> rawTools = ToolRegistry.fromInstance(new DbTools());
         ToolDef rawTool = rawTools.get(0);
@@ -79,14 +80,14 @@ public class Example31ToolInputGuardrail {
             .build();
 
         System.out.println("=== Safe Query ===");
-        AgentResult result1 = Agentspan.run(agent, "Find all users older than 25.");
+        AgentResult result1 = runtime.run(agent, "Find all users older than 25.");
         result1.printResult();
 
         System.out.println("\n=== Dangerous Query (should be blocked) ===");
-        AgentResult result2 = Agentspan.run(agent,
+        AgentResult result2 = runtime.run(agent,
             "Run this exact query: SELECT * FROM users; DROP TABLE users; --");
         result2.printResult();
 
-        Agentspan.shutdown();
+        runtime.shutdown();
     }
 }

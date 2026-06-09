@@ -4,7 +4,7 @@
 package org.conductoross.conductor.ai.examples;
 
 import org.conductoross.conductor.ai.Agent;
-import org.conductoross.conductor.ai.Agentspan;
+import org.conductoross.conductor.ai.AgentRuntime;
 import org.conductoross.conductor.ai.annotations.Tool;
 import org.conductoross.conductor.ai.internal.ToolRegistry;
 import org.conductoross.conductor.ai.model.AgentResult;
@@ -37,6 +37,7 @@ public class Example19ComposableTermination {
     }
 
     public static void main(String[] args) {
+        AgentRuntime runtime = new AgentRuntime();
         List<org.conductoross.conductor.ai.model.ToolDef> searchTools =
             ToolRegistry.fromInstance(new SearchTools());
 
@@ -51,7 +52,7 @@ public class Example19ComposableTermination {
             .build();
 
         System.out.println("=== Example 1: TextMentionTermination (stop on DONE) ===");
-        AgentResult r1 = Agentspan.run(researcher, "What are AI agents?");
+        AgentResult r1 = runtime.run(researcher, "What are AI agents?");
         r1.printResult();
 
         // ── Example 2: OR — stop on text OR after 5 messages ─────────────
@@ -66,7 +67,7 @@ public class Example19ComposableTermination {
             .build();
 
         System.out.println("\n=== Example 2: OR termination (GOODBYE or 5 messages) ===");
-        AgentResult r2 = Agentspan.run(chatbot, "Tell me a short fun fact about space.");
+        AgentResult r2 = runtime.run(chatbot, "Tell me a short fun fact about space.");
         r2.printResult();
 
         // ── Example 3: AND — stop when BOTH conditions met ────────────────
@@ -85,7 +86,7 @@ public class Example19ComposableTermination {
             .build();
 
         System.out.println("\n=== Example 3: AND termination (FINAL ANSWER + 3 messages) ===");
-        AgentResult r3 = Agentspan.run(deliberator, "What are the main types of AI agents?");
+        AgentResult r3 = runtime.run(deliberator, "What are the main types of AI agents?");
         r3.printResult();
 
         // ── Example 4: Complex composition ────────────────────────────────
@@ -104,10 +105,10 @@ public class Example19ComposableTermination {
             .build();
 
         System.out.println("\n=== Example 4: Complex composition (TERMINATE | (DONE & 5msg) | tokens) ===");
-        AgentResult r4 = Agentspan.run(complexAgent,
+        AgentResult r4 = runtime.run(complexAgent,
             "Summarize the key benefits of multi-agent AI systems.");
         r4.printResult();
 
-        Agentspan.shutdown();
+        runtime.shutdown();
     }
 }

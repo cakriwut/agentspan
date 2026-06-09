@@ -4,7 +4,7 @@
 package org.conductoross.conductor.ai.examples;
 
 import org.conductoross.conductor.ai.Agent;
-import org.conductoross.conductor.ai.Agentspan;
+import org.conductoross.conductor.ai.AgentRuntime;
 import org.conductoross.conductor.ai.enums.Strategy;
 import org.conductoross.conductor.ai.model.AgentResult;
 
@@ -24,6 +24,7 @@ import org.conductoross.conductor.ai.model.AgentResult;
 public class Example15AgentDiscussion {
 
     public static void main(String[] args) {
+        AgentRuntime runtime = new AgentRuntime();
         // ── Discussion participants ────────────────────────────────────────
 
         Agent optimist = Agent.builder()
@@ -77,10 +78,10 @@ public class Example15AgentDiscussion {
             .strategy(Strategy.SEQUENTIAL)
             .build();
 
-        AgentResult result = Agentspan.run(pipeline,
+        AgentResult result = runtime.run(pipeline,
             "Should AI agents be allowed to autonomously make financial decisions for individuals?");
         result.printResult();
 
-        Agentspan.shutdown();
+        runtime.shutdown();
     }
 }

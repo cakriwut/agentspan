@@ -4,7 +4,7 @@
 package org.conductoross.conductor.ai.examples;
 
 import org.conductoross.conductor.ai.Agent;
-import org.conductoross.conductor.ai.Agentspan;
+import org.conductoross.conductor.ai.AgentRuntime;
 import org.conductoross.conductor.ai.annotations.Tool;
 import org.conductoross.conductor.ai.enums.Strategy;
 import org.conductoross.conductor.ai.internal.ToolRegistry;
@@ -54,6 +54,7 @@ public class Example46TransferControl {
     }
 
     public static void main(String[] args) {
+        AgentRuntime runtime = new AgentRuntime();
         List<ToolDef> collectorTools = ToolRegistry.fromInstance(new CollectorTools());
         List<ToolDef> analystTools = ToolRegistry.fromInstance(new AnalystTools());
         List<ToolDef> summarizerTools = ToolRegistry.fromInstance(new SummarizerTools());
@@ -95,10 +96,10 @@ public class Example46TransferControl {
             ))
             .build();
 
-        AgentResult result = Agentspan.run(coordinator,
+        AgentResult result = runtime.run(coordinator,
             "Collect data from the sales database, analyze trends, and write a summary.");
         result.printResult();
 
-        Agentspan.shutdown();
+        runtime.shutdown();
     }
 }

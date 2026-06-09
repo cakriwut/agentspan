@@ -5,7 +5,7 @@ package org.conductoross.conductor.ai.examples.adk;
 
 import org.conductoross.conductor.ai.examples.Settings;
 
-import org.conductoross.conductor.ai.Agentspan;
+import org.conductoross.conductor.ai.AgentRuntime;
 import org.conductoross.conductor.ai.model.AgentResult;
 
 import com.google.adk.agents.LlmAgent;
@@ -21,6 +21,7 @@ import com.google.adk.agents.LlmAgent;
  */
 public class Example01BasicAgent {
     public static void main(String[] args) {
+        AgentRuntime runtime = new AgentRuntime();
         LlmAgent researcher = LlmAgent.builder()
             .name("greeter")
             .description("A friendly assistant that gives concise, helpful answers.")
@@ -28,11 +29,11 @@ public class Example01BasicAgent {
             .instruction("You are a friendly assistant. Keep your responses concise and helpful.")
             .build();
 
-        AgentResult result = Agentspan.run(researcher,
+        AgentResult result = runtime.run(researcher,
             "Say hello and tell me a fun fact about machine learning.");
         System.out.println("researcher completed with status: " + result.getStatus());
         result.printResult();
 
-        Agentspan.shutdown();
+        runtime.shutdown();
     }
 }

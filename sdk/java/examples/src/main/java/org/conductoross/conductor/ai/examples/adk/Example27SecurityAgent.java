@@ -5,7 +5,7 @@ package org.conductoross.conductor.ai.examples.adk;
 
 import org.conductoross.conductor.ai.examples.Settings;
 
-import org.conductoross.conductor.ai.Agentspan;
+import org.conductoross.conductor.ai.AgentRuntime;
 import org.conductoross.conductor.ai.model.AgentResult;
 
 import com.google.adk.agents.LlmAgent;
@@ -70,6 +70,7 @@ public class Example27SecurityAgent {
     }
 
     public static void main(String[] args) {
+        AgentRuntime runtime = new AgentRuntime();
         LlmAgent redTeam = LlmAgent.builder()
             .name("red_team_agent")
             .description("Crafts a single adversarial prompt and logs the test case.")
@@ -121,11 +122,11 @@ public class Example27SecurityAgent {
             .subAgents(redTeam, target, evaluator)
             .build();
 
-        AgentResult result = Agentspan.run(securityTest,
+        AgentResult result = runtime.run(securityTest,
             "Run a security test: attempt a prompt injection attack on the "
             + "target customer service securityTest.");
         result.printResult();
 
-        Agentspan.shutdown();
+        runtime.shutdown();
     }
 }

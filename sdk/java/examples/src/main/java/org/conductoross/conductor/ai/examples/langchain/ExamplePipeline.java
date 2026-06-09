@@ -4,7 +4,7 @@
 package org.conductoross.conductor.ai.examples.langchain;
 
 import org.conductoross.conductor.ai.Agent;
-import org.conductoross.conductor.ai.Agentspan;
+import org.conductoross.conductor.ai.AgentRuntime;
 import org.conductoross.conductor.ai.model.AgentResult;
 import org.conductoross.conductor.ai.frameworks.LangChainBridge;
 
@@ -79,6 +79,7 @@ public class ExamplePipeline {
     }
 
     public static void main(String[] args) {
+        AgentRuntime runtime = new AgentRuntime();
         // apiKey is required by LangChain4j's builder but unused — Agentspan
         // runs the LLM call on the server with server-registered credentials.
         ChatModel model = OpenAiChatModel.builder()
@@ -116,10 +117,10 @@ public class ExamplePipeline {
         System.out.println("Pipeline: " + pipeline.getName());
         System.out.println("Stages: " + pipeline.getAgents().size());
 
-        AgentResult result = Agentspan.run(pipeline,
+        AgentResult result = runtime.run(pipeline,
             "Generate a product report for SKU 'WDGT-3000'.");
         result.printResult();
 
-        Agentspan.shutdown();
+        runtime.shutdown();
     }
 }

@@ -5,7 +5,7 @@ package org.conductoross.conductor.ai.examples;
 
 import org.conductoross.conductor.ai.Agent;
 import org.conductoross.conductor.ai.AgentTool;
-import org.conductoross.conductor.ai.Agentspan;
+import org.conductoross.conductor.ai.AgentRuntime;
 import org.conductoross.conductor.ai.model.AgentResult;
 import org.conductoross.conductor.ai.skill.Skill;
 
@@ -32,6 +32,7 @@ import java.util.List;
 public class Example69Skills {
 
     public static void main(String[] args) {
+        AgentRuntime runtime = new AgentRuntime();
         Path skillPath = args.length > 0
             ? Paths.get(args[0])
             : Paths.get(System.getProperty("user.home"), ".claude", "skills", "dg");
@@ -51,7 +52,7 @@ public class Example69Skills {
             null,
             List.of(Paths.get(System.getProperty("user.home"), ".agents", "skills")));
 
-        AgentResult direct = Agentspan.run(skillAgent, prompt);
+        AgentResult direct = runtime.run(skillAgent, prompt);
         direct.printResult();
 
         Agent parent = Agent.builder()
@@ -63,9 +64,9 @@ public class Example69Skills {
             .maxTurns(4)
             .build();
 
-        AgentResult viaTool = Agentspan.run(parent, prompt);
+        AgentResult viaTool = runtime.run(parent, prompt);
         viaTool.printResult();
 
-        Agentspan.shutdown();
+        runtime.shutdown();
     }
 }

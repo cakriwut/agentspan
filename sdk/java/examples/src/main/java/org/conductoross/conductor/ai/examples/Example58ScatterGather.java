@@ -5,7 +5,7 @@ package org.conductoross.conductor.ai.examples;
 
 import org.conductoross.conductor.ai.Agent;
 import org.conductoross.conductor.ai.AgentTool;
-import org.conductoross.conductor.ai.Agentspan;
+import org.conductoross.conductor.ai.AgentRuntime;
 import org.conductoross.conductor.ai.annotations.Tool;
 import org.conductoross.conductor.ai.internal.AgentConfigSerializer;
 import org.conductoross.conductor.ai.internal.ToolRegistry;
@@ -48,6 +48,7 @@ public class Example58ScatterGather {
 
     @SuppressWarnings("unchecked")
     public static void main(String[] args) {
+        AgentRuntime runtime = new AgentRuntime();
         List<ToolDef> researchTools = ToolRegistry.fromInstance(new ResearchTools());
 
         // ── Worker: researches a single country ───────────────────────────────
@@ -104,10 +105,10 @@ public class Example58ScatterGather {
             .timeoutSeconds(600)
             .build();
 
-        AgentResult result = Agentspan.run(coordinator,
+        AgentResult result = runtime.run(coordinator,
             "Create a comprehensive profile for each of the 100 countries listed.");
         result.printResult();
 
-        Agentspan.shutdown();
+        runtime.shutdown();
     }
 }

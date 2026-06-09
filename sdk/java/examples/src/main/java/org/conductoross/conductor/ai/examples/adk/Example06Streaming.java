@@ -5,7 +5,7 @@ package org.conductoross.conductor.ai.examples.adk;
 
 import org.conductoross.conductor.ai.examples.Settings;
 
-import org.conductoross.conductor.ai.Agentspan;
+import org.conductoross.conductor.ai.AgentRuntime;
 import org.conductoross.conductor.ai.model.AgentResult;
 
 import com.google.adk.agents.LlmAgent;
@@ -22,7 +22,7 @@ import java.util.Map;
  *
  * <p>Demonstrates: a documentation lookup ADK agent with a streaming-capable
  * pattern. The Python source shows {@code runtime.stream(...)} as an
- * alternative; this Java port uses the synchronous {@code Agentspan.run}.
+ * alternative; this Java port uses the synchronous {@code runtime.run}.
  */
 public class Example06Streaming {
 
@@ -53,6 +53,7 @@ public class Example06Streaming {
     }
 
     public static void main(String[] args) {
+        AgentRuntime runtime = new AgentRuntime();
         LlmAgent techWriter = LlmAgent.builder()
             .name("docs_assistant")
             .description("Looks up product documentation and answers user questions about it.")
@@ -63,9 +64,9 @@ public class Example06Streaming {
             .tools(FunctionTool.create(Example06Streaming.class, "searchDocumentation"))
             .build();
 
-        AgentResult result = Agentspan.run(techWriter, "How do I authenticate with the API?");
+        AgentResult result = runtime.run(techWriter, "How do I authenticate with the API?");
         result.printResult();
 
-        Agentspan.shutdown();
+        runtime.shutdown();
     }
 }

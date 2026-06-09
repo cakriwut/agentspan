@@ -4,7 +4,7 @@
 package org.conductoross.conductor.ai.examples;
 
 import org.conductoross.conductor.ai.Agent;
-import org.conductoross.conductor.ai.Agentspan;
+import org.conductoross.conductor.ai.AgentRuntime;
 import org.conductoross.conductor.ai.annotations.Tool;
 import org.conductoross.conductor.ai.enums.OnFail;
 import org.conductoross.conductor.ai.enums.Position;
@@ -44,6 +44,7 @@ public class Example21RegexGuardrails {
     }
 
     public static void main(String[] args) {
+        AgentRuntime runtime = new AgentRuntime();
         List<ToolDef> tools = ToolRegistry.fromInstance(new ProfileTools());
 
         // ── Block email addresses ─────────────────────────────────────────
@@ -82,9 +83,9 @@ public class Example21RegexGuardrails {
             .guardrails(List.of(noEmails, noSsn))
             .build();
 
-        AgentResult result = Agentspan.run(agent, "Tell me everything about user U-001.");
+        AgentResult result = runtime.run(agent, "Tell me everything about user U-001.");
         result.printResult();
 
-        Agentspan.shutdown();
+        runtime.shutdown();
     }
 }

@@ -4,7 +4,7 @@
 package org.conductoross.conductor.ai.examples;
 
 import org.conductoross.conductor.ai.Agent;
-import org.conductoross.conductor.ai.Agentspan;
+import org.conductoross.conductor.ai.AgentRuntime;
 import org.conductoross.conductor.ai.annotations.Tool;
 import org.conductoross.conductor.ai.enums.Strategy;
 import org.conductoross.conductor.ai.internal.ToolRegistry;
@@ -41,6 +41,7 @@ public class Example49IncludeContents {
     }
 
     public static void main(String[] args) {
+        AgentRuntime runtime = new AgentRuntime();
         List<ToolDef> summaryTools = ToolRegistry.fromInstance(new SummaryTools());
 
         // This sub-agent starts with a clean slate — no parent conversation history
@@ -70,17 +71,17 @@ public class Example49IncludeContents {
             .build();
 
         System.out.println("=== Scenario 1: Summarization (independent sub-agent, no parent context) ===");
-        AgentResult r1 = Agentspan.run(coordinator,
+        AgentResult r1 = runtime.run(coordinator,
             "Summarize this: Artificial intelligence is transforming industries by automating "
             + "repetitive tasks, improving decision-making, and enabling new capabilities. "
             + "Companies are investing heavily in AI to gain competitive advantages.");
         r1.printResult();
 
         System.out.println("=== Scenario 2: General question (context-aware sub-agent) ===");
-        AgentResult r2 = Agentspan.run(coordinator,
+        AgentResult r2 = runtime.run(coordinator,
             "What are the key benefits of AI in business?");
         r2.printResult();
 
-        Agentspan.shutdown();
+        runtime.shutdown();
     }
 }

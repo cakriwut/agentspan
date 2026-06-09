@@ -5,7 +5,7 @@ package org.conductoross.conductor.ai.examples.adk;
 
 import org.conductoross.conductor.ai.examples.Settings;
 
-import org.conductoross.conductor.ai.Agentspan;
+import org.conductoross.conductor.ai.AgentRuntime;
 import org.conductoross.conductor.ai.model.AgentResult;
 
 import com.google.adk.agents.Callbacks;
@@ -48,6 +48,7 @@ public class Example23Callbacks {
     private static int afterCount = 0;
 
     public static void main(String[] args) {
+        AgentRuntime runtime = new AgentRuntime();
         Callbacks.BeforeModelCallback beforeModel = (ctx, req) -> {
             beforeCount++;
             int parts = 0;
@@ -83,12 +84,12 @@ public class Example23Callbacks {
                 .afterModelCallback(afterModel)
                 .build();
 
-        AgentResult result = Agentspan.run(callbackAgent,
+        AgentResult result = runtime.run(callbackAgent,
                 "Explain the difference between supervised and unsupervised machine learning.");
         result.printResult();
 
         System.out.println("\nCallback invocations: before=" + beforeCount + " after=" + afterCount);
 
-        Agentspan.shutdown();
+        runtime.shutdown();
     }
 }

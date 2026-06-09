@@ -6,7 +6,7 @@ package org.conductoross.conductor.ai.examples.openai;
 import org.conductoross.conductor.ai.examples.Settings;
 
 import org.conductoross.conductor.ai.Agent;
-import org.conductoross.conductor.ai.Agentspan;
+import org.conductoross.conductor.ai.AgentRuntime;
 import org.conductoross.conductor.ai.frameworks.OpenAIAgent;
 import org.conductoross.conductor.ai.model.AgentResult;
 
@@ -52,6 +52,7 @@ public class Example03StructuredOutput {
     public record MovieList(List<MovieRecommendation> recommendations, String theme) {}
 
     public static void main(String[] args) {
+        AgentRuntime runtime = new AgentRuntime();
         Agent agent = OpenAIAgent.builder()
                 .name("movie_recommender")
                 .instructions(
@@ -62,11 +63,11 @@ public class Example03StructuredOutput {
                 .outputType("MovieList")
                 .build();
 
-        AgentResult result = Agentspan.run(
+        AgentResult result = runtime.run(
                 agent,
                 "Recommend 3 sci-fi movies that explore the concept of artificial intelligence.");
         result.printResult();
 
-        Agentspan.shutdown();
+        runtime.shutdown();
     }
 }

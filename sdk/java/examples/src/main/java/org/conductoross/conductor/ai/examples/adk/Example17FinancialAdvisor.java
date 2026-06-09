@@ -5,7 +5,7 @@ package org.conductoross.conductor.ai.examples.adk;
 
 import org.conductoross.conductor.ai.examples.Settings;
 
-import org.conductoross.conductor.ai.Agentspan;
+import org.conductoross.conductor.ai.AgentRuntime;
 import org.conductoross.conductor.ai.model.AgentResult;
 
 import com.google.adk.agents.LlmAgent;
@@ -110,6 +110,7 @@ public class Example17FinancialAdvisor {
     }
 
     public static void main(String[] args) {
+        AgentRuntime runtime = new AgentRuntime();
         LlmAgent portfolioAnalyst = LlmAgent.builder()
             .name("portfolio_analyst")
             .description("Retrieves client portfolios and computes returns on their holdings.")
@@ -150,12 +151,12 @@ public class Example17FinancialAdvisor {
             .subAgents(portfolioAnalyst, marketResearcher, taxAdvisor)
             .build();
 
-        AgentResult result = Agentspan.run(coordinator,
+        AgentResult result = runtime.run(coordinator,
             "I'm client CLT-001. Review my portfolio and tell me if I should rebalance "
             + "given current market conditions. What would the tax impact be if I sold some AAPL?");
         System.out.println("Status: " + result.getStatus());
         result.printResult();
 
-        Agentspan.shutdown();
+        runtime.shutdown();
     }
 }

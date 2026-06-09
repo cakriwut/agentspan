@@ -4,7 +4,7 @@
 package org.conductoross.conductor.ai.examples;
 
 import org.conductoross.conductor.ai.Agent;
-import org.conductoross.conductor.ai.Agentspan;
+import org.conductoross.conductor.ai.AgentRuntime;
 import org.conductoross.conductor.ai.model.AgentResult;
 
 /**
@@ -20,15 +20,16 @@ import org.conductoross.conductor.ai.model.AgentResult;
  */
 public class Example01BasicAgent {
     public static void main(String[] args) {
+        AgentRuntime runtime = new AgentRuntime();
         Agent agent = Agent.builder()
             .name("basic_assistant")
             .model(Settings.LLM_MODEL)
             .instructions("You are a helpful assistant.")
             .build();
 
-        AgentResult result = Agentspan.run(agent, "What is the capital of France?");
+        AgentResult result = runtime.run(agent, "What is the capital of France?");
         result.printResult();
 
-        Agentspan.shutdown();
+        runtime.shutdown();
     }
 }

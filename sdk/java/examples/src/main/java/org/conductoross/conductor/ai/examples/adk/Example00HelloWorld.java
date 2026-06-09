@@ -3,7 +3,7 @@
 
 package org.conductoross.conductor.ai.examples.adk;
 
-import org.conductoross.conductor.ai.Agentspan;
+import org.conductoross.conductor.ai.AgentRuntime;
 import org.conductoross.conductor.ai.examples.Settings;
 import org.conductoross.conductor.ai.model.AgentResult;
 
@@ -24,6 +24,7 @@ import com.google.adk.agents.LlmAgent;
  */
 public class Example00HelloWorld {
     public static void main(String[] args) {
+        AgentRuntime runtime = new AgentRuntime();
         LlmAgent greeter = LlmAgent.builder()
                 .name("greeter")
                 .description("A friendly greeter that says hello and shares a fun fact.")
@@ -31,9 +32,9 @@ public class Example00HelloWorld {
                 .instruction("You are a friendly greeter. Reply with a warm hello and one fun fact.")
                 .build();
 
-        AgentResult result = Agentspan.run(greeter, "Say hello!");
+        AgentResult result = runtime.run(greeter, "Say hello!");
         result.printResult();
 
-        Agentspan.shutdown();
+        runtime.shutdown();
     }
 }

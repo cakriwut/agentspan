@@ -3,7 +3,7 @@
 
 package org.conductoross.conductor.ai.examples.langchain;
 
-import org.conductoross.conductor.ai.Agentspan;
+import org.conductoross.conductor.ai.AgentRuntime;
 import org.conductoross.conductor.ai.model.AgentResult;
 
 import dev.langchain4j.model.chat.ChatModel;
@@ -179,6 +179,7 @@ public class Example23RecommendationAgent {
     }
 
     public static void main(String[] args) {
+        AgentRuntime runtime = new AgentRuntime();
         // apiKey is required by LangChain4j's builder but unused — Agentspan
         // runs the LLM call on the server with server-registered credentials.
         ChatModel model = OpenAiChatModel.builder()
@@ -187,7 +188,7 @@ public class Example23RecommendationAgent {
             .build();
 
         // Drop-in overload — fold the system prompt into the user message.
-        AgentResult result = Agentspan.run(
+        AgentResult result = runtime.run(
             model,
             "You are a personalized book recommendation assistant. Use tools to find, score, "
                 + "and explain book recommendations based on the user's preferences.\n\n"
@@ -198,6 +199,6 @@ public class Example23RecommendationAgent {
         System.out.println("Status: " + result.getStatus());
         result.printResult();
 
-        Agentspan.shutdown();
+        runtime.shutdown();
     }
 }

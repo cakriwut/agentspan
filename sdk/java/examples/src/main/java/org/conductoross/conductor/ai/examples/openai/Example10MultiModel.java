@@ -6,7 +6,7 @@ package org.conductoross.conductor.ai.examples.openai;
 import org.conductoross.conductor.ai.examples.Settings;
 
 import org.conductoross.conductor.ai.Agent;
-import org.conductoross.conductor.ai.Agentspan;
+import org.conductoross.conductor.ai.AgentRuntime;
 import org.conductoross.conductor.ai.annotations.Tool;
 import org.conductoross.conductor.ai.frameworks.OpenAIAgent;
 import org.conductoross.conductor.ai.model.AgentResult;
@@ -83,6 +83,7 @@ public class Example10MultiModel {
     }
 
     public static void main(String[] args) {
+        AgentRuntime runtime = new AgentRuntime();
         // Knowledgeable model for doc lookups (secondary model).
         Agent docSpecialist = OpenAIAgent.builder()
                 .name("doc_specialist")
@@ -116,11 +117,11 @@ public class Example10MultiModel {
                 .handoffs(docSpecialist, codeSpecialist)
                 .build();
 
-        AgentResult result = Agentspan.run(
+        AgentResult result = runtime.run(
                 triage,
                 "I need a Python code example for authenticating with the API.");
         result.printResult();
 
-        Agentspan.shutdown();
+        runtime.shutdown();
     }
 }

@@ -4,7 +4,7 @@
 package org.conductoross.conductor.ai.examples;
 
 import org.conductoross.conductor.ai.Agent;
-import org.conductoross.conductor.ai.Agentspan;
+import org.conductoross.conductor.ai.AgentRuntime;
 import org.conductoross.conductor.ai.annotations.Tool;
 import org.conductoross.conductor.ai.internal.ToolRegistry;
 import org.conductoross.conductor.ai.model.AgentResult;
@@ -49,6 +49,7 @@ public class Example04HttpAndMcpTools {
     }
 
     public static void main(String[] args) {
+        AgentRuntime runtime = new AgentRuntime();
         // Local worker tool
         List<ToolDef> localTools = ToolRegistry.fromInstance(new ReportTools());
 
@@ -101,10 +102,10 @@ public class Example04HttpAndMcpTools {
             .maxTokens(102040)
             .build();
 
-        AgentResult result = Agentspan.run(agent,
+        AgentResult result = runtime.run(agent,
             "Get the weather in London and format it as a report.");
         result.printResult();
 
-        Agentspan.shutdown();
+        runtime.shutdown();
     }
 }

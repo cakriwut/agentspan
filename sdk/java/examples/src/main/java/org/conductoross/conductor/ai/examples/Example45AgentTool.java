@@ -5,7 +5,7 @@ package org.conductoross.conductor.ai.examples;
 
 import org.conductoross.conductor.ai.Agent;
 import org.conductoross.conductor.ai.AgentTool;
-import org.conductoross.conductor.ai.Agentspan;
+import org.conductoross.conductor.ai.AgentRuntime;
 import org.conductoross.conductor.ai.annotations.Tool;
 import org.conductoross.conductor.ai.internal.ToolRegistry;
 import org.conductoross.conductor.ai.model.AgentResult;
@@ -110,6 +110,7 @@ public class Example45AgentTool {
     }
 
     public static void main(String[] args) {
+        AgentRuntime runtime = new AgentRuntime();
         // Child agent with its own search tool
         List<ToolDef> researchTools = ToolRegistry.fromInstance(new ResearchTools());
         Agent researcher = Agent.builder()
@@ -132,10 +133,10 @@ public class Example45AgentTool {
             .tools(List.of(AgentTool.from(researcher), mathTools.get(0)))
             .build();
 
-        AgentResult result = Agentspan.run(manager,
+        AgentResult result = runtime.run(manager,
             "Research Python and Rust, then calculate how many use cases they have combined.");
         result.printResult();
 
-        Agentspan.shutdown();
+        runtime.shutdown();
     }
 }

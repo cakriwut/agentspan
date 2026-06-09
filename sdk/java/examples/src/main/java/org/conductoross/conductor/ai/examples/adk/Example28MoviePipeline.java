@@ -5,7 +5,7 @@ package org.conductoross.conductor.ai.examples.adk;
 
 import org.conductoross.conductor.ai.examples.Settings;
 
-import org.conductoross.conductor.ai.Agentspan;
+import org.conductoross.conductor.ai.AgentRuntime;
 import org.conductoross.conductor.ai.model.AgentResult;
 
 import com.google.adk.agents.LlmAgent;
@@ -92,6 +92,7 @@ public class Example28MoviePipeline {
     }
 
     public static void main(String[] args) {
+        AgentRuntime runtime = new AgentRuntime();
         LlmAgent conceptDeveloper = LlmAgent.builder()
             .name("concept_developer")
             .description("Develops a film concept with title, genre, and logline.")
@@ -167,11 +168,11 @@ public class Example28MoviePipeline {
             .subAgents(conceptDeveloper, scriptwriter, visualDirector, audioDesigner, producer)
             .build();
 
-        AgentResult result = Agentspan.run(moviePipeline,
+        AgentResult result = runtime.run(moviePipeline,
             "Create a 3-scene short film about a robot discovering music "
             + "for the first time in a post-apocalyptic world.");
         result.printResult();
 
-        Agentspan.shutdown();
+        runtime.shutdown();
     }
 }

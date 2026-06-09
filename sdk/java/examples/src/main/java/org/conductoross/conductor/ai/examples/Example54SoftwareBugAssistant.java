@@ -5,7 +5,7 @@ package org.conductoross.conductor.ai.examples;
 
 import org.conductoross.conductor.ai.Agent;
 import org.conductoross.conductor.ai.AgentTool;
-import org.conductoross.conductor.ai.Agentspan;
+import org.conductoross.conductor.ai.AgentRuntime;
 import org.conductoross.conductor.ai.annotations.Tool;
 import org.conductoross.conductor.ai.internal.ToolRegistry;
 import org.conductoross.conductor.ai.model.AgentResult;
@@ -130,6 +130,7 @@ public class Example54SoftwareBugAssistant {
 
     @SuppressWarnings("unchecked")
     public static void main(String[] args) {
+        AgentRuntime runtime = new AgentRuntime();
         // ── Search sub-agent ────────────────────────────────────────────────
         List<ToolDef> searchTools = ToolRegistry.fromInstance(new SearchTools());
         Agent searchAgent = Agent.builder()
@@ -204,11 +205,11 @@ public class Example54SoftwareBugAssistant {
             .tools(allTools)
             .build();
 
-        AgentResult result = Agentspan.run(assistant,
+        AgentResult result = runtime.run(assistant,
             "Review our open tickets. Research the TaskStatusListener issue and suggest "
             + "what should be prioritized first.");
         result.printResult();
 
-        Agentspan.shutdown();
+        runtime.shutdown();
     }
 }

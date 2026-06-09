@@ -5,7 +5,7 @@ package org.conductoross.conductor.ai.examples.adk;
 
 import org.conductoross.conductor.ai.examples.Settings;
 
-import org.conductoross.conductor.ai.Agentspan;
+import org.conductoross.conductor.ai.AgentRuntime;
 import org.conductoross.conductor.ai.model.AgentResult;
 
 import com.google.adk.agents.LlmAgent;
@@ -66,6 +66,7 @@ public class Example24Planner {
     }
 
     public static void main(String[] args) {
+        AgentRuntime runtime = new AgentRuntime();
         LlmAgent planner = LlmAgent.builder()
             .name("research_writer")
             .description("Plans a report outline first, then executes the plan to write the report.")
@@ -82,11 +83,11 @@ public class Example24Planner {
                 FunctionTool.create(Example24Planner.class, "writeSection"))
             .build();
 
-        AgentResult result = Agentspan.run(planner,
+        AgentResult result = runtime.run(planner,
             "Write a brief report on the current state of renewable energy "
             + "and climate change solutions.");
         result.printResult();
 
-        Agentspan.shutdown();
+        runtime.shutdown();
     }
 }

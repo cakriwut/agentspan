@@ -4,7 +4,7 @@
 package org.conductoross.conductor.ai.examples;
 
 import org.conductoross.conductor.ai.Agent;
-import org.conductoross.conductor.ai.Agentspan;
+import org.conductoross.conductor.ai.AgentRuntime;
 import org.conductoross.conductor.ai.enums.Strategy;
 import org.conductoross.conductor.ai.model.AgentResult;
 
@@ -29,6 +29,7 @@ import java.util.List;
 public class Example59CodingAgent {
 
     public static void main(String[] args) {
+        AgentRuntime runtime = new AgentRuntime();
         // ── QA agent: receives code from coder, runs it ──────────────────────
 
         Agent qaAgent = Agent.builder()
@@ -71,13 +72,13 @@ public class Example59CodingAgent {
             .build();
 
         System.out.println("=== Coding Agent: Fibonacci + Palindrome Check ===");
-        AgentResult result = Agentspan.run(swarmLead,
+        AgentResult result = runtime.run(swarmLead,
             "Write and test Python code that:\n" +
             "1. Computes the first 10 Fibonacci numbers\n" +
             "2. Checks which of those numbers are palindromes when written as strings\n" +
             "3. Prints both lists");
         result.printResult();
 
-        Agentspan.shutdown();
+        runtime.shutdown();
     }
 }

@@ -34,11 +34,11 @@ public final class LangChainBridge {
      * Agent agent = LangChainBridge.agentBuilder("name", model, "prompt", new MyTools())
      *     .guardrails(piiGuard)
      *     .build();
-     * Agentspan.run(agent, "...");
+     * new AgentRuntime().run(agent, "...");
      * }</pre>
      *
      * <p>For the simple no-decoration case, prefer the direct drop-in:
-     * {@code Agentspan.run(model, prompt, tools)}.
+     * {@code runtime.run(model, prompt, tools)}.
      */
     public static Agent.Builder agentBuilder(String name, ChatModel model, String systemPrompt, Object... tools) {
         String modelString = providerSlashModel(model);

@@ -23,7 +23,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  * agentspan.worker-thread-count=1
  * }</pre>
  */
-@ConfigurationProperties(prefix = "agentspan")
+@ConfigurationProperties(prefix = "conductor.agent")
 public class AgentspanProperties {
 
     private int workerPollIntervalMs = 100;

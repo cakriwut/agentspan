@@ -4,7 +4,7 @@
 package org.conductoross.conductor.ai.examples;
 
 import org.conductoross.conductor.ai.Agent;
-import org.conductoross.conductor.ai.Agentspan;
+import org.conductoross.conductor.ai.AgentRuntime;
 import org.conductoross.conductor.ai.model.AgentResult;
 
 /**
@@ -16,6 +16,7 @@ import org.conductoross.conductor.ai.model.AgentResult;
 public class Example06SequentialPipeline {
 
     public static void main(String[] args) {
+        AgentRuntime runtime = new AgentRuntime();
         // Step 1: Researcher gathers information
         Agent researcher = Agent.builder()
             .name("researcher")
@@ -51,10 +52,10 @@ public class Example06SequentialPipeline {
         System.out.println("Pipeline: " + contentPipeline.getName());
         System.out.println("Sub-agents: " + contentPipeline.getAgents().size());
 
-        AgentResult result = Agentspan.run(contentPipeline,
+        AgentResult result = runtime.run(contentPipeline,
             "Write an article about the future of renewable energy");
         result.printResult();
 
-        Agentspan.shutdown();
+        runtime.shutdown();
     }
 }

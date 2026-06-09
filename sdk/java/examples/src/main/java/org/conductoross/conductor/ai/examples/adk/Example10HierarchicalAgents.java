@@ -5,7 +5,7 @@ package org.conductoross.conductor.ai.examples.adk;
 
 import org.conductoross.conductor.ai.examples.Settings;
 
-import org.conductoross.conductor.ai.Agentspan;
+import org.conductoross.conductor.ai.AgentRuntime;
 import org.conductoross.conductor.ai.model.AgentResult;
 
 import com.google.adk.agents.LlmAgent;
@@ -83,6 +83,7 @@ public class Example10HierarchicalAgents {
     }
 
     public static void main(String[] args) {
+        AgentRuntime runtime = new AgentRuntime();
         // ── Level 2: Team specialists ────────────────────────────────────
         LlmAgent opsAgent = LlmAgent.builder()
             .name("ops_specialist")
@@ -149,11 +150,11 @@ public class Example10HierarchicalAgents {
             .subAgents(reliabilityLead, securityLead)
             .build();
 
-        AgentResult result = Agentspan.run(coordinator,
+        AgentResult result = runtime.run(coordinator,
             "Give me a full platform health assessment. Focus on the payments service "
             + "which seems to be having issues.");
         result.printResult();
 
-        Agentspan.shutdown();
+        runtime.shutdown();
     }
 }

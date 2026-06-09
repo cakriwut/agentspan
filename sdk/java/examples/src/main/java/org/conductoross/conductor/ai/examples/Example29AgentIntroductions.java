@@ -4,7 +4,7 @@
 package org.conductoross.conductor.ai.examples;
 
 import org.conductoross.conductor.ai.Agent;
-import org.conductoross.conductor.ai.Agentspan;
+import org.conductoross.conductor.ai.AgentRuntime;
 import org.conductoross.conductor.ai.enums.Strategy;
 import org.conductoross.conductor.ai.model.AgentResult;
 
@@ -21,6 +21,7 @@ import org.conductoross.conductor.ai.model.AgentResult;
 public class Example29AgentIntroductions {
 
     public static void main(String[] args) {
+        AgentRuntime runtime = new AgentRuntime();
         // ── Agents with introductions ──────────────────────────────────────
 
         Agent architect = Agent.builder()
@@ -70,11 +71,11 @@ public class Example29AgentIntroductions {
             .maxTurns(6)
             .build();
 
-        AgentResult result = Agentspan.run(designReview,
+        AgentResult result = runtime.run(designReview,
             "Review the design for a new user authentication system that uses "
             + "passkeys (WebAuthn) instead of passwords.");
         result.printResult();
 
-        Agentspan.shutdown();
+        runtime.shutdown();
     }
 }

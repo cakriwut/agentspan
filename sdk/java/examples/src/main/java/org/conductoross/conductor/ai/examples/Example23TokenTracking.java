@@ -4,7 +4,7 @@
 package org.conductoross.conductor.ai.examples;
 
 import org.conductoross.conductor.ai.Agent;
-import org.conductoross.conductor.ai.Agentspan;
+import org.conductoross.conductor.ai.AgentRuntime;
 import org.conductoross.conductor.ai.annotations.Tool;
 import org.conductoross.conductor.ai.internal.ToolRegistry;
 import org.conductoross.conductor.ai.model.AgentResult;
@@ -44,6 +44,7 @@ public class Example23TokenTracking {
     }
 
     public static void main(String[] args) {
+        AgentRuntime runtime = new AgentRuntime();
         List<ToolDef> tools = ToolRegistry.fromInstance(new MathTools());
 
         Agent agent = Agent.builder()
@@ -55,7 +56,7 @@ public class Example23TokenTracking {
                 + "tool for computations. Explain each step clearly.")
             .build();
 
-        AgentResult result = Agentspan.run(agent,
+        AgentResult result = runtime.run(agent,
             "Calculate the compound interest on $10,000 at 5% annual rate "
             + "compounded monthly for 3 years.");
         result.printResult();
@@ -78,6 +79,6 @@ public class Example23TokenTracking {
             System.out.println("Token usage not available from server.");
         }
 
-        Agentspan.shutdown();
+        runtime.shutdown();
     }
 }

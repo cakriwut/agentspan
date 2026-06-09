@@ -4,7 +4,7 @@
 package org.conductoross.conductor.ai.examples;
 
 import org.conductoross.conductor.ai.Agent;
-import org.conductoross.conductor.ai.Agentspan;
+import org.conductoross.conductor.ai.AgentRuntime;
 import org.conductoross.conductor.ai.annotations.Tool;
 import org.conductoross.conductor.ai.enums.OnFail;
 import org.conductoross.conductor.ai.enums.Position;
@@ -60,6 +60,7 @@ public class Example37FixGuardrail {
         Pattern.compile("(?:\\+?1[-.\\s]?)?\\(?\\d{3}\\)?[-.\\s]?\\d{3}[-.\\s]?\\d{4}");
 
     public static void main(String[] args) {
+        AgentRuntime runtime = new AgentRuntime();
         // ── Fix guardrail: redact phone numbers ────────────────────────────
         // Instead of asking the LLM to retry, auto-redact and return the fix.
 
@@ -88,13 +89,13 @@ public class Example37FixGuardrail {
             .build();
 
         System.out.println("=== Scenario 1: Contact with phone number (guardrail triggers) ===");
-        AgentResult r1 = Agentspan.run(agent, "What's Alice Johnson's contact information?");
+        AgentResult r1 = runtime.run(agent, "What's Alice Johnson's contact information?");
         r1.printResult();
 
         System.out.println("\n=== Scenario 2: Department only (guardrail does not trigger) ===");
-        AgentResult r2 = Agentspan.run(agent, "What department does Alice work in? Just the department name.");
+        AgentResult r2 = runtime.run(agent, "What department does Alice work in? Just the department name.");
         r2.printResult();
 
-        Agentspan.shutdown();
+        runtime.shutdown();
     }
 }

@@ -4,7 +4,7 @@
 package org.conductoross.conductor.ai.examples;
 
 import org.conductoross.conductor.ai.Agent;
-import org.conductoross.conductor.ai.Agentspan;
+import org.conductoross.conductor.ai.AgentRuntime;
 import org.conductoross.conductor.ai.enums.Strategy;
 import org.conductoross.conductor.ai.model.AgentResult;
 
@@ -28,6 +28,7 @@ import java.util.Map;
 public class Example20ConstrainedTransitions {
 
     public static void main(String[] args) {
+        AgentRuntime runtime = new AgentRuntime();
         Agent developer = Agent.builder()
             .name("developer")
             .model(Settings.LLM_MODEL)
@@ -66,10 +67,10 @@ public class Example20ConstrainedTransitions {
             ))
             .build();
 
-        AgentResult result = Agentspan.run(codeReview,
+        AgentResult result = runtime.run(codeReview,
             "Write a Python function to validate email addresses using regex.");
         result.printResult();
 
-        Agentspan.shutdown();
+        runtime.shutdown();
     }
 }

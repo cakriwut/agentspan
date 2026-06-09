@@ -3,7 +3,7 @@
 
 package org.conductoross.conductor.ai.examples.langchain;
 
-import org.conductoross.conductor.ai.Agentspan;
+import org.conductoross.conductor.ai.AgentRuntime;
 import org.conductoross.conductor.ai.model.AgentResult;
 
 import dev.langchain4j.model.chat.ChatModel;
@@ -413,6 +413,7 @@ public class Example17SqlAgent {
     // ── Main ─────────────────────────────────────────────────────────────────
 
     public static void main(String[] args) {
+        AgentRuntime runtime = new AgentRuntime();
         // Reference Arrays import so the simulated table init compiles cleanly.
         @SuppressWarnings("unused")
         List<String> _unused = Arrays.asList("ref");
@@ -425,7 +426,7 @@ public class Example17SqlAgent {
             .build();
 
         // Drop-in overload — fold the system prompt into the user message.
-        AgentResult result = Agentspan.run(
+        AgentResult result = runtime.run(
             model,
             "You are a SQL assistant. Always inspect the schema first, then write and execute a SELECT query. "
                 + "Translate natural language questions into correct SQL.\n\n"
@@ -435,6 +436,6 @@ public class Example17SqlAgent {
         System.out.println("Status: " + result.getStatus());
         result.printResult();
 
-        Agentspan.shutdown();
+        runtime.shutdown();
     }
 }

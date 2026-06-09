@@ -3,7 +3,7 @@
 
 package org.conductoross.conductor.ai.examples.langgraph;
 
-import org.conductoross.conductor.ai.Agentspan;
+import org.conductoross.conductor.ai.AgentRuntime;
 import org.conductoross.conductor.ai.model.AgentResult;
 
 import dev.langchain4j.model.chat.ChatModel;
@@ -32,6 +32,7 @@ import org.bsc.langgraph4j.agentexecutor.AgentExecutor;
 public class Example03Memory {
 
     public static void main(String[] args) {
+        AgentRuntime runtime = new AgentRuntime();
         // apiKey is required by LangChain4j's builder but unused — Agentspan
         // runs the LLM call on the server with server-registered credentials.
         ChatModel model = OpenAiChatModel.builder()
@@ -47,26 +48,26 @@ public class Example03Memory {
                 "You are a friendly assistant. Pay close attention to facts the user shares.\n\n";
 
         System.out.println("=== Turn 1: Introduce a name ===");
-        AgentResult turn1 = Agentspan.run(
+        AgentResult turn1 = runtime.run(
                 agent,
                 persona + "My name is Alice. Please remember that."
         );
         turn1.printResult();
 
         System.out.println("\n=== Turn 2: Ask the agent to recall ===");
-        AgentResult turn2 = Agentspan.run(
+        AgentResult turn2 = runtime.run(
                 agent,
                 persona + "Earlier I told you my name was Alice. What is my name?"
         );
         turn2.printResult();
 
         System.out.println("\n=== Turn 3: Continue the conversation ===");
-        AgentResult turn3 = Agentspan.run(
+        AgentResult turn3 = runtime.run(
                 agent,
                 persona + "Tell me one fun fact about the name Alice."
         );
         turn3.printResult();
 
-        Agentspan.shutdown();
+        runtime.shutdown();
     }
 }

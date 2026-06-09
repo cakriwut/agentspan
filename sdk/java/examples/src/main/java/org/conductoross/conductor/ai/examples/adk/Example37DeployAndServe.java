@@ -3,7 +3,7 @@
 
 package org.conductoross.conductor.ai.examples.adk;
 
-import org.conductoross.conductor.ai.Agentspan;
+import org.conductoross.conductor.ai.AgentRuntime;
 import org.conductoross.conductor.ai.examples.Settings;
 import org.conductoross.conductor.ai.model.AgentHandle;
 import org.conductoross.conductor.ai.model.AgentResult;
@@ -37,10 +37,10 @@ import java.util.Map;
  *
  * <pre>{@code
  *   # one-shot CI/CD deploy
- *   $ java -cp ... DeployJob          // Agentspan.deploy(rootAgent)
+ *   $ java -cp ... DeployJob          // runtime.deploy(rootAgent)
  *
  *   # long-lived worker pool (Kubernetes Deployment, systemd unit, …)
- *   $ java -cp ... WorkerProcess      // Agentspan.serve(rootAgent)
+ *   $ java -cp ... WorkerProcess      // runtime.serve(rootAgent)
  *
  *   # any caller, e.g. an HTTP handler
  *   $ curl -X POST .../api/agent/start -d '{"agentName":"deploy_demo_agent",...}'
@@ -62,6 +62,7 @@ public class Example37DeployAndServe {
     }
 
     public static void main(String[] args) throws Exception {
+        AgentRuntime runtime = new AgentRuntime();
         LlmAgent agent = LlmAgent.builder()
                 .name("deploy_demo_agent")
                 .description("Demo agent used by the deploy + serve + run example.")
@@ -77,12 +78,12 @@ public class Example37DeployAndServe {
         // ── Step 1: deploy ─────────────────────────────────────────────
         // Registers the workflow + task definitions on the server. Safe to
         // call repeatedly — re-deploying overwrites the previous version.
-        List<DeploymentInfo> deployed = Agentspan.deploy(agent);
+        List<DeploymentInfo> deployed = runtime.deploy(agent);
         System.out.println("Deployed: " + deployed);
 
         // ── Step 2: serve (on a daemon thread so main can keep going) ──
         Thread worker = new Thread(() -> {
-            try { Agentspan.serve(agent); }
+            try { runtime.serve(agent); }
             catch (Throwable t) { /* serve() blocks; shutdown unblocks via InterruptedException */ }
         }, "example37-worker");
         worker.setDaemon(true);
@@ -92,13 +93,13 @@ public class Example37DeployAndServe {
         Thread.sleep(1_500);
 
         // ── Step 3: start an execution and wait for the result ─────────
-        AgentHandle handle = Agentspan.start(agent, "Tell me about user U001.");
+        AgentHandle handle = runtime.start(agent, "Tell me about user U001.");
         System.out.println("Started executionId=" + handle.getExecutionId());
         AgentResult result = handle.waitForResult();
         result.printResult();
 
         // ── Done ─────────────────────────────────────────────────────────
-        Agentspan.shutdown();
+        runtime.shutdown();
         System.out.println("OK — deploy + serve + run round-trip complete.");
     }
 }

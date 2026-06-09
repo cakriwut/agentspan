@@ -4,7 +4,7 @@
 package org.conductoross.conductor.ai.examples;
 
 import org.conductoross.conductor.ai.Agent;
-import org.conductoross.conductor.ai.Agentspan;
+import org.conductoross.conductor.ai.AgentRuntime;
 import org.conductoross.conductor.ai.enums.OnFail;
 import org.conductoross.conductor.ai.enums.Position;
 import org.conductoross.conductor.ai.model.AgentResult;
@@ -30,6 +30,7 @@ import java.util.Map;
 public class Example36SimpleAgentGuardrails {
 
     public static void main(String[] args) {
+        AgentRuntime runtime = new AgentRuntime();
         // ── Regex guardrail: block bullet-point lists (server-side InlineTask) ─
 
         GuardrailDef noBulletLists = GuardrailDef.builder()
@@ -81,9 +82,9 @@ public class Example36SimpleAgentGuardrails {
             .guardrails(List.of(noBulletLists, minLength))
             .build();
 
-        AgentResult result = Agentspan.run(agent, "Explain why the sky is blue.");
+        AgentResult result = runtime.run(agent, "Explain why the sky is blue.");
         result.printResult();
 
-        Agentspan.shutdown();
+        runtime.shutdown();
     }
 }

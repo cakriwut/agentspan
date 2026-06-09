@@ -4,7 +4,7 @@
 package org.conductoross.conductor.ai.examples.langchain;
 
 import org.conductoross.conductor.ai.Agent;
-import org.conductoross.conductor.ai.Agentspan;
+import org.conductoross.conductor.ai.AgentRuntime;
 import org.conductoross.conductor.ai.annotations.Tool;
 import org.conductoross.conductor.ai.internal.ToolRegistry;
 import org.conductoross.conductor.ai.model.AgentResult;
@@ -101,6 +101,7 @@ public class ExampleCredentials {
     }
 
     public static void main(String[] args) {
+        AgentRuntime runtime = new AgentRuntime();
         // apiKey is required by LangChain4j's builder but unused — Agentspan
         // runs the LLM call on the server with server-registered credentials.
         ChatModel model = OpenAiChatModel.builder()
@@ -138,10 +139,10 @@ public class ExampleCredentials {
         System.out.println("Tools: " + fullAgent.getTools().size());
         fullAgent.getTools().forEach(t -> System.out.println("  - " + t.getName()));
 
-        AgentResult result = Agentspan.run(fullAgent,
+        AgentResult result = runtime.run(fullAgent,
             "What is the weather in Paris, and what is 22°C in Fahrenheit?");
         result.printResult();
 
-        Agentspan.shutdown();
+        runtime.shutdown();
     }
 }

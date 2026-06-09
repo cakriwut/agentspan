@@ -4,7 +4,7 @@
 package org.conductoross.conductor.ai.examples;
 
 import org.conductoross.conductor.ai.Agent;
-import org.conductoross.conductor.ai.Agentspan;
+import org.conductoross.conductor.ai.AgentRuntime;
 import org.conductoross.conductor.ai.enums.Strategy;
 import org.conductoross.conductor.ai.model.AgentResult;
 
@@ -28,6 +28,7 @@ import org.conductoross.conductor.ai.model.AgentResult;
 public class Example67RouterToSequential {
 
     public static void main(String[] args) {
+        AgentRuntime runtime = new AgentRuntime();
         // ── Quick answer (single agent) ────────────────────────────────────
 
         Agent quickAnswer = Agent.builder()
@@ -82,15 +83,15 @@ public class Example67RouterToSequential {
             .build();
 
         System.out.println("=== Scenario 1: Research task (router → sequential pipeline) ===");
-        AgentResult r1 = Agentspan.run(team,
+        AgentResult r1 = runtime.run(team,
             "Research the current state of quantum computing and write a summary.");
         r1.printResult();
 
         System.out.println("\n=== Scenario 2: Quick question (router → single agent) ===");
-        AgentResult r2 = Agentspan.run(team,
+        AgentResult r2 = runtime.run(team,
             "What is the capital of France?");
         r2.printResult();
 
-        Agentspan.shutdown();
+        runtime.shutdown();
     }
 }

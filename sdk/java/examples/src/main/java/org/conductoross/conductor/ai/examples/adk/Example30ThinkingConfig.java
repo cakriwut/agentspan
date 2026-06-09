@@ -5,7 +5,7 @@ package org.conductoross.conductor.ai.examples.adk;
 
 import org.conductoross.conductor.ai.examples.Settings;
 
-import org.conductoross.conductor.ai.Agentspan;
+import org.conductoross.conductor.ai.AgentRuntime;
 import org.conductoross.conductor.ai.model.AgentResult;
 
 import com.google.adk.agents.LlmAgent;
@@ -72,6 +72,7 @@ public class Example30ThinkingConfig {
     }
 
     public static void main(String[] args) {
+        AgentRuntime runtime = new AgentRuntime();
         LlmAgent thinker = LlmAgent.builder()
             .name("deep_thinker")
             .description("Analytical assistant with extended thinking enabled for step-by-step reasoning.")
@@ -87,11 +88,11 @@ public class Example30ThinkingConfig {
             .tools(FunctionTool.create(Example30ThinkingConfig.class, "calculate"))
             .build();
 
-        AgentResult result = Agentspan.run(thinker,
+        AgentResult result = runtime.run(thinker,
             "If a train travels 120 km in 2 hours, then speeds up by 50% for "
             + "the next 3 hours, what is the total distance traveled?");
         result.printResult();
 
-        Agentspan.shutdown();
+        runtime.shutdown();
     }
 }

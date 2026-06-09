@@ -4,7 +4,7 @@
 package org.conductoross.conductor.ai.examples;
 
 import org.conductoross.conductor.ai.Agent;
-import org.conductoross.conductor.ai.Agentspan;
+import org.conductoross.conductor.ai.AgentRuntime;
 import org.conductoross.conductor.ai.enums.Strategy;
 import org.conductoross.conductor.ai.model.AgentResult;
 
@@ -26,6 +26,7 @@ import org.conductoross.conductor.ai.model.AgentResult;
 public class Example52NestedStrategies {
 
     public static void main(String[] args) {
+        AgentRuntime runtime = new AgentRuntime();
         // ── Parallel research phase ──────────────────────────────────────
 
         Agent marketAnalyst = Agent.builder()
@@ -71,10 +72,10 @@ public class Example52NestedStrategies {
             .strategy(Strategy.SEQUENTIAL)
             .build();
 
-        AgentResult result = Agentspan.run(pipeline,
+        AgentResult result = runtime.run(pipeline,
             "Launching an AI-powered healthcare diagnostics tool in the US");
         result.printResult();
 
-        Agentspan.shutdown();
+        runtime.shutdown();
     }
 }

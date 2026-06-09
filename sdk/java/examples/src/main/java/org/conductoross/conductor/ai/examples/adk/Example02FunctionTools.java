@@ -3,7 +3,7 @@
 
 package org.conductoross.conductor.ai.examples.adk;
 
-import org.conductoross.conductor.ai.Agentspan;
+import org.conductoross.conductor.ai.AgentRuntime;
 import org.conductoross.conductor.ai.examples.Settings;
 import org.conductoross.conductor.ai.model.AgentResult;
 
@@ -14,7 +14,7 @@ import com.google.adk.tools.FunctionTool;
 import java.util.Map;
 
 /**
- * Example Adk 02 — Native ADK {@link FunctionTool}s wired through Agentspan.
+ * Example Adk 02 — Native ADK {@link FunctionTool}s wired through runtime.
  *
  * <p>Tools are static methods annotated with {@code @Schema} — the idiomatic
  * ADK pattern — and packaged via {@code FunctionTool.create(Class, "methodName")}.
@@ -53,6 +53,7 @@ public class Example02FunctionTools {
     }
 
     public static void main(String[] args) {
+        AgentRuntime runtime = new AgentRuntime();
         LlmAgent calculator = LlmAgent.builder()
                 .name("travel_assistant")
                 .description("Answers weather and temperature-conversion questions for travelers.")
@@ -65,10 +66,10 @@ public class Example02FunctionTools {
                 )
                 .build();
 
-        AgentResult result = Agentspan.run(calculator,
+        AgentResult result = runtime.run(calculator,
                 "What's the weather in Tokyo? Convert the temperature to Fahrenheit.");
         result.printResult();
 
-        Agentspan.shutdown();
+        runtime.shutdown();
     }
 }

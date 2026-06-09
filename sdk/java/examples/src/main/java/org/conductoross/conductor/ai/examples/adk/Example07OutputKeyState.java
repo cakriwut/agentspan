@@ -5,7 +5,7 @@ package org.conductoross.conductor.ai.examples.adk;
 
 import org.conductoross.conductor.ai.examples.Settings;
 
-import org.conductoross.conductor.ai.Agentspan;
+import org.conductoross.conductor.ai.AgentRuntime;
 import org.conductoross.conductor.ai.model.AgentResult;
 
 import com.google.adk.agents.LlmAgent;
@@ -56,6 +56,7 @@ public class Example07OutputKeyState {
     }
 
     public static void main(String[] args) {
+        AgentRuntime runtime = new AgentRuntime();
         LlmAgent analyst = LlmAgent.builder()
             .name("data_analyst")
             .description("Examines datasets with the analyze_data tool and summarizes key findings.")
@@ -90,10 +91,10 @@ public class Example07OutputKeyState {
             .subAgents(analyst, visualizer)
             .build();
 
-        AgentResult result = Agentspan.run(coordinator,
+        AgentResult result = runtime.run(coordinator,
             "Create a report on the sales_q4 dataset with visualization recommendations.");
         result.printResult();
 
-        Agentspan.shutdown();
+        runtime.shutdown();
     }
 }

@@ -4,7 +4,7 @@
 package org.conductoross.conductor.ai.examples;
 
 import org.conductoross.conductor.ai.Agent;
-import org.conductoross.conductor.ai.Agentspan;
+import org.conductoross.conductor.ai.AgentRuntime;
 import org.conductoross.conductor.ai.RagTools;
 import org.conductoross.conductor.ai.model.AgentResult;
 import org.conductoross.conductor.ai.model.ToolDef;
@@ -35,6 +35,7 @@ public class Example56RagAgent {
     private static final String EMBED_MODEL    = "text-embedding-3-small";
 
     public static void main(String[] args) {
+        AgentRuntime runtime = new AgentRuntime();
         // ── Tools ────────────────────────────────────────────────────────────
 
         ToolDef indexTool = RagTools.indexTool(
@@ -60,7 +61,7 @@ public class Example56RagAgent {
             .build();
 
         System.out.println("=== Phase 1: Indexing documents ===");
-        AgentResult indexResult = Agentspan.run(indexerAgent,
+        AgentResult indexResult = runtime.run(indexerAgent,
             "Index the following documents:\n\n" +
             "Title: Agentspan Overview\n" +
             "Content: Agentspan is a multi-agent orchestration platform built on Conductor. " +
@@ -93,13 +94,13 @@ public class Example56RagAgent {
             .build();
 
         System.out.println("\n=== Phase 2: Answering questions from indexed docs ===");
-        AgentResult qaResult = Agentspan.run(qaAgent,
+        AgentResult qaResult = runtime.run(qaAgent,
             "Answer these questions using the knowledge base:\n" +
             "1. What is Agentspan and what platform is it built on?\n" +
             "2. What agent strategies are available and when would you use HANDOFF?\n" +
             "3. What happens when a guardrail fails?");
         qaResult.printResult();
 
-        Agentspan.shutdown();
+        runtime.shutdown();
     }
 }

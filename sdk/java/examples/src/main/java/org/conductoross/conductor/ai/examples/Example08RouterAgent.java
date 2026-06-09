@@ -4,7 +4,7 @@
 package org.conductoross.conductor.ai.examples;
 
 import org.conductoross.conductor.ai.Agent;
-import org.conductoross.conductor.ai.Agentspan;
+import org.conductoross.conductor.ai.AgentRuntime;
 import org.conductoross.conductor.ai.enums.Strategy;
 import org.conductoross.conductor.ai.model.AgentResult;
 
@@ -17,6 +17,7 @@ import org.conductoross.conductor.ai.model.AgentResult;
 public class Example08RouterAgent {
 
     public static void main(String[] args) {
+        AgentRuntime runtime = new AgentRuntime();
         // Specialist agents
         Agent pythonExpert = Agent.builder()
             .name("python_expert")
@@ -66,15 +67,15 @@ public class Example08RouterAgent {
 
         // Test with different questions
         System.out.println("=== Python Question ===");
-        AgentResult pythonResult = Agentspan.run(codingAssistant,
+        AgentResult pythonResult = runtime.run(codingAssistant,
             "How do I use list comprehensions in Python?");
         pythonResult.printResult();
 
         System.out.println("=== SQL Question ===");
-        AgentResult sqlResult = Agentspan.run(codingAssistant,
+        AgentResult sqlResult = runtime.run(codingAssistant,
             "How do I write a SQL query to find the top 10 customers by revenue?");
         sqlResult.printResult();
 
-        Agentspan.shutdown();
+        runtime.shutdown();
     }
 }

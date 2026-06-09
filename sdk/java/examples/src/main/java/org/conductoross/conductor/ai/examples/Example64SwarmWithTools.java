@@ -4,7 +4,7 @@
 package org.conductoross.conductor.ai.examples;
 
 import org.conductoross.conductor.ai.Agent;
-import org.conductoross.conductor.ai.Agentspan;
+import org.conductoross.conductor.ai.AgentRuntime;
 import org.conductoross.conductor.ai.annotations.Tool;
 import org.conductoross.conductor.ai.enums.Strategy;
 import org.conductoross.conductor.ai.handoff.OnTextMention;
@@ -54,6 +54,7 @@ public class Example64SwarmWithTools {
     }
 
     public static void main(String[] args) {
+        AgentRuntime runtime = new AgentRuntime();
         List<ToolDef> billingTools = ToolRegistry.fromInstance(new BillingTools());
         List<ToolDef> orderTools = ToolRegistry.fromInstance(new OrderTools());
 
@@ -95,15 +96,15 @@ public class Example64SwarmWithTools {
             .build();
 
         System.out.println("=== Scenario 1: Billing question ===");
-        AgentResult r1 = Agentspan.run(support,
+        AgentResult r1 = runtime.run(support,
             "What's the balance on account ACC-456?");
         r1.printResult();
 
         System.out.println("\n=== Scenario 2: Order question ===");
-        AgentResult r2 = Agentspan.run(support,
+        AgentResult r2 = runtime.run(support,
             "Where is my order ORD-789?");
         r2.printResult();
 
-        Agentspan.shutdown();
+        runtime.shutdown();
     }
 }

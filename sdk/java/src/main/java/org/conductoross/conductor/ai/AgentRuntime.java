@@ -518,6 +518,310 @@ public class AgentRuntime implements AutoCloseable {
         shutdown();
     }
 
+    // ── Drop-in support for native framework agents (run / start / stream /
+    //    deploy / serve / plan / resume all accept the raw native object) ──
+
+    /** Drop-in: accepts a native ADK {@code BaseAgent} or any Agentspan {@link Agent}. */
+    public AgentResult run(Object agent, String prompt) {
+        return run(coerceAgent(agent), prompt);
+    }
+
+    /** Drop-in: accepts a native ADK {@code BaseAgent} or any Agentspan {@link Agent}. */
+    public CompletableFuture<AgentResult> runAsync(Object agent, String prompt) {
+        return runAsync(coerceAgent(agent), prompt);
+    }
+
+    /** Drop-in: accepts a native ADK {@code BaseAgent} or any Agentspan {@link Agent}. */
+    public AgentHandle start(Object agent, String prompt) {
+        return start(coerceAgent(agent), prompt);
+    }
+
+    /** Drop-in: accepts a native ADK {@code BaseAgent} or any Agentspan {@link Agent}. */
+    public CompletableFuture<AgentHandle> startAsync(Object agent, String prompt) {
+        return startAsync(coerceAgent(agent), prompt);
+    }
+
+    /** Drop-in: accepts a native ADK {@code BaseAgent} or any Agentspan {@link Agent}. */
+    public AgentStream stream(Object agent, String prompt) {
+        return stream(coerceAgent(agent), prompt);
+    }
+
+    /** Drop-in: accepts a native ADK {@code BaseAgent} or any Agentspan {@link Agent}. */
+    public CompletableFuture<AgentStream> streamAsync(Object agent, String prompt) {
+        return streamAsync(coerceAgent(agent), prompt);
+    }
+
+    /** Drop-in: accepts native ADK {@code BaseAgent} instances (or Agentspan {@link Agent}s). */
+    public List<DeploymentInfo> deploy(Object... agents) {
+        return deploy(coerceAgents(agents));
+    }
+
+    /** Drop-in: accepts native ADK {@code BaseAgent} instances (or Agentspan {@link Agent}s). */
+    public CompletableFuture<List<DeploymentInfo>> deployAsync(Object... agents) {
+        return deployAsync(coerceAgents(agents));
+    }
+
+    /** Drop-in: accepts native ADK {@code BaseAgent} instances (or Agentspan {@link Agent}s). */
+    public void serve(Object... agents) {
+        serve(coerceAgents(agents));
+    }
+
+    /** Drop-in: accepts a native ADK {@code BaseAgent} or any Agentspan {@link Agent}. */
+    public CompileResponse plan(Object agent) {
+        return plan(coerceAgent(agent));
+    }
+
+    /** Drop-in: accepts a native ADK {@code BaseAgent} or any Agentspan {@link Agent}. */
+    public AgentHandle resume(String executionId, Object agent) {
+        return resume(executionId, coerceAgent(agent));
+    }
+
+    /** Drop-in: accepts a native ADK {@code BaseAgent} or any Agentspan {@link Agent}. */
+    public CompletableFuture<AgentHandle> resumeAsync(String executionId, Object agent) {
+        return resumeAsync(executionId, coerceAgent(agent));
+    }
+
+    // ── LangChain4j / LangGraph4j drop-in overloads ─────────────────────────
+    //
+    // The user writes idiomatic LangChain4j (a ChatModel + @Tool POJOs) or
+    // LangGraph4j (AgentExecutor.Builder) and hands the native object straight
+    // to runtime.run / start / deploy / serve. Both delegate to
+    // LangChainBridge.agentBuilder under the hood. Users who need a custom
+    // agent name, system prompt structure, or Agentspan-side guardrails should
+    // call LangChainBridge.agentBuilder(...) directly.
+    //
+    // The 2-arg overloads exist so Java's overload resolution doesn't pick the
+    // more-general run(Object, String) over the varargs version when no tools
+    // are passed.
+
+    /** Drop-in: native LangChain4j {@code ChatModel}, no tools. */
+    public AgentResult run(dev.langchain4j.model.chat.ChatModel model, String prompt) {
+        return run(langchainAgent(model, null), prompt);
+    }
+
+    /** Drop-in: native LangChain4j {@code ChatModel} + {@code @Tool} POJOs. */
+    public AgentResult run(dev.langchain4j.model.chat.ChatModel model, String prompt, Object... tools) {
+        return run(langchainAgent(model, tools), prompt);
+    }
+
+    /** Drop-in: native LangChain4j {@code ChatModel}, no tools (async). */
+    public CompletableFuture<AgentResult> runAsync(dev.langchain4j.model.chat.ChatModel model, String prompt) {
+        return runAsync(langchainAgent(model, null), prompt);
+    }
+
+    /** Drop-in: native LangChain4j {@code ChatModel} + {@code @Tool} POJOs (async). */
+    public CompletableFuture<AgentResult> runAsync(
+            dev.langchain4j.model.chat.ChatModel model, String prompt, Object... tools) {
+        return runAsync(langchainAgent(model, tools), prompt);
+    }
+
+    /** Drop-in: native LangChain4j {@code ChatModel}, no tools (start). */
+    public AgentHandle start(dev.langchain4j.model.chat.ChatModel model, String prompt) {
+        return start(langchainAgent(model, null), prompt);
+    }
+
+    /** Drop-in: native LangChain4j {@code ChatModel} + {@code @Tool} POJOs (start). */
+    public AgentHandle start(dev.langchain4j.model.chat.ChatModel model, String prompt, Object... tools) {
+        return start(langchainAgent(model, tools), prompt);
+    }
+
+    /** Drop-in: native LangChain4j {@code ChatModel}, no tools (stream). */
+    public AgentStream stream(dev.langchain4j.model.chat.ChatModel model, String prompt) {
+        return stream(langchainAgent(model, null), prompt);
+    }
+
+    /** Drop-in: native LangChain4j {@code ChatModel} + {@code @Tool} POJOs (stream). */
+    public AgentStream stream(dev.langchain4j.model.chat.ChatModel model, String prompt, Object... tools) {
+        return stream(langchainAgent(model, tools), prompt);
+    }
+
+    /** Drop-in deploy for a native LangChain4j configuration. */
+    public List<DeploymentInfo> deploy(dev.langchain4j.model.chat.ChatModel model, Object... tools) {
+        return deploy(langchainAgent(model, tools));
+    }
+
+    /** Drop-in serve for a native LangChain4j configuration. */
+    public void serve(dev.langchain4j.model.chat.ChatModel model, Object... tools) {
+        serve(langchainAgent(model, tools));
+    }
+
+    /** Drop-in: native LangGraph4j {@code AgentExecutor.Builder}, no tools. */
+    public AgentResult run(org.bsc.langgraph4j.agentexecutor.AgentExecutor.Builder builder, String prompt) {
+        return run(langgraphAgent(builder, null), prompt);
+    }
+
+    /** Drop-in: native LangGraph4j {@code AgentExecutor.Builder} + tool POJOs. */
+    public AgentResult run(
+            org.bsc.langgraph4j.agentexecutor.AgentExecutor.Builder builder, String prompt, Object... tools) {
+        return run(langgraphAgent(builder, tools), prompt);
+    }
+
+    /** Drop-in: native LangGraph4j {@code AgentExecutor.Builder}, no tools (async). */
+    public CompletableFuture<AgentResult> runAsync(
+            org.bsc.langgraph4j.agentexecutor.AgentExecutor.Builder builder, String prompt) {
+        return runAsync(langgraphAgent(builder, null), prompt);
+    }
+
+    /** Drop-in: native LangGraph4j {@code AgentExecutor.Builder} + tool POJOs (async). */
+    public CompletableFuture<AgentResult> runAsync(
+            org.bsc.langgraph4j.agentexecutor.AgentExecutor.Builder builder, String prompt, Object... tools) {
+        return runAsync(langgraphAgent(builder, tools), prompt);
+    }
+
+    /** Drop-in: native LangGraph4j {@code AgentExecutor.Builder}, no tools (start). */
+    public AgentHandle start(org.bsc.langgraph4j.agentexecutor.AgentExecutor.Builder builder, String prompt) {
+        return start(langgraphAgent(builder, null), prompt);
+    }
+
+    /** Drop-in: native LangGraph4j {@code AgentExecutor.Builder} + tool POJOs (start). */
+    public AgentHandle start(
+            org.bsc.langgraph4j.agentexecutor.AgentExecutor.Builder builder, String prompt, Object... tools) {
+        return start(langgraphAgent(builder, tools), prompt);
+    }
+
+    /** Drop-in: native LangGraph4j {@code AgentExecutor.Builder}, no tools (stream). */
+    public AgentStream stream(org.bsc.langgraph4j.agentexecutor.AgentExecutor.Builder builder, String prompt) {
+        return stream(langgraphAgent(builder, null), prompt);
+    }
+
+    /** Drop-in: native LangGraph4j {@code AgentExecutor.Builder} + tool POJOs (stream). */
+    public AgentStream stream(
+            org.bsc.langgraph4j.agentexecutor.AgentExecutor.Builder builder, String prompt, Object... tools) {
+        return stream(langgraphAgent(builder, tools), prompt);
+    }
+
+    /** Drop-in deploy for a native LangGraph4j configuration. */
+    public List<DeploymentInfo> deploy(
+            org.bsc.langgraph4j.agentexecutor.AgentExecutor.Builder builder, Object... tools) {
+        return deploy(langgraphAgent(builder, tools));
+    }
+
+    /** Drop-in serve for a native LangGraph4j configuration. */
+    public void serve(org.bsc.langgraph4j.agentexecutor.AgentExecutor.Builder builder, Object... tools) {
+        serve(langgraphAgent(builder, tools));
+    }
+
+    private static Agent langchainAgent(dev.langchain4j.model.chat.ChatModel model, Object[] tools) {
+        return org.conductoross.conductor.ai.frameworks.LangChainBridge.agentBuilder(
+                        "langchain_agent", model, null, tools == null ? new Object[0] : tools)
+                .build();
+    }
+
+    private static Agent langgraphAgent(
+            org.bsc.langgraph4j.agentexecutor.AgentExecutor.Builder builder, Object[] tools) {
+        // The LangGraph4j AgentExecutor.Builder carries the ChatModel and the
+        // (optional) SystemMessage in package-private fields. We use reflection
+        // to recover them — failure here means a future ADK build changed the
+        // shape; we throw a clear message rather than silently degrading.
+        dev.langchain4j.model.chat.ChatModel model =
+                readBuilderField(builder, "chatModel", dev.langchain4j.model.chat.ChatModel.class);
+        if (model == null) {
+            throw new IllegalArgumentException("run(AgentExecutor.Builder, ...): the Builder has no chatModel set. "
+                    + "Call .chatModel(...) before handing the Builder to the runtime.");
+        }
+        String systemText = readSystemMessageText(builder);
+
+        // Validate the Builder produces a compilable LangGraph4j StateGraph
+        // before shipping the config.
+        try {
+            builder.build();
+        } catch (Exception e) {
+            throw new RuntimeException(
+                    "AgentExecutor.Builder is not a valid LangGraph4j configuration: " + e.getMessage(), e);
+        }
+        return org.conductoross.conductor.ai.frameworks.LangChainBridge.agentBuilder(
+                        "langgraph_agent", model, systemText, tools == null ? new Object[0] : tools)
+                .build();
+    }
+
+    @SuppressWarnings("unchecked")
+    private static <T> T readBuilderField(Object o, String fieldName, Class<T> expected) {
+        try {
+            java.lang.reflect.Field f = o.getClass().getDeclaredField(fieldName);
+            f.setAccessible(true);
+            Object v = f.get(o);
+            return expected.isInstance(v) ? (T) v : null;
+        } catch (NoSuchFieldException nsf) {
+            return null;
+        } catch (Throwable t) {
+            throw new RuntimeException(
+                    "AgentExecutor.Builder field '" + fieldName
+                            + "' is no longer accessible — likely a LangGraph4j upgrade. "
+                            + "Open an issue.",
+                    t);
+        }
+    }
+
+    private static String readSystemMessageText(Object builder) {
+        try {
+            java.lang.reflect.Field f = builder.getClass().getDeclaredField("systemMessage");
+            f.setAccessible(true);
+            Object sys = f.get(builder);
+            if (sys == null) return null;
+            // dev.langchain4j.data.message.SystemMessage has a public text() method
+            java.lang.reflect.Method m = sys.getClass().getMethod("text");
+            Object t = m.invoke(sys);
+            return t instanceof String s && !s.isEmpty() ? s : null;
+        } catch (Throwable t) {
+            return null;
+        }
+    }
+
+    /**
+     * Coerce a user-provided agent object to an Agentspan {@link Agent}.
+     *
+     * <p>Supports {@link Agent} (returned as-is) and {@code com.google.adk.agents.BaseAgent}
+     * (translated via {@link org.conductoross.conductor.ai.frameworks.AdkBridge}; ADK must be
+     * on the runtime classpath when this branch executes).
+     */
+    private static Agent coerceAgent(Object agent) {
+        if (agent == null) {
+            throw new IllegalArgumentException("agent is null");
+        }
+        if (agent instanceof Agent a) {
+            return a;
+        }
+        if (isInstanceOf(agent, "com.google.adk.agents.BaseAgent")) {
+            return org.conductoross.conductor.ai.frameworks.AdkBridge.toAgentspan(
+                    (com.google.adk.agents.BaseAgent) agent);
+        }
+        throw new IllegalArgumentException(
+                "Unsupported agent type: " + agent.getClass().getName()
+                        + ". Expected org.conductoross.conductor.ai.Agent or a native ADK BaseAgent.");
+    }
+
+    private static Agent[] coerceAgents(Object[] agents) {
+        if (agents == null) return new Agent[0];
+        Agent[] out = new Agent[agents.length];
+        for (int i = 0; i < agents.length; i++) {
+            try {
+                out[i] = coerceAgent(agents[i]);
+            } catch (IllegalArgumentException e) {
+                throw new IllegalArgumentException("agents[" + i + "]: " + e.getMessage(), e);
+            }
+        }
+        return out;
+    }
+
+    /**
+     * Walk the entire type hierarchy looking for a type whose FQN matches, so the
+     * dispatcher compiles and runs without ADK on the classpath — only callers
+     * actually passing native ADK objects trigger the JVM to load ADK classes.
+     */
+    private static boolean isInstanceOf(Object o, String fqn) {
+        return matchesType(o.getClass(), fqn);
+    }
+
+    private static boolean matchesType(Class<?> c, String fqn) {
+        if (c == null) return false;
+        if (fqn.equals(c.getName())) return true;
+        if (matchesType(c.getSuperclass(), fqn)) return true;
+        for (Class<?> i : c.getInterfaces()) {
+            if (matchesType(i, fqn)) return true;
+        }
+        return false;
+    }
+
     // ── Internal ─────────────────────────────────────────────────────────
 
     /**

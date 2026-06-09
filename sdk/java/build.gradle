@@ -51,7 +51,7 @@ dependencies {
     compileOnly "dev.langchain4j:langchain4j-open-ai:${langchain4jVersion}"
     // Google ADK + LangGraph4j are compileOnly so the SDK doesn't force users
     // onto them. The framework bridge classes only link at runtime when the
-    // user passes a native object to Agentspan.run/start/stream/deploy/serve —
+    // user passes a native object to runtime.run/start/stream/deploy/serve —
     // at which point that framework must obviously be on the user's classpath
     // already.
     compileOnly "com.google.adk:google-adk:${googleAdkVersion}"

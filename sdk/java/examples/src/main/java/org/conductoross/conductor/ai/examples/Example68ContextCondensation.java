@@ -5,7 +5,7 @@ package org.conductoross.conductor.ai.examples;
 
 import org.conductoross.conductor.ai.Agent;
 import org.conductoross.conductor.ai.AgentTool;
-import org.conductoross.conductor.ai.Agentspan;
+import org.conductoross.conductor.ai.AgentRuntime;
 import org.conductoross.conductor.ai.annotations.Tool;
 import org.conductoross.conductor.ai.internal.ToolRegistry;
 import org.conductoross.conductor.ai.model.AgentResult;
@@ -57,6 +57,7 @@ public class Example68ContextCondensation {
     }
 
     public static void main(String[] args) {
+        AgentRuntime runtime = new AgentRuntime();
         List<ToolDef> analystTools = ToolRegistry.fromInstance(new AnalystTools());
 
         Agent deepAnalyst = Agent.builder()
@@ -85,14 +86,14 @@ public class Example68ContextCondensation {
                 "After ALL domains are done, write a 5-bullet cross-domain executive summary.")
             .build();
 
-        AgentResult result = Agentspan.run(orchestrator,
+        AgentResult result = runtime.run(orchestrator,
             "Produce comprehensive analyses for each of the following " + domains.size() +
             " technology domains by calling deep_analyst ONCE PER DOMAIN, " +
             "one at a time. Complete all domains, then summarise cross-domain trends. " +
             "Domains: " + domainList + ".");
         result.printResult();
 
-        Agentspan.shutdown();
+        runtime.shutdown();
     }
 
     private static Map<String, Map<String, Object>> buildDomainData() {

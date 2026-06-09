@@ -4,7 +4,7 @@
 package org.conductoross.conductor.ai.examples;
 
 import org.conductoross.conductor.ai.Agent;
-import org.conductoross.conductor.ai.Agentspan;
+import org.conductoross.conductor.ai.AgentRuntime;
 import org.conductoross.conductor.ai.Credentials;
 import org.conductoross.conductor.ai.annotations.Tool;
 import org.conductoross.conductor.ai.exceptions.CredentialNotFoundException;
@@ -147,6 +147,7 @@ public class Example16CredentialsTool {
     }
 
     public static void main(String[] args) {
+        AgentRuntime runtime = new AgentRuntime();
         List<ToolDef> tools = ToolRegistry.fromInstance(new GithubTools());
 
         Agent agent = Agent.builder()
@@ -158,10 +159,10 @@ public class Example16CredentialsTool {
                 + "their repositories. Use the available tools to answer questions.")
             .build();
 
-        AgentResult result = Agentspan.run(agent,
+        AgentResult result = runtime.run(agent,
             "Look up the GitHub user 'torvalds' and show their most recent 3 repositories.");
         result.printResult();
 
-        Agentspan.shutdown();
+        runtime.shutdown();
     }
 }

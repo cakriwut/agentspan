@@ -27,7 +27,7 @@ all execute **server-side**.
 ## What "server-side execution" means here
 
 For each example we ran the user code unchanged, captured the
-execution ID returned by `Agentspan.run(...)`, then queried
+execution ID returned by `runtime.run(...)`, then queried
 `GET /api/workflow/{executionId}?includeTasks=true` to count and
 classify the tasks the server actually scheduled. The shapes that
 should appear in those task lists, per pattern:

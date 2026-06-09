@@ -4,7 +4,7 @@
 package org.conductoross.conductor.ai.examples;
 
 import org.conductoross.conductor.ai.Agent;
-import org.conductoross.conductor.ai.Agentspan;
+import org.conductoross.conductor.ai.AgentRuntime;
 import org.conductoross.conductor.ai.enums.Strategy;
 import org.conductoross.conductor.ai.model.AgentResult;
 
@@ -33,6 +33,7 @@ import org.conductoross.conductor.ai.model.AgentResult;
 public class Example55MlEngineeringPipeline {
 
     public static void main(String[] args) {
+        AgentRuntime runtime = new AgentRuntime();
         // ── Phase 1: Data Analysis ─────────────────────────────────────────
 
         Agent dataAnalyst = Agent.builder()
@@ -128,10 +129,10 @@ public class Example55MlEngineeringPipeline {
             .timeoutSeconds(120000)
             .build();
 
-        AgentResult result = Agentspan.run(mlPipeline,
+        AgentResult result = runtime.run(mlPipeline,
             "Build a model for California housing prices...");
         result.printResult();
 
-        Agentspan.shutdown();
+        runtime.shutdown();
     }
 }
