@@ -5,6 +5,8 @@
 
 package dev.agentspan.runtime.ocg;
 
+import java.time.LocalDate;
+import java.time.ZoneOffset;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -100,8 +102,7 @@ public final class OcgAgentFactory {
 
     public static AgentConfig build(OcgProperties props) {
         String prompt = OCG_SYSTEM_PROMPT.replace(
-                TODAY_PLACEHOLDER,
-                java.time.LocalDate.now(java.time.ZoneOffset.UTC).toString());
+                TODAY_PLACEHOLDER, LocalDate.now(ZoneOffset.UTC).toString());
         return AgentConfig.builder()
                 .name(AGENT_NAME)
                 .description("Retrieval sub-agent over the Open Context Graph (OCG).")
