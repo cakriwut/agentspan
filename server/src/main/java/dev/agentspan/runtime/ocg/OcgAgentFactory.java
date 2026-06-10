@@ -11,6 +11,8 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+import org.apache.commons.lang3.StringUtils;
+
 import dev.agentspan.runtime.model.AgentConfig;
 import dev.agentspan.runtime.model.ToolConfig;
 
@@ -101,6 +103,12 @@ public final class OcgAgentFactory {
     private OcgAgentFactory() {}
 
     public static AgentConfig build(OcgProperties props) {
+        if (StringUtils.isBlank(props.getModel())) {
+            throw new IllegalArgumentException(
+                    "OCG is enabled (agentspan.ocg.url is set) but agentspan.ocg.model is blank. "
+                            + "Set OCG_MODEL (or -Dagentspan.ocg.model=…) to the LLM the OCG sub-agent "
+                            + "should use, e.g. OCG_MODEL=openai/gpt-4o-mini.");
+        }
         String prompt = OCG_SYSTEM_PROMPT.replace(
                 TODAY_PLACEHOLDER, LocalDate.now(ZoneOffset.UTC).toString());
         return AgentConfig.builder()

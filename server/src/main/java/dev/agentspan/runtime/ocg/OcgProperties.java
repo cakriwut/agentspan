@@ -33,8 +33,13 @@ public class OcgProperties {
      */
     private String apiKey;
 
-    /** Model used by the OCG sub-agent's LLM turns. */
-    private String model = "openai/gpt-4o-mini";
+    /**
+     * Model the OCG sub-agent uses for its own LLM turns. Required when OCG
+     * is enabled — no silent default, because the right model here depends
+     * on cost, latency, and the OCG corpus the operator is querying. Boot
+     * fails fast in {@link OcgAgentFactory#build} when this is blank.
+     */
+    private String model;
 
     /**
      * Per-response truncation cap (post-projection, JSON-serialized) for the

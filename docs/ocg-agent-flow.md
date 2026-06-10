@@ -14,12 +14,13 @@ plugs in as one `@Component` without touching `AgentCompiler`,
 
 ## Setup — integrating OCG with AgentSpan
 
-OCG is fully opt-in. The integration is **two environment variables** the
+OCG is fully opt-in. The integration is **three environment variables** the
 AgentSpan server reads at startup:
 
 | Env var       | Required?           | What it does                                                                                                  |
 | ------------- | ------------------- | ------------------------------------------------------------------------------------------------------------- |
 | `OCG_URL`     | **Yes** (to enable) | Base URL of your OCG instance, e.g. `https://dev.orkescontextgraph.io`. If unset or empty, every OCG bean stays out of the Spring context, no `_ocg_agent` workflow is registered, and no user agent gets the auto-injected `ocg_agent` tool. The feature is completely dormant. |
+| `OCG_MODEL`   | **Yes** (when OCG is enabled) | LLM the OCG sub-agent uses for its own turns, e.g. `openai/gpt-4o-mini`, `anthropic/claude-haiku-4-5`. No silent default — boot fails fast with a clear error if `OCG_URL` is set but `OCG_MODEL` is blank. The right model depends on cost/latency targets and the OCG corpus you're querying, so it has to be an explicit operator decision. |
 | `OCG_API_KEY` | Yes (if OCG requires auth) | Bearer token sent as `Authorization: Bearer <key>` on every OCG HTTP request. Empty means no auth header — fine for unauthenticated local OCG instances; required for the hosted dev / prod instances. |
 
 ### Local dev
@@ -30,11 +31,12 @@ or `java -jar`):
 ```bash
 export OCG_URL=https://dev.orkescontextgraph.io
 export OCG_API_KEY=<your-bearer-token>
-export OPENAI_API_KEY=sk-...    # the OCG sub-agent also needs an LLM key
+export OCG_MODEL=openai/gpt-4o-mini    # required when OCG is enabled
+export OPENAI_API_KEY=sk-...           # provider key for whatever OCG_MODEL points at
 ./gradlew bootRun
 ```
 
-In IntelliJ, add the same three to your Spring Boot run configuration's
+In IntelliJ, add the same four to your Spring Boot run configuration's
 **Environment variables** field.
 
 ### Docker / production
@@ -46,6 +48,7 @@ to Spring properties via `application.properties`:
 ```
 agentspan.ocg.url=${OCG_URL:}
 agentspan.ocg.api-key=${OCG_API_KEY:}
+agentspan.ocg.model=${OCG_MODEL:}
 ```
 
 So you can alternatively pass them as Spring properties on the JVM
@@ -80,10 +83,9 @@ state.
 
 ### Optional tuning knobs
 
-| Property                           | Default              | Effect                                                                       |
-| ---------------------------------- | -------------------- | ---------------------------------------------------------------------------- |
-| `agentspan.ocg.model`              | `openai/gpt-4o-mini` | LLM the OCG sub-agent uses internally. Override via `OCG_MODEL` env or `-Dagentspan.ocg.model=…`. |
-| `agentspan.ocg.response-cap-chars` | `8192`               | Per-call response truncation budget. Raise if your model context allows; lower to save tokens. |
+| Property                           | Default | Effect                                                                       |
+| ---------------------------------- | ------- | ---------------------------------------------------------------------------- |
+| `agentspan.ocg.response-cap-chars` | `8192`  | Per-call response truncation budget. Raise if your model context allows; lower to save tokens. |
 
 ---
 

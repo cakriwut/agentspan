@@ -6,6 +6,7 @@
 package dev.agentspan.runtime.ocg;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.time.LocalDate;
 import java.time.ZoneOffset;
@@ -82,6 +83,16 @@ class OcgAgentFactoryTest {
         String prompt = OcgAgentFactory.build(props()).getInstructions().toString();
         assertThat(prompt).contains(LocalDate.now(ZoneOffset.UTC).toString());
         assertThat(prompt).doesNotContain("{{TODAY}}");
+    }
+
+    @Test
+    void buildFailsFastWhenModelIsBlank() {
+        OcgProperties noModel = new OcgProperties();
+        noModel.setUrl("http://ocg.local");
+        // model deliberately unset — operator forgot OCG_MODEL.
+        assertThatThrownBy(() -> OcgAgentFactory.build(noModel))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("OCG_MODEL");
     }
 
     @Test
