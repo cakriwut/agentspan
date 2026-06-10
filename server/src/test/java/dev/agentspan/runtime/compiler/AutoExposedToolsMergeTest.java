@@ -187,11 +187,10 @@ class AutoExposedToolsMergeTest {
 
         // compileSubAgent is the entry that nested compilation goes through.
         // It must NOT mutate ``inner.tools`` with the auto-exposed entry.
-        compiler.compileSubAgent(
-                inner, "inner_ref", "${workflow.input.prompt}", "${workflow.input.media}", null);
+        compiler.compileSubAgent(inner, "inner_ref", "${workflow.input.prompt}", "${workflow.input.media}", null);
 
-        boolean innerHasAutoExposed = inner.getTools() != null
-                && inner.getTools().stream().anyMatch(t -> "helper_agent".equals(t.getName()));
+        boolean innerHasAutoExposed =
+                inner.getTools() != null && inner.getTools().stream().anyMatch(t -> "helper_agent".equals(t.getName()));
         assertThat(innerHasAutoExposed)
                 .as("nested sub-agent must NOT have the auto-exposed tool merged into its tool list")
                 .isFalse();
@@ -206,14 +205,10 @@ class AutoExposedToolsMergeTest {
         WorkflowDef flagged = wfWithAutoExposeMetadata("_helper_agent", "helper_agent", "x");
         when(metadataDAO.getAllWorkflowDefsLatestVersions()).thenReturn(List.of(flagged));
 
-        AgentConfig a = AgentConfig.builder()
-                .name("agent_a")
-                .tools(new ArrayList<>())
-                .build();
-        AgentConfig b = AgentConfig.builder()
-                .name("agent_b")
-                .tools(new ArrayList<>())
-                .build();
+        AgentConfig a =
+                AgentConfig.builder().name("agent_a").tools(new ArrayList<>()).build();
+        AgentConfig b =
+                AgentConfig.builder().name("agent_b").tools(new ArrayList<>()).build();
 
         compiler.mergeAutoExposedTools(a);
         compiler.mergeAutoExposedTools(b);
@@ -233,14 +228,10 @@ class AutoExposedToolsMergeTest {
                 .thenThrow(new RuntimeException("transient DAO failure"))
                 .thenReturn(List.of(wfWithAutoExposeMetadata("_helper_agent", "helper_agent", "x")));
 
-        AgentConfig first = AgentConfig.builder()
-                .name("first")
-                .tools(new ArrayList<>())
-                .build();
-        AgentConfig second = AgentConfig.builder()
-                .name("second")
-                .tools(new ArrayList<>())
-                .build();
+        AgentConfig first =
+                AgentConfig.builder().name("first").tools(new ArrayList<>()).build();
+        AgentConfig second =
+                AgentConfig.builder().name("second").tools(new ArrayList<>()).build();
 
         compiler.mergeAutoExposedTools(first);
         compiler.mergeAutoExposedTools(second);

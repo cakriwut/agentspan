@@ -48,7 +48,8 @@ public class AgentCompiler {
      * callers (registrar, tests) that previously imported it from this class
      * keep compiling without churn.
      */
-    public static final String AUTO_EXPOSE_AS_TOOL_METADATA_KEY = AutoExposedToolsMerger.AUTO_EXPOSE_AS_TOOL_METADATA_KEY;
+    public static final String AUTO_EXPOSE_AS_TOOL_METADATA_KEY =
+            AutoExposedToolsMerger.AUTO_EXPOSE_AS_TOOL_METADATA_KEY;
 
     private int timeoutSeconds = 0;
     private int llmRetryCount = 3;

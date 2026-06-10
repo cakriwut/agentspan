@@ -282,8 +282,7 @@ class OcgRequestTaskTest {
     void memoryReinforceOperationPostsToReinforceEndpointWithFilteredBody() throws Exception {
         HttpClient http = mock(HttpClient.class);
         stubSend(http, stub(200, "{\"reinforced\":true}"));
-        OcgRequestTask task =
-                new OcgRequestTask(new OcgMemoryReinforceOperation(), props("http://ocg.local"), http);
+        OcgRequestTask task = new OcgRequestTask(new OcgMemoryReinforceOperation(), props("http://ocg.local"), http);
 
         Map<String, Object> input = new LinkedHashMap<>();
         input.put("key", "k1");

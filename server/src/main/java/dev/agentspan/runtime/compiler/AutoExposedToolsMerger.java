@@ -152,8 +152,7 @@ public class AutoExposedToolsMerger {
             } catch (Exception e) {
                 // NOT cached — let the next compile retry the DAO.
                 log.warn(
-                        "auto-expose merge: metadataDAO lookup failed; will retry on next compile. {}",
-                        e.getMessage());
+                        "auto-expose merge: metadataDAO lookup failed; will retry on next compile. {}", e.getMessage());
                 return List.of();
             }
         }
