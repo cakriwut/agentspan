@@ -302,8 +302,7 @@ class OcgRequestTaskTest {
         ArgumentCaptor<HttpRequest> req = ArgumentCaptor.forClass(HttpRequest.class);
         verify(http).send(req.capture(), any());
         // key is part of the URL; the body must be the picked subset.
-        assertThat(req.getValue().uri().toString())
-                .isEqualTo("http://ocg.local/api/v1/memories/k1/reinforce");
+        assertThat(req.getValue().uri().toString()).isEqualTo("http://ocg.local/api/v1/memories/k1/reinforce");
         assertThat(req.getValue().method()).isEqualTo("POST");
 
         @SuppressWarnings("unchecked")
