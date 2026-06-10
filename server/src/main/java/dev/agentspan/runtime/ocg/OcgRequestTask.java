@@ -5,6 +5,7 @@
 
 package dev.agentspan.runtime.ocg;
 
+import java.io.IOException;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
@@ -76,18 +77,25 @@ public class OcgRequestTask extends WorkflowSystemTask {
                 return;
             }
             complete(task, response.body());
-        } catch (Exception e) {
+        } catch (InterruptedException e) {
+            // Re-flag the interrupt on the current thread so Conductor's
+            // executor (and anyone else up the stack) can observe the
+            // cancellation. Without this, a cancelled task would silently
+            // appear to "fail" without the interrupt ever propagating.
+            Thread.currentThread().interrupt();
+            fail(task, "OCG " + operation.name() + " was interrupted");
+        } catch (IOException | RuntimeException e) {
             fail(task, "OCG " + operation.name() + " failed: " + e.getMessage());
         }
     }
 
-    private HttpResponse<String> send(TaskModel task) throws Exception {
+    private HttpResponse<String> send(TaskModel task) throws IOException, InterruptedException {
         Map<String, Object> input = task.getInputData() != null ? task.getInputData() : Map.of();
         HttpRequest request = operation.build(properties, input);
         return httpClient.send(request, HttpResponse.BodyHandlers.ofString());
     }
 
-    private void complete(TaskModel task, String body) throws Exception {
+    private void complete(TaskModel task, String body) throws IOException {
         Object parsed = OcgInputs.parseJsonLenient(body);
         Object projected = operation.project(parsed);
         String serialized = OcgInputs.writeJson(projected);

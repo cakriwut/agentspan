@@ -5,6 +5,7 @@
 
 package dev.agentspan.runtime.ocg.operation;
 
+import java.io.IOException;
 import java.net.URI;
 import java.net.http.HttpRequest;
 import java.util.Map;
@@ -28,7 +29,7 @@ public final class OcgMemoryReinforceOperation implements OcgOperation {
     }
 
     @Override
-    public HttpRequest build(OcgProperties properties, Map<String, Object> input) throws Exception {
+    public HttpRequest build(OcgProperties properties, Map<String, Object> input) throws IOException {
         String key = OcgInputs.required(input, "key");
         Map<String, Object> body = OcgInputs.pick(input, "agent", "user", "confidence_boost", "source_ref");
         URI uri = OcgUri.forApi(properties)

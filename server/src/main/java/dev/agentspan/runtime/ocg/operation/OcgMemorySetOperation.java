@@ -5,6 +5,7 @@
 
 package dev.agentspan.runtime.ocg.operation;
 
+import java.io.IOException;
 import java.net.URI;
 import java.net.http.HttpRequest;
 import java.util.LinkedHashMap;
@@ -36,7 +37,7 @@ public final class OcgMemorySetOperation implements OcgOperation {
     }
 
     @Override
-    public HttpRequest build(OcgProperties properties, Map<String, Object> input) throws Exception {
+    public HttpRequest build(OcgProperties properties, Map<String, Object> input) throws IOException {
         Map<String, Object> body = new LinkedHashMap<>(input);
         body.remove("__agentspan_ctx__");
         URI uri = OcgUri.forApi(properties).pathSegment("memories").build().toUri();

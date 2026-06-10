@@ -5,6 +5,7 @@
 
 package dev.agentspan.runtime.ocg.operation;
 
+import java.io.IOException;
 import java.net.URI;
 import java.net.http.HttpRequest;
 import java.util.ArrayList;
@@ -31,7 +32,7 @@ public final class OcgQueryOperation implements OcgOperation {
     }
 
     @Override
-    public HttpRequest build(OcgProperties properties, Map<String, Object> input) throws Exception {
+    public HttpRequest build(OcgProperties properties, Map<String, Object> input) throws IOException {
         Map<String, Object> body =
                 OcgInputs.pick(input, "query", "max_results", "traversal_level", "start_time", "end_time");
         URI uri =

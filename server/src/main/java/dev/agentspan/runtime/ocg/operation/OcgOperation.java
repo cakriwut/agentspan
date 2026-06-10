@@ -5,6 +5,7 @@
 
 package dev.agentspan.runtime.ocg.operation;
 
+import java.io.IOException;
 import java.net.http.HttpRequest;
 import java.util.Map;
 
@@ -31,8 +32,13 @@ public interface OcgOperation {
      * Build the HTTP request for this operation. Implementations should
      * use {@link OcgRequest} and {@link OcgUri} so authentication headers
      * and base-URL handling stay consistent across endpoints.
+     *
+     * <p>{@link IOException} (which includes Jackson's
+     * {@code JsonProcessingException}) is the only checked exception
+     * implementations may throw — request building is purely an I/O-shape
+     * concern and should not surface arbitrary checked exceptions.</p>
      */
-    HttpRequest build(OcgProperties properties, Map<String, Object> input) throws Exception;
+    HttpRequest build(OcgProperties properties, Map<String, Object> input) throws IOException;
 
     /**
      * Project the parsed JSON response down to the fields the LLM needs.

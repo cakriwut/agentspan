@@ -7,6 +7,8 @@ package dev.agentspan.runtime.ocg;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.time.LocalDate;
+import java.time.ZoneOffset;
 import java.util.List;
 
 import org.junit.jupiter.api.Test;
@@ -69,6 +71,17 @@ class OcgAgentFactoryTest {
                         "ocg_memory_set",
                         "ocg_memory_reinforce",
                         "ocg_memory_delete");
+    }
+
+    @Test
+    void systemPromptHasTodayUtcDateSubstituted() {
+        // The {{TODAY}} placeholder is the anchor for "recent" / "last week"
+        // style queries. If a refactor silently drops the .replace() call, the
+        // LLM gets a literal "{{TODAY}}" and starts inventing dates again —
+        // exactly the failure mode the placeholder was added to prevent.
+        String prompt = OcgAgentFactory.build(props()).getInstructions().toString();
+        assertThat(prompt).contains(LocalDate.now(ZoneOffset.UTC).toString());
+        assertThat(prompt).doesNotContain("{{TODAY}}");
     }
 
     @Test
