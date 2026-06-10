@@ -7,6 +7,8 @@ package dev.agentspan.runtime.compiler;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.util.ArrayList;
@@ -16,7 +18,6 @@ import java.util.Map;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.springframework.test.util.ReflectionTestUtils;
 
 import com.netflix.conductor.common.metadata.workflow.WorkflowDef;
 import com.netflix.conductor.dao.MetadataDAO;
@@ -40,9 +41,8 @@ class AutoExposedToolsMergeTest {
 
     @BeforeEach
     void setUp() {
-        compiler = new AgentCompiler();
         metadataDAO = mock(MetadataDAO.class);
-        ReflectionTestUtils.setField(compiler, "metadataDAO", metadataDAO);
+        compiler = new AgentCompiler(metadataDAO);
     }
 
     @Test
@@ -134,10 +134,10 @@ class AutoExposedToolsMergeTest {
 
     @Test
     void noOpWhenMetadataDaoIsAbsent() {
-        // Tests that construct AgentCompiler with `new AgentCompiler()`
-        // (i.e. no Spring DI) must continue to work. The merger short-
-        // circuits cleanly when metadataDAO is null instead of NPE-ing.
-        AgentCompiler noDao = new AgentCompiler(); // no setField — metadataDAO stays null
+        // Tests that construct AgentCompiler without a metadataDAO must
+        // continue to work. The no-arg constructor exists for this path;
+        // the merger short-circuits cleanly instead of NPE-ing.
+        AgentCompiler noDao = new AgentCompiler(); // null metadataDAO
 
         AgentConfig config = AgentConfig.builder()
                 .name("user_agent")
@@ -168,6 +168,88 @@ class AutoExposedToolsMergeTest {
         assertThat(config.getTools()).hasSize(2);
         assertThat(config.getTools().get(0).getName()).isEqualTo("alpha_agent");
         assertThat(config.getTools().get(1).getName()).isEqualTo("beta_agent");
+    }
+
+    @Test
+    void mergeRunsOnceAtTopLevelOnlyAndSkipsInternalRecursion() {
+        // Pinning the contract that the public ``compile()`` is the only entry
+        // that runs the auto-expose merge. Internal recursion (compileSubAgent,
+        // graph-structure subgraph compile, MultiAgentCompiler swarm) must go
+        // through the non-merging entry so nested specialist sub-agents don't
+        // silently pick up unrelated server-side tools.
+        WorkflowDef flagged = wfWithAutoExposeMetadata("_helper_agent", "helper_agent", "Use when stuck.");
+        when(metadataDAO.getAllWorkflowDefsLatestVersions()).thenReturn(List.of(flagged));
+
+        AgentConfig inner = AgentConfig.builder()
+                .name("inner_specialist")
+                .model("openai/gpt-4o-mini")
+                .build();
+
+        // compileSubAgent is the entry that nested compilation goes through.
+        // It must NOT mutate ``inner.tools`` with the auto-exposed entry.
+        compiler.compileSubAgent(
+                inner, "inner_ref", "${workflow.input.prompt}", "${workflow.input.media}", null);
+
+        boolean innerHasAutoExposed = inner.getTools() != null
+                && inner.getTools().stream().anyMatch(t -> "helper_agent".equals(t.getName()));
+        assertThat(innerHasAutoExposed)
+                .as("nested sub-agent must NOT have the auto-exposed tool merged into its tool list")
+                .isFalse();
+    }
+
+    @Test
+    void daoQueriedOnlyOnceAcrossMultipleMerges() {
+        // Lazy cache: registered server-side agents are written at @PostConstruct
+        // and don't change at runtime, so the per-compile DAO fetch is wasted
+        // work after the first one. Pin the contract so anyone removing the
+        // cache trips this test.
+        WorkflowDef flagged = wfWithAutoExposeMetadata("_helper_agent", "helper_agent", "x");
+        when(metadataDAO.getAllWorkflowDefsLatestVersions()).thenReturn(List.of(flagged));
+
+        AgentConfig a = AgentConfig.builder()
+                .name("agent_a")
+                .tools(new ArrayList<>())
+                .build();
+        AgentConfig b = AgentConfig.builder()
+                .name("agent_b")
+                .tools(new ArrayList<>())
+                .build();
+
+        compiler.mergeAutoExposedTools(a);
+        compiler.mergeAutoExposedTools(b);
+
+        verify(metadataDAO, times(1)).getAllWorkflowDefsLatestVersions();
+        // Both configs still received the merge from the cached result.
+        assertThat(a.getTools()).extracting(ToolConfig::getName).contains("helper_agent");
+        assertThat(b.getTools()).extracting(ToolConfig::getName).contains("helper_agent");
+    }
+
+    @Test
+    void daoFailureIsNotCachedAndIsRetriedOnNextMerge() {
+        // Caching the failure path would turn a transient blip into a
+        // permanent silent loss of the merge. Stub: first call throws, second
+        // call returns a flagged def. The second merge must pick it up.
+        when(metadataDAO.getAllWorkflowDefsLatestVersions())
+                .thenThrow(new RuntimeException("transient DAO failure"))
+                .thenReturn(List.of(wfWithAutoExposeMetadata("_helper_agent", "helper_agent", "x")));
+
+        AgentConfig first = AgentConfig.builder()
+                .name("first")
+                .tools(new ArrayList<>())
+                .build();
+        AgentConfig second = AgentConfig.builder()
+                .name("second")
+                .tools(new ArrayList<>())
+                .build();
+
+        compiler.mergeAutoExposedTools(first);
+        compiler.mergeAutoExposedTools(second);
+
+        // First merge happened during the transient failure → no auto-expose.
+        assertThat(first.getTools()).extracting(ToolConfig::getName).doesNotContain("helper_agent");
+        // Second merge re-queried the DAO and picked the entry up.
+        assertThat(second.getTools()).extracting(ToolConfig::getName).contains("helper_agent");
+        verify(metadataDAO, times(2)).getAllWorkflowDefsLatestVersions();
     }
 
     // ─────────────────────────────────────────────────────────────────────

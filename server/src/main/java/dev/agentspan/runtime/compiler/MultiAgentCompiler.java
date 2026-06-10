@@ -1435,8 +1435,10 @@ public class MultiAgentCompiler {
         String transferLlmRef = agent.getName() + "_transfer_llm";
         String checkTransferRef = agent.getName() + "_check_transfer";
 
-        // 1. Compile the agent normally to preserve its multi-agent strategy
-        WorkflowDef innerWf = agentCompiler.compile(agent);
+        // 1. Compile the agent normally to preserve its multi-agent strategy.
+        // ``compileWithoutAutoExpose`` because this is internal recursion;
+        // the auto-expose merge only runs at the top-level public entry.
+        WorkflowDef innerWf = agentCompiler.compileWithoutAutoExpose(agent);
 
         // Inner agent as SUB_WORKFLOW
         WorkflowTask innerTask = new WorkflowTask();
