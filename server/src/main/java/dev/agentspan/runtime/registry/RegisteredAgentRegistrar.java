@@ -66,7 +66,15 @@ public class RegisteredAgentRegistrar {
 
     private void register(RegisteredAgent agent) {
         AgentConfig config = agent.agentConfig();
-        WorkflowDef def = agentCompiler.compile(config);
+        // ``compileWithoutAutoExpose`` (not ``compile``) for two reasons:
+        //   1. Registered agents shouldn't have other registered agents
+        //      auto-injected into them as tools.
+        //   2. The merger's lazy cache must not be triggered here — the
+        //      registered defs aren't in the DAO yet at this point, so the
+        //      first read would snapshot an empty list and freeze it for the
+        //      bean's lifetime, silently hiding every registered agent from
+        //      subsequent user compiles.
+        WorkflowDef def = agentCompiler.compileWithoutAutoExpose(config);
         ExposeAsTool expose = agent.autoExpose();
         if (expose != null) {
             stampAutoExpose(def, expose);

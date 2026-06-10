@@ -44,17 +44,11 @@ public class AgentCompiler {
     /**
      * Metadata key on a {@link WorkflowDef} that marks the workflow as one
      * that should be silently appended to every top-level agent's tool list
-     * at compile time. The value is a {@code Map<String,Object>} with at
-     * least {@code name} and {@code description}; both are surfaced to the
-     * agent's LLM via the {@code agent_tool} routing.
-     *
-     * <p>This is the single registration mechanism for "server-side
-     * capability the user's LLM can call." A new sub-agent only has to:
-     * (a) compile and register its WorkflowDef via {@link MetadataDAO},
-     * (b) stamp this metadata key. {@link #compile} picks it up generically
-     * — no per-feature injection class required.</p>
+     * at compile time. Re-exported from {@link AutoExposedToolsMerger} so
+     * callers (registrar, tests) that previously imported it from this class
+     * keep compiling without churn.
      */
-    public static final String AUTO_EXPOSE_AS_TOOL_METADATA_KEY = "agentspan.autoExposeAsTool";
+    public static final String AUTO_EXPOSE_AS_TOOL_METADATA_KEY = AutoExposedToolsMerger.AUTO_EXPOSE_AS_TOOL_METADATA_KEY;
 
     private int timeoutSeconds = 0;
     private int llmRetryCount = 3;
@@ -62,44 +56,38 @@ public class AgentCompiler {
     private int contextMaxValueSizeBytes = 4096;
 
     /**
-     * Optional — only injected at runtime. Tests that construct
-     * {@code new AgentCompiler()} directly leave this null, and the
-     * auto-exposed-tool merge step becomes a no-op for them.
+     * Owns the DAO scan, cache, and per-config merge of auto-exposed
+     * server-registered agents. Pulled out so {@code AgentCompiler} stays
+     * focused on workflow compilation and the merge lifecycle (cache, DAO
+     * failure handling, self-recursion guard) lives in one place.
      */
-    private final MetadataDAO metadataDAO;
-
-    /**
-     * Lazy cache of the auto-exposed tool entries the DAO returns. Populated
-     * on first successful {@link #autoExposedEntries()} call and never
-     * refreshed for the lifetime of the bean — registered server-side agents
-     * are written at {@code @PostConstruct} time and don't change at runtime,
-     * so re-querying the DAO per compile would be wasted work.
-     *
-     * <p>A transient DAO failure is NOT cached — the next compile retries
-     * the lookup so a one-shot blip doesn't permanently hide the registered
-     * sub-agents.</p>
-     *
-     * <p>{@code volatile} for the double-checked-locking idiom in
-     * {@link #autoExposedEntries()}.</p>
-     */
-    private volatile List<AutoExposedEntry> cachedAutoExposed;
+    private final AutoExposedToolsMerger autoExposedMerger;
 
     /**
      * Default no-arg constructor for tests that don't need a {@link MetadataDAO}.
-     * The auto-expose merge becomes a no-op when {@code metadataDAO} is null.
+     * The auto-expose merge becomes a no-op.
      */
     public AgentCompiler() {
-        this(null);
+        this(AutoExposedToolsMerger.disabled());
     }
 
     /**
-     * Spring-injected constructor. {@link MetadataDAO} is optional because
-     * the compiler is also constructed directly by unit tests that don't
-     * exercise the auto-expose merge.
+     * Convenience constructor for tests that want to exercise the merge
+     * against a stubbed {@link MetadataDAO} without wiring up an
+     * {@link AutoExposedToolsMerger} explicitly.
+     */
+    public AgentCompiler(MetadataDAO metadataDAO) {
+        this(new AutoExposedToolsMerger(metadataDAO));
+    }
+
+    /**
+     * Spring-injected constructor. The merger is itself a {@code @Component}
+     * that takes an optional {@link MetadataDAO}, so this is the path the
+     * runtime uses.
      */
     @Autowired
-    public AgentCompiler(@Autowired(required = false) MetadataDAO metadataDAO) {
-        this.metadataDAO = metadataDAO;
+    public AgentCompiler(AutoExposedToolsMerger autoExposedMerger) {
+        this.autoExposedMerger = autoExposedMerger;
     }
 
     /**
@@ -162,17 +150,40 @@ public class AgentCompiler {
      * retrieval tool and the DAO isn't queried for every level of the tree.</p>
      */
     public WorkflowDef compile(AgentConfig config) {
-        mergeAutoExposedTools(config);
+        autoExposedMerger.merge(config);
         return compileWithoutAutoExpose(config);
     }
 
     /**
-     * Internal compile entry that performs strategy dispatch and
-     * post-processing without re-running the auto-expose merge. Called from
-     * any place inside {@code AgentCompiler} or {@code MultiAgentCompiler}
-     * that needs to recurse into a sub-agent's compile.
+     * Thin delegate so existing tests calling {@code compiler.mergeAutoExposedTools(config)}
+     * continue to compile. New code should go through the injected
+     * {@link AutoExposedToolsMerger} directly.
      */
-    WorkflowDef compileWithoutAutoExpose(AgentConfig config) {
+    void mergeAutoExposedTools(AgentConfig config) {
+        autoExposedMerger.merge(config);
+    }
+
+    /**
+     * Compile entry that performs strategy dispatch and post-processing
+     * <em>without</em> running the auto-expose merge.
+     *
+     * <p>Two callers:</p>
+     * <ul>
+     *   <li>Internal recursion ({@link #compileSubAgent}, graph subgraph
+     *       compile, {@code MultiAgentCompiler}) — nested specialist agents
+     *       must not inherit unrelated server-side tools.</li>
+     *   <li>{@link dev.agentspan.runtime.registry.RegisteredAgentRegistrar}
+     *       at {@code @PostConstruct} time — registered server agents don't
+     *       need other registered agents auto-exposed to them, AND skipping
+     *       the merge here is what keeps the merger's lazy cache from
+     *       snapshotting an empty list during the bootstrap loop. Letting
+     *       the registrar trigger the merge before its own
+     *       {@code dao.updateWorkflowDef} write would freeze the cache to
+     *       an empty result for the life of the bean, silently hiding every
+     *       server-registered agent from subsequent user compiles.</li>
+     * </ul>
+     */
+    public WorkflowDef compileWithoutAutoExpose(AgentConfig config) {
         WorkflowDef wf;
 
         // Passthrough check MUST be first — passthrough configs have null model.
@@ -2509,151 +2520,6 @@ public class AgentCompiler {
             caps.addAll(collectCapabilities(config.getFallback()));
         }
         return caps;
-    }
-
-    /**
-     * Append every {@link MetadataDAO}-registered workflow that carries the
-     * {@link #AUTO_EXPOSE_AS_TOOL_METADATA_KEY} marker to {@code config.tools}
-     * as an {@code agent_tool}.
-     *
-     * <p>Mutates {@code config} in place. Skips when:</p>
-     * <ul>
-     *   <li>{@link #metadataDAO} is absent (unit-test path)</li>
-     *   <li>The workflow being compiled IS the auto-exposed one
-     *       — no self-recursion</li>
-     *   <li>A tool with that name is already declared on the config
-     *       — caller's explicit declaration wins</li>
-     * </ul>
-     *
-     * <p>Auto-exposed entries are sourced from {@link #autoExposedEntries()},
-     * which lazily caches the DAO result for the lifetime of the bean. Each
-     * call to this method only does the cheap per-config filtering
-     * (self-skip + name-dedupe) against the cached entry list.</p>
-     */
-    void mergeAutoExposedTools(AgentConfig config) {
-        if (config == null) return;
-        List<AutoExposedEntry> entries = autoExposedEntries();
-        if (entries.isEmpty()) return;
-
-        Set<String> takenNames = collectToolNames(config);
-        List<ToolConfig> toAppend = new ArrayList<>();
-        for (AutoExposedEntry entry : entries) {
-            if (entry.workflowName().equals(config.getName())) continue; // self-recursion guard
-            if (!takenNames.add(entry.tool().getName())) continue; // caller's declaration wins
-            toAppend.add(entry.tool());
-            log.info(
-                    "Auto-exposed workflow '{}' as agent_tool '{}' on '{}'",
-                    entry.workflowName(),
-                    entry.tool().getName(),
-                    config.getName());
-        }
-        if (!toAppend.isEmpty()) {
-            appendTools(config, toAppend);
-        }
-    }
-
-    /** Typed view of an {@link #AUTO_EXPOSE_AS_TOOL_METADATA_KEY} entry. */
-    private record AutoExposeSpec(String toolName, String description) {}
-
-    /**
-     * Cached pairing of source workflow name + pre-built {@code agent_tool}
-     * {@link ToolConfig}. We carry the workflow name alongside the tool so
-     * the per-compile self-recursion guard (a workflow can't auto-expose
-     * itself as a tool on its own compile) stays correct without re-reading
-     * the {@link WorkflowDef} metadata.
-     */
-    private record AutoExposedEntry(String workflowName, ToolConfig tool) {}
-
-    /**
-     * Lazily build and cache the auto-exposed tool entries. Successful
-     * results are cached for the lifetime of the bean — registered
-     * server-side agents are written at server {@code @PostConstruct} and
-     * don't change at runtime.
-     *
-     * <p>A transient DAO failure returns an empty list <em>without</em>
-     * caching, so the next compile retries the lookup. The merge is a
-     * convenience layer, not a correctness requirement — a failed lookup
-     * shouldn't fail the compile.</p>
-     */
-    private List<AutoExposedEntry> autoExposedEntries() {
-        List<AutoExposedEntry> snapshot = cachedAutoExposed;
-        if (snapshot != null) return snapshot;
-        if (metadataDAO == null) {
-            cachedAutoExposed = List.of();
-            return cachedAutoExposed;
-        }
-        synchronized (this) {
-            if (cachedAutoExposed != null) return cachedAutoExposed;
-            try {
-                List<WorkflowDef> defs = metadataDAO.getAllWorkflowDefsLatestVersions();
-                List<AutoExposedEntry> built = buildEntries(defs == null ? List.of() : defs);
-                cachedAutoExposed = built;
-                log.debug("auto-expose merge: fetched {} workflow def(s); cached {} auto-exposed entry(ies)",
-                        defs == null ? 0 : defs.size(), built.size());
-                return built;
-            } catch (Exception e) {
-                // NOT cached — let the next compile retry the DAO.
-                log.warn("auto-expose merge: metadataDAO lookup failed; will retry on next compile. {}",
-                        e.getMessage());
-                return List.of();
-            }
-        }
-    }
-
-    /**
-     * Project the DAO's full workflow-def list down to the auto-exposed
-     * subset, building the {@link ToolConfig} once per workflow.
-     */
-    private static List<AutoExposedEntry> buildEntries(List<WorkflowDef> defs) {
-        List<AutoExposedEntry> built = new ArrayList<>();
-        for (WorkflowDef def : defs) {
-            AutoExposeSpec spec = readAutoExposeSpec(def);
-            if (spec == null) continue;
-            built.add(new AutoExposedEntry(def.getName(), buildAgentTool(def.getName(), spec)));
-        }
-        return built;
-    }
-
-    /** Names of every tool already declared on {@code config}. */
-    private static Set<String> collectToolNames(AgentConfig config) {
-        if (config.getTools() == null) return new HashSet<>();
-        Set<String> names = new HashSet<>();
-        for (ToolConfig t : config.getTools()) {
-            if (t.getName() != null) names.add(t.getName());
-        }
-        return names;
-    }
-
-    /**
-     * Read the auto-expose marker off a {@link WorkflowDef}, returning null
-     * when the marker is absent or malformed. Type-checks the spec map and
-     * its {@code name} field; defaults missing description to empty string.
-     */
-    private static AutoExposeSpec readAutoExposeSpec(WorkflowDef def) {
-        Map<String, Object> metadata = def.getMetadata();
-        if (metadata == null || !(metadata.get(AUTO_EXPOSE_AS_TOOL_METADATA_KEY) instanceof Map<?, ?> spec)) {
-            return null;
-        }
-        if (!(spec.get("name") instanceof String toolName) || toolName.isEmpty()) return null;
-        String description = spec.get("description") instanceof String s ? s : "";
-        return new AutoExposeSpec(toolName, description);
-    }
-
-    /** Build the agent_tool ToolConfig the LLM tool list ends up seeing. */
-    private static ToolConfig buildAgentTool(String workflowName, AutoExposeSpec spec) {
-        return ToolConfig.builder()
-                .name(spec.toolName())
-                .toolType("agent_tool")
-                .description(spec.description())
-                .config(Map.of("workflowName", workflowName))
-                .build();
-    }
-
-    /** Copy-on-write the tools list with the appended entries set back on {@code config}. */
-    private static void appendTools(AgentConfig config, List<ToolConfig> toAppend) {
-        List<ToolConfig> merged = new ArrayList<>(config.getTools() != null ? config.getTools() : List.of());
-        merged.addAll(toAppend);
-        config.setTools(merged);
     }
 
     // Setters for configuration

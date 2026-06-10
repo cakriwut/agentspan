@@ -39,7 +39,7 @@ class RegisteredAgentRegistrarTest {
     void compilesAndRegistersEveryRegisteredAgent() {
         AgentCompiler compiler = mock(AgentCompiler.class);
         MetadataDAO dao = mock(MetadataDAO.class);
-        when(compiler.compile(any())).thenAnswer(inv -> {
+        when(compiler.compileWithoutAutoExpose(any())).thenAnswer(inv -> {
             AgentConfig cfg = inv.getArgument(0);
             WorkflowDef def = new WorkflowDef();
             def.setName(cfg.getName());
@@ -51,8 +51,8 @@ class RegisteredAgentRegistrarTest {
 
         new RegisteredAgentRegistrar(compiler, dao, List.of(a, b)).registerAll();
 
-        verify(compiler).compile(a.agentConfig());
-        verify(compiler).compile(b.agentConfig());
+        verify(compiler).compileWithoutAutoExpose(a.agentConfig());
+        verify(compiler).compileWithoutAutoExpose(b.agentConfig());
         ArgumentCaptor<WorkflowDef> captor = ArgumentCaptor.forClass(WorkflowDef.class);
         verify(dao, org.mockito.Mockito.times(2)).updateWorkflowDef(captor.capture());
         assertThat(captor.getAllValues().stream().map(WorkflowDef::getName))
@@ -66,7 +66,7 @@ class RegisteredAgentRegistrarTest {
         // silently hide every server-side sub-agent from end-user agents.
         AgentCompiler compiler = mock(AgentCompiler.class);
         MetadataDAO dao = mock(MetadataDAO.class);
-        when(compiler.compile(any())).thenReturn(emptyDef("helper"));
+        when(compiler.compileWithoutAutoExpose(any())).thenReturn(emptyDef("helper"));
 
         RegisteredAgent agent = stubAgent("helper", new ExposeAsTool("helper_tool", "Call when stuck."));
 
@@ -88,7 +88,7 @@ class RegisteredAgentRegistrarTest {
         // from the DAO without the auto-expose flag.
         AgentCompiler compiler = mock(AgentCompiler.class);
         MetadataDAO dao = mock(MetadataDAO.class);
-        when(compiler.compile(any())).thenReturn(emptyDef("internal"));
+        when(compiler.compileWithoutAutoExpose(any())).thenReturn(emptyDef("internal"));
 
         new RegisteredAgentRegistrar(compiler, dao, List.of(stubAgent("internal", null))).registerAll();
 

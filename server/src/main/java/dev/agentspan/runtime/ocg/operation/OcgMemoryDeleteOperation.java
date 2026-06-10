@@ -39,7 +39,8 @@ public final class OcgMemoryDeleteOperation implements OcgOperation {
     }
 
     private static void addQueryParamIfPresent(UriComponentsBuilder uri, String name, Object value) {
-        String s = StringUtils.defaultString(value == null ? null : value.toString());
+        if (value == null) return;
+        String s = value.toString();
         if (StringUtils.isNotEmpty(s)) {
             uri.queryParam(name, s);
         }
