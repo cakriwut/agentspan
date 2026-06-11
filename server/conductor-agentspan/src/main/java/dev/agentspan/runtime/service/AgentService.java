@@ -296,7 +296,8 @@ public class AgentService {
         // impersonates it during decide so sub-workflows inherit attribution, and its
         // workers' poll-time secret substitution REQUIRES it (tasks of workflows without
         // createdBy fail to poll). Stock Conductor simply records the value.
-        String principal = RequestContextHolder.get().map(ctx -> ctx.getUserId()).orElse(null);
+        String principal =
+                RequestContextHolder.get().map(ctx -> ctx.getUserId()).orElse(null);
         if (principal != null) {
             startReq.setCreatedBy(principal);
         }
