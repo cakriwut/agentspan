@@ -59,6 +59,18 @@ class TestValidateCliCommand:
         with pytest.raises(ValueError, match="gh, git"):
             _validate_cli_command("curl", ["git", "gh"])
 
+    def test_full_command_line_validates_on_executable(self):
+        # LLMs commonly pass the entire command line as `command`; validation
+        # must key off the executable (first token), not the whole string.
+        _validate_cli_command("gh repo list --limit 5", ["gh"])  # no exception
+
+    def test_full_command_line_with_path_executable(self):
+        _validate_cli_command("/usr/bin/gh repo list", ["gh"])  # no exception
+
+    def test_full_command_line_disallowed_executable_raises(self):
+        with pytest.raises(ValueError, match="not allowed"):
+            _validate_cli_command("rm -rf /", ["gh"])
+
 
 class TestMakeCliTool:
     """Test _make_cli_tool factory."""
@@ -113,6 +125,38 @@ class TestMakeCliTool:
             }
             mock_run.assert_called_once_with(
                 ["echo", "hello"],
+                capture_output=True,
+                text=True,
+                timeout=30,
+                cwd=None,
+            )
+
+    def test_full_command_line_in_command_is_tokenized(self):
+        # Reproduces examples/16d_credentials_gh_cli.py: the LLM passes the whole
+        # command line in `command`. It must validate on `gh` and exec the tokens.
+        tool_fn = _make_cli_tool(allowed_commands=["gh"])
+        with patch("agentspan.agents.cli_config.subprocess.run") as mock_run:
+            mock_run.return_value = MagicMock(returncode=0, stdout="[]\n", stderr="")
+            result = tool_fn.__wrapped__(
+                command="gh repo list agentspan --limit 5 --json name,updatedAt"
+            )
+            assert result["status"] == "success"
+            mock_run.assert_called_once_with(
+                ["gh", "repo", "list", "agentspan", "--limit", "5", "--json", "name,updatedAt"],
+                capture_output=True,
+                text=True,
+                timeout=30,
+                cwd=None,
+            )
+
+    def test_command_line_plus_args_list_are_merged(self):
+        # Executable + some args in `command`, remaining args in the list.
+        tool_fn = _make_cli_tool(allowed_commands=["gh"])
+        with patch("agentspan.agents.cli_config.subprocess.run") as mock_run:
+            mock_run.return_value = MagicMock(returncode=0, stdout="", stderr="")
+            tool_fn.__wrapped__(command="gh repo list", args=["--limit", "5"])
+            mock_run.assert_called_once_with(
+                ["gh", "repo", "list", "--limit", "5"],
                 capture_output=True,
                 text=True,
                 timeout=30,

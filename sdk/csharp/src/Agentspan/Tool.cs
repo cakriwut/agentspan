@@ -735,9 +735,12 @@ public static class CliTool
 
                 // If the LLM packed "gh repo list ..." into the command field, split it.
                 // The first token is the executable; the rest prepend to args.
-                var cmdParts = rawCommand.Split(' ', StringSplitOptions.RemoveEmptyEntries);
-                var command  = cmdParts[0];
-                var prefixArgs = cmdParts.Length > 1 ? cmdParts[1..].ToList() : [];
+                // Tokenize honoring quotes so e.g. git commit -m "hello world" works.
+                var tokens = Tokenize(rawCommand);
+                if (tokens.Count == 0)
+                    return (object)new Dictionary<string, object> { ["status"] = "error", ["stderr"] = "No command provided." };
+                var command  = tokens[0];
+                var prefixArgs = tokens.Count > 1 ? tokens.GetRange(1, tokens.Count - 1) : [];
 
                 // Validate whitelist against the executable name (first token, basename)
                 if (allowed.Count > 0)
@@ -831,6 +834,56 @@ public static class CliTool
                 }
             },
         };
+    }
+
+    /// <summary>
+    /// Tokenize a command line into argv, honoring single and double quotes.
+    /// LLMs frequently pass the whole command line as <c>command</c>
+    /// (e.g. <c>gh repo list --limit 5</c>). Falls back to plain whitespace
+    /// splitting if quotes are unbalanced.
+    /// </summary>
+    public static List<string> Tokenize(string command)
+    {
+        var tokens  = new List<string>();
+        var current = new System.Text.StringBuilder();
+        var hasCurrent = false;
+        char? quote = null;
+
+        foreach (var ch in command)
+        {
+            if (quote is not null)
+            {
+                if (ch == quote) quote = null;
+                else current.Append(ch);
+            }
+            else if (ch == '"' || ch == '\'')
+            {
+                quote = ch;
+                hasCurrent = true;
+            }
+            else if (char.IsWhiteSpace(ch))
+            {
+                if (hasCurrent)
+                {
+                    tokens.Add(current.ToString());
+                    current.Clear();
+                    hasCurrent = false;
+                }
+            }
+            else
+            {
+                current.Append(ch);
+                hasCurrent = true;
+            }
+        }
+
+        if (quote is not null)
+        {
+            // Unbalanced quotes — fall back to naive whitespace split.
+            return command.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries).ToList();
+        }
+        if (hasCurrent) tokens.Add(current.ToString());
+        return tokens;
     }
 }
 

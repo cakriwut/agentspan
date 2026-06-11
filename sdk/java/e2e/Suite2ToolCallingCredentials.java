@@ -1,15 +1,7 @@
 // Copyright (c) 2025 Agentspan
 // Licensed under the MIT License. See LICENSE file in the project root for details.
 
-import ai.agentspan.Agent;
-import ai.agentspan.AgentRuntime;
-import ai.agentspan.Credentials;
-import ai.agentspan.annotations.Tool;
-import ai.agentspan.exceptions.AgentspanException;
-import ai.agentspan.internal.ToolRegistry;
-import ai.agentspan.model.AgentResult;
-import ai.agentspan.model.ToolDef;
-import org.junit.jupiter.api.*;
+import static org.junit.jupiter.api.Assertions.*;
 
 import java.net.URI;
 import java.net.http.HttpClient;
@@ -18,7 +10,16 @@ import java.net.http.HttpResponse;
 import java.time.Duration;
 import java.util.*;
 
-import static org.junit.jupiter.api.Assertions.*;
+import org.conductoross.conductor.ai.Agent;
+import org.conductoross.conductor.ai.AgentConfig;
+import org.conductoross.conductor.ai.AgentRuntime;
+import org.conductoross.conductor.ai.Credentials;
+import org.conductoross.conductor.ai.annotations.Tool;
+import org.conductoross.conductor.ai.exceptions.AgentspanException;
+import org.conductoross.conductor.ai.internal.ToolRegistry;
+import org.conductoross.conductor.ai.model.AgentResult;
+import org.conductoross.conductor.ai.model.ToolDef;
+import org.junit.jupiter.api.*;
 
 /**
  * Suite 2 — runtime credential lifecycle, mirrors Python's test_suite2_tool_calling.py.
@@ -47,8 +48,8 @@ import static org.junit.jupiter.api.Assertions.*;
 class Suite2ToolCallingCredentials extends BaseTest {
 
     private static final String CRED_A = "E2E_JAVA_CRED_A";
-    private static final HttpClient HTTP = HttpClient.newBuilder()
-            .connectTimeout(Duration.ofSeconds(10)).build();
+    private static final HttpClient HTTP =
+            HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(10)).build();
 
     private static AgentRuntime runtime;
 
@@ -56,16 +57,14 @@ class Suite2ToolCallingCredentials extends BaseTest {
 
     public static class PaidGithubTools {
         @Tool(
-            name = "paid_tool_a",
-            description = "Tool that needs E2E_JAVA_CRED_A. Returns first 3 chars of the credential.",
-            credentials = {"E2E_JAVA_CRED_A"}
-        )
+                name = "paid_tool_a",
+                description = "Tool that needs E2E_JAVA_CRED_A. Returns first 3 chars of the credential.",
+                credentials = {"E2E_JAVA_CRED_A"})
         public Map<String, Object> paidToolA(String x) {
             String value = Credentials.getOrNull(CRED_A);
             if (value == null) {
-                throw new IllegalStateException(
-                        "Credential " + CRED_A + " not in Secrets context. "
-                                + "WorkerManager should have failed the task terminally before reaching here.");
+                throw new IllegalStateException("Credential " + CRED_A + " not in Secrets context. "
+                        + "WorkerManager should have failed the task terminally before reaching here.");
             }
             return Map.of("preview", "paid_a:" + value.substring(0, Math.min(3, value.length())));
         }
@@ -73,8 +72,7 @@ class Suite2ToolCallingCredentials extends BaseTest {
 
     @BeforeAll
     static void setup() {
-        runtime = new AgentRuntime(
-                new ai.agentspan.AgentConfig(BASE_URL, null, null, 100, 1));
+        runtime = new AgentRuntime(new AgentConfig(100, 1));
     }
 
     @AfterAll
@@ -91,8 +89,8 @@ class Suite2ToolCallingCredentials extends BaseTest {
         deleteSecret(CRED_A);
 
         Agent agent = buildAgent();
-        AgentResult result = runtime.run(agent,
-                "Call paid_tool_a exactly once with the argument 'test' and report what it returns.");
+        AgentResult result = runtime.run(
+                agent, "Call paid_tool_a exactly once with the argument 'test' and report what it returns.");
 
         assertNotNull(result.getExecutionId(), "result must include an execution id");
 
@@ -100,10 +98,10 @@ class Suite2ToolCallingCredentials extends BaseTest {
         Map<String, Object> wf = getWorkflow(result.getExecutionId());
         Set<String> terminal = Set.of("FAILED_WITH_TERMINAL_ERROR", "COMPLETED_WITH_ERRORS");
         Map<String, Object> paidTask = findToolTask(wf, "paid_tool_a");
-        assertNotNull(paidTask,
-                "paid_tool_a task not found in workflow — run shape changed?");
+        assertNotNull(paidTask, "paid_tool_a task not found in workflow — run shape changed?");
         String status = (String) paidTask.get("status");
-        assertTrue(terminal.contains(status),
+        assertTrue(
+                terminal.contains(status),
                 "Step 1 expected paid_tool_a status in " + terminal + ", got '" + status
                         + "'. Missing credential is a config issue — retries are pointless.\n"
                         + "  task=" + paidTask);
@@ -122,21 +120,21 @@ class Suite2ToolCallingCredentials extends BaseTest {
         deleteSecret(CRED_A);
 
         Agent agent = buildAgent();
-        AgentResult result = runtime.run(agent,
-                "Call paid_tool_a exactly once with 'test' and report what it returns.");
+        AgentResult result =
+                runtime.run(agent, "Call paid_tool_a exactly once with 'test' and report what it returns.");
 
         Map<String, Object> wf = getWorkflow(result.getExecutionId());
         Map<String, Object> paidTask = findToolTask(wf, "paid_tool_a");
         Set<String> terminal = Set.of("FAILED_WITH_TERMINAL_ERROR", "COMPLETED_WITH_ERRORS");
-        assertTrue(terminal.contains(paidTask.get("status")),
-                "Java SDK reads secrets only from the server, never from System.getenv. "
-                        + "Got status='" + paidTask.get("status") + "'.");
+        assertTrue(
+                terminal.contains(paidTask.get("status")),
+                "Java SDK reads secrets only from the server, never from System.getenv. " + "Got status='"
+                        + paidTask.get("status") + "'.");
 
         // Also: the output should NOT contain anything from System.getenv.
         // (Tool body never runs when credential missing, but defense in depth.)
         String output = String.valueOf(paidTask.get("outputData"));
-        assertFalse(output.contains("paid_a:"),
-                "tool body should not have run when credential is missing");
+        assertFalse(output.contains("paid_a:"), "tool body should not have run when credential is missing");
     }
 
     // ── Test: cred set via API → tool runs and sees the stored value ─────────
@@ -147,19 +145,22 @@ class Suite2ToolCallingCredentials extends BaseTest {
         putSecret(CRED_A, "secret-aaa-value");
 
         Agent agent = buildAgent();
-        AgentResult result = runtime.run(agent,
-                "Call paid_tool_a exactly once with 'test' and report what it returns.");
+        AgentResult result =
+                runtime.run(agent, "Call paid_tool_a exactly once with 'test' and report what it returns.");
 
         Map<String, Object> wf = getWorkflow(result.getExecutionId());
         Map<String, Object> paidTask = findToolTask(wf, "paid_tool_a");
-        assertEquals("COMPLETED", paidTask.get("status"),
-                "Step 3 expected paid_tool_a COMPLETED, got '" + paidTask.get("status") + "'.\n"
-                        + "  task=" + paidTask);
+        assertEquals(
+                "COMPLETED",
+                paidTask.get("status"),
+                "Step 3 expected paid_tool_a COMPLETED, got '" + paidTask.get("status") + "'.\n" + "  task="
+                        + paidTask);
 
         String taskOutput = String.valueOf(paidTask.get("outputData"));
-        assertTrue(taskOutput.contains("sec"),
-                "paid_tool_a output should contain 'sec' (first 3 chars of 'secret-aaa-value').\n"
-                        + "  outputData=" + taskOutput);
+        assertTrue(
+                taskOutput.contains("sec"),
+                "paid_tool_a output should contain 'sec' (first 3 chars of 'secret-aaa-value').\n" + "  outputData="
+                        + taskOutput);
     }
 
     // ── Test: cred updated → next run reflects new value ─────────────────────
@@ -170,15 +171,16 @@ class Suite2ToolCallingCredentials extends BaseTest {
         putSecret(CRED_A, "newval-xxx-updated");
 
         Agent agent = buildAgent();
-        AgentResult result = runtime.run(agent,
-                "Call paid_tool_a exactly once with 'test' and report what it returns.");
+        AgentResult result =
+                runtime.run(agent, "Call paid_tool_a exactly once with 'test' and report what it returns.");
 
         Map<String, Object> wf = getWorkflow(result.getExecutionId());
         Map<String, Object> paidTask = findToolTask(wf, "paid_tool_a");
         assertEquals("COMPLETED", paidTask.get("status"));
 
         String taskOutput = String.valueOf(paidTask.get("outputData"));
-        assertTrue(taskOutput.contains("new"),
+        assertTrue(
+                taskOutput.contains("new"),
                 "Step 4 expected paid_tool_a output to contain 'new' (first 3 chars of "
                         + "'newval-xxx-updated'). The update didn't propagate.\n"
                         + "  outputData=" + taskOutput);
@@ -191,9 +193,8 @@ class Suite2ToolCallingCredentials extends BaseTest {
         return Agent.builder()
                 .name("e2e_java_cred_lifecycle")
                 .model(MODEL)
-                .instructions(
-                        "You have one tool: paid_tool_a. You MUST call it exactly once "
-                                + "with the argument 'test'. Then report its output verbatim.")
+                .instructions("You have one tool: paid_tool_a. You MUST call it exactly once "
+                        + "with the argument 'test'. Then report its output verbatim.")
                 .tools(tools)
                 .maxTurns(3)
                 .build();
@@ -224,8 +225,8 @@ class Suite2ToolCallingCredentials extends BaseTest {
                     .build();
             HttpResponse<String> resp = HTTP.send(req, HttpResponse.BodyHandlers.ofString());
             if (resp.statusCode() >= 400) {
-                throw new AgentspanException("PUT /api/secrets/" + name
-                        + " failed: HTTP " + resp.statusCode() + " " + resp.body());
+                throw new AgentspanException(
+                        "PUT /api/secrets/" + name + " failed: HTTP " + resp.statusCode() + " " + resp.body());
             }
         } catch (Exception e) {
             fail("putSecret(" + name + ") failed: " + e);

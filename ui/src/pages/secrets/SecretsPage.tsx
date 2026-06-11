@@ -16,8 +16,6 @@ import SectionHeader from "shared/SectionHeader";
 import SectionHeaderActions from "shared/SectionHeaderActions";
 import { PopoverMessage } from "types/Messages";
 import { AddEditSecretDialog } from "./components/AddEditSecretDialog";
-import { LoginDialog } from "./components/LoginDialog";
-import { useSecretAuth } from "./hooks/useSecretAuth";
 import {
   useDeleteSecret,
   useListSecrets,
@@ -25,8 +23,9 @@ import {
 import { SecretListItem } from "./types";
 
 export function SecretsPage() {
-  const { token, isAuthenticated, setToken, clearToken } = useSecretAuth();
-  const apiOpts = { token, onUnauthorized: clearToken };
+  // Auth is the host's concern; AgentSpan's standalone server runs anonymous,
+  // so there is no per-request token here.
+  const apiOpts = { token: null, onUnauthorized: () => {} };
 
   const secretsQuery = useListSecrets(apiOpts);
 
@@ -41,12 +40,6 @@ export function SecretsPage() {
   const deleteSecret = useDeleteSecret(apiOpts);
 
   const secrets = secretsQuery.data ?? [];
-
-  // Show LoginDialog only on 401, not on every page load with no token.
-  // In OSS mode (auth.enabled=false) the server returns 200 with no token, so
-  // isAuthenticated=false but secretsQuery.error is null → dialog stays hidden.
-  const needs401Login =
-    !isAuthenticated && (secretsQuery.error as any)?.status === 401;
 
   const columns = useMemo(
     () => [
@@ -135,20 +128,11 @@ export function SecretsPage() {
       </Helmet>
 
       {/* Dialogs */}
-      {needs401Login && (
-        <LoginDialog
-          onSuccess={(tok) => {
-            setToken(tok);
-            secretsQuery.refetch();
-          }}
-        />
-      )}
-
       {addDialogOpen && (
         <AddEditSecretDialog
           mode="add"
-          token={token}
-          onUnauthorized={clearToken}
+          token={apiOpts.token}
+          onUnauthorized={apiOpts.onUnauthorized}
           onSuccess={() =>
             setToastMessage({ text: "Secret added.", severity: "success" })
           }
@@ -160,8 +144,8 @@ export function SecretsPage() {
         <AddEditSecretDialog
           mode="edit"
           initialName={editSecret.name}
-          token={token}
-          onUnauthorized={clearToken}
+          token={apiOpts.token}
+          onUnauthorized={apiOpts.onUnauthorized}
           onSuccess={() =>
             setToastMessage({
               text: "Secret updated.",
@@ -214,15 +198,6 @@ export function SecretsPage() {
         actions={
           <SectionHeaderActions
             buttons={[
-              ...(isAuthenticated
-                ? [
-                    {
-                      label: "Logout",
-                      onClick: clearToken,
-                      variant: "text" as const,
-                    },
-                  ]
-                : []),
               {
                 label: "Add Secret",
                 onClick: () => setAddDialogOpen(true),

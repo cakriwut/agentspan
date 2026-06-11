@@ -5,7 +5,7 @@ import {
   useQueryClient,
   UseQueryResult,
 } from "react-query";
-import { SecretListItem, LoginRequest } from "../types";
+import { SecretListItem } from "../types";
 
 // ── secretFetch ────────────────────────────────────────────────────────────────
 // Wraps fetchWithContext, optionally injecting Authorization: Bearer header.
@@ -93,16 +93,5 @@ export function useDeleteSecret({ token, onUnauthorized }: ApiOptions) {
     {
       onSuccess: () => qc.invalidateQueries([ctx.stack, "/secrets/v2"]),
     },
-  );
-}
-
-export function useLogin() {
-  const ctx = useFetchContext();
-  return useMutation(({ username, password }: LoginRequest) =>
-    secretFetch("/auth/login", ctx, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ username, password }),
-    }),
   );
 }
