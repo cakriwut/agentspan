@@ -5,8 +5,6 @@
 
 package dev.agentspan.runtime.ocg;
 
-import java.time.LocalDate;
-import java.time.ZoneOffset;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -48,19 +46,23 @@ public final class OcgAgentFactory {
                     + "supporting citations.";
 
     /**
-     * Marker {@link #build} replaces with the current UTC date so the LLM
-     * doesn't hallucinate date ranges. Computed at compile time, refreshes
-     * on every server restart.
+     * Conductor expression the system prompt uses as its date anchor.
+     * Resolved per execution against the {@code _ocg_agent} sub-workflow's
+     * input — the agent_tool dispatch script injects {@code __today__} with
+     * the current UTC date on every call. Anchoring at execution time (not
+     * boot time) is what keeps "recent" / relative-date queries correct on
+     * a long-running server; a date baked in at registration would drift
+     * until the prompt claimed last month was "today".
      */
-    static final String TODAY_PLACEHOLDER = "{{TODAY}}";
+    static final String TODAY_EXPRESSION = "${workflow.input.__today__}";
 
     /**
-     * System prompt template for the OCG sub-agent. {@link #TODAY_PLACEHOLDER}
-     * is replaced with today's UTC date in {@link #build} so any
-     * "recent" / relative-date query gets bounded against a real anchor
-     * instead of whatever year the model felt like inventing.
+     * System prompt for the OCG sub-agent. {@link #TODAY_EXPRESSION} is
+     * substituted by Conductor when the LLM task is scheduled, so any
+     * "recent" / relative-date query gets bounded against the real current
+     * date instead of whatever year the model felt like inventing.
      */
-    static final String OCG_SYSTEM_PROMPT = "Today's date is " + TODAY_PLACEHOLDER + " (UTC). When a user asks for\n"
+    static final String OCG_SYSTEM_PROMPT = "Today's date is " + TODAY_EXPRESSION + " (UTC). When a user asks for\n"
             + "\"recent\" / \"last week\" / any relative range, anchor on this date.\n"
             + "Never invent a date range — if no range is implied by the user, omit\n"
             + "start_time/end_time from the request.\n\n"
@@ -109,13 +111,11 @@ public final class OcgAgentFactory {
                             + "Set OCG_MODEL (or -Dagentspan.ocg.model=…) to the LLM the OCG sub-agent "
                             + "should use, e.g. OCG_MODEL=openai/gpt-4o-mini.");
         }
-        String prompt = OCG_SYSTEM_PROMPT.replace(
-                TODAY_PLACEHOLDER, LocalDate.now(ZoneOffset.UTC).toString());
         return AgentConfig.builder()
                 .name(AGENT_NAME)
                 .description("Retrieval sub-agent over the Open Context Graph (OCG).")
                 .model(props.getModel())
-                .instructions(prompt)
+                .instructions(OCG_SYSTEM_PROMPT)
                 .tools(buildTools())
                 .maxTurns(10)
                 .build();

@@ -40,12 +40,17 @@ class EnrichToolsScriptTest {
         graalCtx.close();
     }
 
-    @SuppressWarnings("unchecked")
     private List<Map<String, Object>> enrich(String knownNamesJson, String toolCallsJson) throws Exception {
         // All optional config maps are empty so every name falls through to the
         // generic SIMPLE-or-unknown branch. That's the path the harness uses.
+        return enrichWithAgentTools("{}", knownNamesJson, toolCallsJson);
+    }
+
+    @SuppressWarnings("unchecked")
+    private List<Map<String, Object>> enrichWithAgentTools(
+            String agentToolJson, String knownNamesJson, String toolCallsJson) throws Exception {
         String script = JavaScriptBuilder.enrichToolsScript(
-                "{}", "{}", "{}", "{}", "{}", "{}", "{}", "{}", "{}", knownNamesJson);
+                "{}", "{}", "{}", agentToolJson, "{}", "{}", "{}", "{}", "{}", knownNamesJson);
         // Wrap so the script's IIFE return is captured AND we get a JSON string
         // back — Graal's Value.toString() is JS source, not JSON.
         String wrapped = "var $ = {"
@@ -160,6 +165,29 @@ class EnrichToolsScriptTest {
         assertThat(tasks).hasSize(1);
         assertThat(tasks.get(0).get("type")).isEqualTo("SIMPLE");
         assertThat(tasks.get(0).get("name")).isEqualTo("contextbook_read");
+    }
+
+    @Test
+    void agentToolDispatchInjectsTodayDateInput() throws Exception {
+        // Sub-agents whose prompts anchor relative dates ("recent", "last
+        // week") reference ${workflow.input.__today__}. The dispatch script
+        // runs per execution, so the date it injects is the actual current
+        // date — unlike anything computed at compile/boot time, which
+        // drifts on a long-running server.
+        String agentTools = "{\"helper_agent\": {\"workflowName\": \"_helper_agent\"}}";
+        String known = "{\"helper_agent\": true}";
+        String toolCalls = "[{\"name\": \"helper_agent\", \"taskReferenceName\": \"c1\","
+                + " \"inputParameters\": {\"request\": \"find recent alerts\"}}]";
+
+        List<Map<String, Object>> tasks = enrichWithAgentTools(agentTools, known, toolCalls);
+        assertThat(tasks).hasSize(1);
+        Map<String, Object> t = tasks.get(0);
+        assertThat(t.get("type")).isEqualTo("SUB_WORKFLOW");
+        @SuppressWarnings("unchecked")
+        Map<String, Object> ip = (Map<String, Object>) t.get("inputParameters");
+        assertThat((String) ip.get("__today__"))
+                .as("dispatch must inject today's UTC date as __today__ sub-workflow input")
+                .matches("\\d{4}-\\d{2}-\\d{2}");
     }
 
     @Test

@@ -8,8 +8,6 @@ package dev.agentspan.runtime.ocg;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import java.time.LocalDate;
-import java.time.ZoneOffset;
 import java.util.List;
 
 import org.junit.jupiter.api.Test;
@@ -75,13 +73,16 @@ class OcgAgentFactoryTest {
     }
 
     @Test
-    void systemPromptHasTodayUtcDateSubstituted() {
-        // The {{TODAY}} placeholder is the anchor for "recent" / "last week"
-        // style queries. If a refactor silently drops the .replace() call, the
-        // LLM gets a literal "{{TODAY}}" and starts inventing dates again —
-        // exactly the failure mode the placeholder was added to prevent.
+    void systemPromptReferencesRuntimeDateInput() {
+        // The date anchor for "recent" / "last week" style queries must be a
+        // Conductor expression resolved per execution from the __today__
+        // sub-workflow input (supplied by the agent_tool dispatch script) —
+        // NOT a date baked in at boot, which drifts on a long-running server
+        // until the prompt claims yesterday (or last month) is "today".
         String prompt = OcgAgentFactory.build(props()).getInstructions().toString();
-        assertThat(prompt).contains(LocalDate.now(ZoneOffset.UTC).toString());
+        // "Today's date is <expression>" — anything else (a literal date, a
+        // leftover placeholder) means the anchor is frozen at boot time.
+        assertThat(prompt).contains("Today's date is ${workflow.input.__today__}");
         assertThat(prompt).doesNotContain("{{TODAY}}");
     }
 

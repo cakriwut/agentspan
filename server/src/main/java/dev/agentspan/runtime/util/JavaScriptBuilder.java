@@ -614,7 +614,12 @@ public class JavaScriptBuilder {
                 + "      if (!_req) _req = JSON.stringify(_p);"
                 + "      t.inputParameters = {"
                 + "        prompt: _req,"
-                + "        session_id: $.session_id || ''};"
+                + "        session_id: $.session_id || '',"
+                // Current UTC date, evaluated when this dispatch script runs —
+                // sub-agent prompts reference ${workflow.input.__today__} to
+                // anchor relative-date queries without drifting from a date
+                // computed at compile/boot time.
+                + "        __today__: new Date().toISOString().slice(0, 10)};"
                 + "      if ($.agentspanCtx) { t.inputParameters.__agentspan_ctx__ = $.agentspanCtx; }"
                 + "      if (agentToolCfg[n].retryCount !== undefined) t.retryCount = agentToolCfg[n].retryCount;"
                 + "      if (agentToolCfg[n].retryDelaySeconds !== undefined) t.retryDelaySeconds = agentToolCfg[n].retryDelaySeconds;"
@@ -1244,7 +1249,12 @@ public class JavaScriptBuilder {
                 + "      if (!_req) _req = JSON.stringify(_p);"
                 + "      t.inputParameters = {"
                 + "        prompt: _req,"
-                + "        session_id: $.session_id || ''};"
+                + "        session_id: $.session_id || '',"
+                // Current UTC date, evaluated when this dispatch script runs —
+                // sub-agent prompts reference ${workflow.input.__today__} to
+                // anchor relative-date queries without drifting from a date
+                // computed at compile/boot time.
+                + "        __today__: new Date().toISOString().slice(0, 10)};"
                 + "      if ($.agentspanCtx) { t.inputParameters.__agentspan_ctx__ = $.agentspanCtx; }"
                 + "      if (agentToolCfg[n].retryCount !== undefined) t.retryCount = agentToolCfg[n].retryCount;"
                 + "      if (agentToolCfg[n].retryDelaySeconds !== undefined) t.retryDelaySeconds = agentToolCfg[n].retryDelaySeconds;"
