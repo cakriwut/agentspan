@@ -17,7 +17,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.netflix.conductor.common.metadata.workflow.SubWorkflowParams;
 import com.netflix.conductor.common.metadata.workflow.WorkflowDef;
 import com.netflix.conductor.common.metadata.workflow.WorkflowTask;
-import com.netflix.conductor.dao.MetadataDAO;
 
 import dev.agentspan.runtime.model.*;
 import dev.agentspan.runtime.util.JavaScriptBuilder;
@@ -41,50 +40,31 @@ public class AgentCompiler {
             "message", "${workflow.input.prompt}",
             "media", "${workflow.input.media}");
 
-    /**
-     * Metadata key on a {@link WorkflowDef} that marks the workflow as one
-     * that should be silently appended to every top-level agent's tool list
-     * at compile time. Re-exported from {@link AutoExposedToolsMerger} so
-     * callers (registrar, tests) that previously imported it from this class
-     * keep compiling without churn.
-     */
-    public static final String AUTO_EXPOSE_AS_TOOL_METADATA_KEY =
-            AutoExposedToolsMerger.AUTO_EXPOSE_AS_TOOL_METADATA_KEY;
-
     private int timeoutSeconds = 0;
     private int llmRetryCount = 3;
     private int contextMaxSizeBytes = 32768;
     private int contextMaxValueSizeBytes = 4096;
 
     /**
-     * Owns the DAO scan, cache, and per-config merge of auto-exposed
-     * server-registered agents. Pulled out so {@code AgentCompiler} stays
-     * focused on workflow compilation and the merge lifecycle (cache, DAO
-     * failure handling, self-recursion guard) lives in one place.
+     * Owns the per-config merge of auto-exposed server-registered agents.
+     * Pulled out so {@code AgentCompiler} stays focused on workflow
+     * compilation; the merger sources its entries from the
+     * {@code RegisteredAgent} bean list at construction.
      */
     private final AutoExposedToolsMerger autoExposedMerger;
 
     /**
-     * Default no-arg constructor for tests that don't need a {@link MetadataDAO}.
-     * The auto-expose merge becomes a no-op.
+     * Default no-arg constructor for tests that don't need the auto-expose
+     * merge — it becomes a no-op.
      */
     public AgentCompiler() {
         this(AutoExposedToolsMerger.disabled());
     }
 
     /**
-     * Convenience constructor for tests that want to exercise the merge
-     * against a stubbed {@link MetadataDAO} without wiring up an
-     * {@link AutoExposedToolsMerger} explicitly.
-     */
-    public AgentCompiler(MetadataDAO metadataDAO) {
-        this(new AutoExposedToolsMerger(metadataDAO));
-    }
-
-    /**
      * Spring-injected constructor. The merger is itself a {@code @Component}
-     * that takes an optional {@link MetadataDAO}, so this is the path the
-     * runtime uses.
+     * built from the {@code RegisteredAgent} bean list, so this is the path
+     * the runtime uses.
      */
     @Autowired
     public AgentCompiler(AutoExposedToolsMerger autoExposedMerger) {
@@ -139,29 +119,20 @@ public class AgentCompiler {
      * Public entry point: compile a top-level {@link AgentConfig} into a
      * {@link WorkflowDef}.
      *
-     * <p>Before strategy dispatch, any workflow registered in the metadata
-     * store with the {@link #AUTO_EXPOSE_AS_TOOL_METADATA_KEY} flag is
-     * silently appended to {@code config.tools} as an {@code agent_tool}.
-     * That's how the OCG sub-agent (and any future server-side sub-agent)
-     * becomes LLM-visible without per-feature injection code.</p>
+     * <p>Before strategy dispatch, every auto-exposed
+     * {@code RegisteredAgent} is silently appended to {@code config.tools}
+     * as an {@code agent_tool}. That's how the OCG sub-agent (and any
+     * future server-side sub-agent) becomes LLM-visible without
+     * per-feature injection code.</p>
      *
      * <p>Internal recursion (nested sub-agents, graph-structure sub-compiles,
      * MultiAgentCompiler swarm) must go through {@link #compileWithoutAutoExpose}
      * instead so a specialist sub-agent isn't polluted with an unrelated
-     * retrieval tool and the DAO isn't queried for every level of the tree.</p>
+     * retrieval tool.</p>
      */
     public WorkflowDef compile(AgentConfig config) {
         autoExposedMerger.merge(config);
         return compileWithoutAutoExpose(config);
-    }
-
-    /**
-     * Thin delegate so existing tests calling {@code compiler.mergeAutoExposedTools(config)}
-     * continue to compile. New code should go through the injected
-     * {@link AutoExposedToolsMerger} directly.
-     */
-    void mergeAutoExposedTools(AgentConfig config) {
-        autoExposedMerger.merge(config);
     }
 
     /**
@@ -174,14 +145,8 @@ public class AgentCompiler {
      *       compile, {@code MultiAgentCompiler}) — nested specialist agents
      *       must not inherit unrelated server-side tools.</li>
      *   <li>{@link dev.agentspan.runtime.registry.RegisteredAgentRegistrar}
-     *       at {@code @PostConstruct} time — registered server agents don't
-     *       need other registered agents auto-exposed to them, AND skipping
-     *       the merge here is what keeps the merger's lazy cache from
-     *       snapshotting an empty list during the bootstrap loop. Letting
-     *       the registrar trigger the merge before its own
-     *       {@code dao.updateWorkflowDef} write would freeze the cache to
-     *       an empty result for the life of the bean, silently hiding every
-     *       server-registered agent from subsequent user compiles.</li>
+     *       at {@code @PostConstruct} time — registered server agents
+     *       shouldn't have other registered agents auto-exposed to them.</li>
      * </ul>
      */
     public WorkflowDef compileWithoutAutoExpose(AgentConfig config) {

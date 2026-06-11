@@ -15,10 +15,12 @@ import dev.agentspan.runtime.model.AgentConfig;
  * {@code WorkflowDef}, and persisted to Conductor's metadata store. Adding
  * a new server-side sub-agent is therefore a one-bean change — no
  * per-feature {@code @PostConstruct}, no manual {@code MetadataDAO}
- * write, no duplication of the compile/stamp ceremony.</p>
+ * write, no duplication of the compile/persist ceremony.</p>
  *
  * <p>Implementations should be stateless or read configuration via Spring
- * injection. {@link #agentConfig()} is invoked exactly once at startup.</p>
+ * injection. {@link #agentConfig()} must be pure — it is invoked at
+ * startup by both the registrar (to compile and persist) and
+ * {@code AutoExposedToolsMerger} (to read the workflow name).</p>
  */
 public interface RegisteredAgent {
 
@@ -30,11 +32,11 @@ public interface RegisteredAgent {
     AgentConfig agentConfig();
 
     /**
-     * When non-null, the registrar stamps an auto-expose marker on the
-     * compiled {@code WorkflowDef} so {@code AgentCompiler.mergeAutoExposedTools}
-     * appends this agent as an {@code agent_tool} on every top-level
-     * user-agent compile. Return {@code null} to register the workflow
-     * without exposing it as a tool.
+     * When non-null, {@code AutoExposedToolsMerger} reads this spec
+     * directly from the bean and appends the agent as an
+     * {@code agent_tool} on every top-level user-agent compile. Return
+     * {@code null} to register the workflow without exposing it as a
+     * tool.
      */
     default ExposeAsTool autoExpose() {
         return null;

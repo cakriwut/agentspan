@@ -5,9 +5,7 @@
 
 package dev.agentspan.runtime.registry;
 
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
 
 import jakarta.annotation.PostConstruct;
 
@@ -26,13 +24,17 @@ import dev.agentspan.runtime.registry.RegisteredAgent.ExposeAsTool;
 
 /**
  * Generic registrar that drives every {@link RegisteredAgent} bean through
- * the same compile → (optional auto-expose stamp) → persist pipeline on
- * server startup.
+ * the same compile → persist pipeline on server startup.
  *
  * <p>Replaces feature-specific {@code @PostConstruct registerWorkflow()}
  * methods that previously coupled OCG (and future sub-agents) to the
  * mechanics of metadata-store writes. Adding a new server-side sub-agent
  * now only requires declaring a {@code @Bean RegisteredAgent}.</p>
+ *
+ * <p>LLM visibility is not this class's job: {@code AutoExposedToolsMerger}
+ * reads {@link RegisteredAgent#autoExpose()} straight from the bean list,
+ * so the persisted {@link WorkflowDef} only needs to exist for
+ * SUB_WORKFLOW dispatch to resolve it by name at runtime.</p>
  */
 @Component
 @DependsOn("registeredTaskDefsRegistrar")
@@ -66,32 +68,15 @@ public class RegisteredAgentRegistrar {
 
     private void register(RegisteredAgent agent) {
         AgentConfig config = agent.agentConfig();
-        // ``compileWithoutAutoExpose`` (not ``compile``) for two reasons:
-        //   1. Registered agents shouldn't have other registered agents
-        //      auto-injected into them as tools.
-        //   2. The merger's lazy cache must not be triggered here — the
-        //      registered defs aren't in the DAO yet at this point, so the
-        //      first read would snapshot an empty list and freeze it for the
-        //      bean's lifetime, silently hiding every registered agent from
-        //      subsequent user compiles.
+        // ``compileWithoutAutoExpose`` (not ``compile``) — registered agents
+        // shouldn't have other registered agents auto-injected into them as
+        // tools.
         WorkflowDef def = agentCompiler.compileWithoutAutoExpose(config);
-        ExposeAsTool expose = agent.autoExpose();
-        if (expose != null) {
-            stampAutoExpose(def, expose);
-        }
         metadataDAO.updateWorkflowDef(def);
+        ExposeAsTool expose = agent.autoExpose();
         log.info(
                 "Registered agent: workflow='{}'{}",
                 def.getName(),
                 expose != null ? " autoExposeAs='" + expose.toolName() + "'" : "");
-    }
-
-    private static void stampAutoExpose(WorkflowDef def, ExposeAsTool expose) {
-        Map<String, Object> metadata =
-                def.getMetadata() != null ? new LinkedHashMap<>(def.getMetadata()) : new LinkedHashMap<>();
-        metadata.put(
-                AgentCompiler.AUTO_EXPOSE_AS_TOOL_METADATA_KEY,
-                Map.of("name", expose.toolName(), "description", expose.toolDescription()));
-        def.setMetadata(metadata);
     }
 }

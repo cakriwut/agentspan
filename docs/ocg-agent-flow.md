@@ -94,7 +94,7 @@ state.
 ```mermaid
 flowchart TB
     subgraph L4["Layer 4 — Generic auto-expose (OCG-agnostic)"]
-        AC["AgentCompiler<br/>.mergeAutoExposedTools<br/>.AUTO_EXPOSE_AS_TOOL_METADATA_KEY"]
+        AC["AgentCompiler +<br/>AutoExposedToolsMerger<br/>(reads RegisteredAgent beans)"]
         RAR["RegisteredAgentRegistrar<br/>(picks up RegisteredAgent beans)"]
         RTR["RegisteredTaskDefsRegistrar<br/>(picks up RegisteredTaskDefs beans)"]
     end
@@ -152,22 +152,27 @@ sequenceDiagram
     deactivate TDR
 
     SB->>+AR: @PostConstruct
-    AR->>+OcgBeans: agentConfig() + autoExpose()
-    OcgBeans-->>-AR: AgentConfig("_ocg_agent") +<br/>ExposeAsTool("ocg_agent", "Delegate to…")
-    AR->>+AC: compile(AgentConfig)
+    AR->>+OcgBeans: agentConfig()
+    OcgBeans-->>-AR: AgentConfig("_ocg_agent")
+    AR->>+AC: compileWithoutAutoExpose(AgentConfig)
     AC-->>-AR: WorkflowDef "_ocg_agent"
-    AR->>AR: stamp def.metadata[autoExposeAsTool]<br/>= {name, description}
     AR->>+DAO: updateWorkflowDef
     DAO-->>-AR: ok
     deactivate AR
-    Note over DAO: _ocg_agent is now dispatchable<br/>AND auto-exposed to every<br/>top-level user agent
+    Note over DAO: _ocg_agent is now dispatchable<br/>by name at runtime
 ```
 
 The registrars know nothing about OCG. They iterate `List<RegisteredAgent>`
 and `List<RegisteredTaskDefs>` provided by Spring, run each through a
-fixed pipeline (compile + stamp + persist for agents; persist for
-TaskDefs), and call it a day. OCG just happens to be the one feature
-providing those beans today.
+fixed pipeline (compile + persist for agents; persist for TaskDefs), and
+call it a day. OCG just happens to be the one feature providing those
+beans today.
+
+LLM visibility is handled separately: `AutoExposedToolsMerger` reads
+`autoExpose()` straight from the same `RegisteredAgent` bean list at
+construction, so user compiles see `ocg_agent` regardless of when these
+DAO writes happen — there is no startup-ordering dependency between
+registration and visibility.
 
 ---
 
@@ -185,13 +190,10 @@ sequenceDiagram
     AS->>AS: resolveConfig() — normalize framework
     AS->>+AC: compile(config)
 
-    Note over AC: mergeAutoExposedTools(config)
-    AC->>+DAO: getAllWorkflowDefsLatestVersions()
-    DAO-->>-AC: every WorkflowDef in the store
-    loop for each def
-        AC->>AC: readAutoExposeSpec(def)<br/>(returns null unless flagged)
-        alt has marker, name != config.name, not duplicate
-            AC->>AC: append ToolConfig{<br/>  name: spec.name<br/>  toolType: "agent_tool"<br/>  config.workflowName: def.name<br/>}
+    Note over AC: AutoExposedToolsMerger.merge(config)<br/>entries fixed at construction from<br/>the RegisteredAgent bean list — no DAO read
+    loop for each auto-exposed RegisteredAgent
+        alt name != config.name, not duplicate
+            AC->>AC: append ToolConfig{<br/>  name: expose.toolName<br/>  toolType: "agent_tool"<br/>  config.workflowName: agent workflow name<br/>}
         end
     end
 
@@ -206,11 +208,11 @@ sequenceDiagram
 
 Guards inside the merger:
 
-| Guard            | Why                                                                |
-| ---------------- | ------------------------------------------------------------------ |
-| No `MetadataDAO` | Unit tests using `new AgentCompiler()` should still work          |
-| Self-recursion   | Re-compiling `_ocg_agent` itself won't inject itself as a tool    |
-| Duplicate name   | A caller's explicit declaration wins                              |
+| Guard                      | Why                                                                |
+| -------------------------- | ------------------------------------------------------------------ |
+| No `RegisteredAgent` beans | Unit tests using `new AgentCompiler()` should still work          |
+| Self-recursion             | Re-compiling `_ocg_agent` itself won't inject itself as a tool    |
+| Duplicate name             | A caller's explicit declaration wins                              |
 
 ---
 
