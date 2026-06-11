@@ -87,6 +87,21 @@ class OcgAgentFactoryTest {
     }
 
     @Test
+    void systemPromptTellsModelToOmitEndTimeForOpenEndedRanges() {
+        // Observed failure: asked to "catch me up on the current state", the
+        // model set end_time to a month boundary BEFORE today (2026-06-01
+        // with today = 2026-06-11), silently dropping the most recent days.
+        // The prompt must instruct: a range that extends to the present has
+        // NO end_time. And it must not contain literal example dates — a
+        // hardcoded month-shaped window is exactly what the model imitated.
+        String prompt = OcgAgentFactory.build(props()).getInstructions().toString();
+        assertThat(prompt).containsIgnoringCase("omit end_time");
+        assertThat(prompt)
+                .as("no hardcoded yyyy-MM-dd example dates for the model to anchor on")
+                .doesNotContainPattern("\\d{4}-\\d{2}-\\d{2}");
+    }
+
+    @Test
     void buildFailsFastWhenModelIsBlank() {
         OcgProperties noModel = new OcgProperties();
         noModel.setUrl("http://ocg.local");
