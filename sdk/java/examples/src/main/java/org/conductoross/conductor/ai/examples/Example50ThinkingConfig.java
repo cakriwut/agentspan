@@ -4,7 +4,7 @@
 package org.conductoross.conductor.ai.examples;
 
 import org.conductoross.conductor.ai.Agent;
-import org.conductoross.conductor.ai.Agentspan;
+import org.conductoross.conductor.ai.AgentRuntime;
 import org.conductoross.conductor.ai.annotations.Tool;
 import org.conductoross.conductor.ai.internal.ToolRegistry;
 import org.conductoross.conductor.ai.model.AgentResult;
@@ -41,6 +41,7 @@ public class Example50ThinkingConfig {
     }
 
     public static void main(String[] args) {
+        AgentRuntime runtime = new AgentRuntime();
         List<ToolDef> tools = ToolRegistry.fromInstance(new MathTools());
 
         Agent agent = Agent.builder()
@@ -53,11 +54,11 @@ public class Example50ThinkingConfig {
             .thinkingBudgetTokens(2048)
             .build();
 
-        AgentResult result = Agentspan.run(agent,
+        AgentResult result = runtime.run(agent,
             "If a train travels 120 km in 2 hours, then speeds up by 50% for "
             + "the next 3 hours, what is the total distance traveled?");
         result.printResult();
 
-        Agentspan.shutdown();
+        runtime.shutdown();
     }
 }

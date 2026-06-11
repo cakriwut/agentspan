@@ -4,7 +4,7 @@
 package org.conductoross.conductor.ai.examples;
 
 import org.conductoross.conductor.ai.Agent;
-import org.conductoross.conductor.ai.Agentspan;
+import org.conductoross.conductor.ai.AgentRuntime;
 import org.conductoross.conductor.ai.annotations.Tool;
 import org.conductoross.conductor.ai.internal.ToolRegistry;
 import org.conductoross.conductor.ai.model.AgentResult;
@@ -53,6 +53,7 @@ public class Example48Planner {
     }
 
     public static void main(String[] args) {
+        AgentRuntime runtime = new AgentRuntime();
         List<ToolDef> tools = ToolRegistry.fromInstance(new ResearchTools());
 
         Agent agent = Agent.builder()
@@ -65,10 +66,10 @@ public class Example48Planner {
             .enablePlanning(true)
             .build();
 
-        AgentResult result = Agentspan.run(agent,
+        AgentResult result = runtime.run(agent,
             "Write a brief report on renewable energy and climate change solutions.");
         result.printResult();
 
-        Agentspan.shutdown();
+        runtime.shutdown();
     }
 }

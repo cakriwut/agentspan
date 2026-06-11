@@ -4,7 +4,7 @@
 package org.conductoross.conductor.ai.examples;
 
 import org.conductoross.conductor.ai.Agent;
-import org.conductoross.conductor.ai.Agentspan;
+import org.conductoross.conductor.ai.AgentRuntime;
 import org.conductoross.conductor.ai.annotations.Tool;
 import org.conductoross.conductor.ai.enums.Strategy;
 import org.conductoross.conductor.ai.internal.ToolRegistry;
@@ -173,6 +173,7 @@ public class Example38TechTrends {
 
     @SuppressWarnings("unchecked")
     public static void main(String[] args) {
+        AgentRuntime runtime = new AgentRuntime();
         List<ToolDef> rawResearcherTools = ToolRegistry.fromInstance(new ResearcherTools());
         List<ToolDef> rawAnalystTools = ToolRegistry.fromInstance(new AnalystTools());
 
@@ -246,10 +247,10 @@ public class Example38TechTrends {
             .strategy(Strategy.SEQUENTIAL)
             .build();
 
-        AgentResult result = Agentspan.run(pipeline,
+        AgentResult result = runtime.run(pipeline,
             "Compare Python and Rust: which has stronger developer mindshare?");
         result.printResult();
 
-        Agentspan.shutdown();
+        runtime.shutdown();
     }
 }

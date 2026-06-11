@@ -1619,10 +1619,10 @@ const reviewAgent = new Agent({
 
 ### Stage 5: Editorial Approval
 
-**Python features:** `approval_required`, `human_tool`, `UserProxyAgent`, `Strategy.HANDOFF`, HITL interactions
+**Python features:** `approval_required`, `human_tool`, `Strategy.HANDOFF`, HITL interactions
 
 ```typescript
-import { tool, humanTool, UserProxyAgent, Agent } from "agentspan";
+import { tool, humanTool, Agent } from "agentspan";
 
 const publishArticle = tool(
   async (args: { title: string; content: string; platform: string }) => ({
@@ -1637,18 +1637,10 @@ const editorialQuestion = humanTool({
   inputSchema: { type: "object", properties: { question: { type: "string" } }, required: ["question"] },
 });
 
-const editorialReviewer = new UserProxyAgent({
-  name: "editorial_reviewer",
-  model: LLM_MODEL,
-  instructions: "You are the editorial reviewer.",
-  humanInputMode: "TERMINATE",
-});
-
 const editorialAgent = new Agent({
   name: "editorial_approval",
   model: LLM_MODEL,
   tools: [publishArticle, editorialQuestion],
-  agents: [editorialReviewer],
   strategy: "handoff",
 });
 ```

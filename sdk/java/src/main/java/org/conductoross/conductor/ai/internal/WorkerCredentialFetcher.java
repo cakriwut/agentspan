@@ -31,7 +31,7 @@ import com.netflix.conductor.client.http.ConductorClientRequest.Method;
  * <p>Java is tier-1-only per {@code docs/design/secret-injection-contract.md} §6
  * rule 1: {@code System.getenv()} is immutable at runtime. The fetcher returns
  * values to the caller, who passes them to tool handlers via
- * {@link org.conductoross.conductor.ai.Credentials}.
+ * {@code ToolContext#getCredential}.
  *
  * <p>Error contract — every failure mode produces a typed exception. Conductor's
  * {@link ConductorClientException} (raised on non-2xx) is mapped by HTTP status.

@@ -6,7 +6,7 @@ package org.conductoross.conductor.ai.examples.openai;
 import org.conductoross.conductor.ai.examples.Settings;
 
 import org.conductoross.conductor.ai.Agent;
-import org.conductoross.conductor.ai.Agentspan;
+import org.conductoross.conductor.ai.AgentRuntime;
 import org.conductoross.conductor.ai.annotations.Tool;
 import org.conductoross.conductor.ai.frameworks.OpenAIAgent;
 import org.conductoross.conductor.ai.model.AgentResult;
@@ -86,6 +86,7 @@ public class Example09DynamicInstructions {
     }
 
     public static void main(String[] args) {
+        AgentRuntime runtime = new AgentRuntime();
         Agent agent = OpenAIAgent.builder()
                 .name("personal_assistant")
                 .instructions(getDynamicInstructions())
@@ -93,11 +94,11 @@ public class Example09DynamicInstructions {
                 .tools(new TodoTools())
                 .build();
 
-        AgentResult result = Agentspan.run(
+        AgentResult result = runtime.run(
                 agent,
                 "Show me my todo list and add 'Prepare demo for Friday' as high priority.");
         result.printResult();
 
-        Agentspan.shutdown();
+        runtime.shutdown();
     }
 }

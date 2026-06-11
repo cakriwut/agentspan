@@ -4,7 +4,7 @@
 package org.conductoross.conductor.ai.examples;
 
 import org.conductoross.conductor.ai.Agent;
-import org.conductoross.conductor.ai.Agentspan;
+import org.conductoross.conductor.ai.AgentRuntime;
 import org.conductoross.conductor.ai.enums.Strategy;
 import org.conductoross.conductor.ai.model.AgentResult;
 
@@ -17,6 +17,7 @@ import org.conductoross.conductor.ai.model.AgentResult;
 public class Example07ParallelAgents {
 
     public static void main(String[] args) {
+        AgentRuntime runtime = new AgentRuntime();
         // Analysts running in parallel
         Agent technicalAnalyst = Agent.builder()
             .name("technical_analyst")
@@ -53,10 +54,10 @@ public class Example07ParallelAgents {
             .strategy(Strategy.PARALLEL)
             .build();
 
-        AgentResult result = Agentspan.run(analysisTeam,
+        AgentResult result = runtime.run(analysisTeam,
             "Analyze the adoption of AI in healthcare for patient diagnosis");
         result.printResult();
 
-        Agentspan.shutdown();
+        runtime.shutdown();
     }
 }

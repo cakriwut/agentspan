@@ -5,7 +5,7 @@ package org.conductoross.conductor.ai.examples.adk;
 
 import org.conductoross.conductor.ai.examples.Settings;
 
-import org.conductoross.conductor.ai.Agentspan;
+import org.conductoross.conductor.ai.AgentRuntime;
 import org.conductoross.conductor.ai.model.AgentResult;
 
 import com.google.adk.agents.LlmAgent;
@@ -102,6 +102,7 @@ public class Example21AgentTool {
     }
 
     public static void main(String[] args) {
+        AgentRuntime runtime = new AgentRuntime();
         LlmAgent researcher = LlmAgent.builder()
             .name("researcher")
             .description("Looks up factual information from the internal knowledge base.")
@@ -135,11 +136,11 @@ public class Example21AgentTool {
             .tools(AgentTool.create(researcher), AgentTool.create(calculator))
             .build();
 
-        AgentResult result = Agentspan.run(manager,
+        AgentResult result = runtime.run(manager,
             "Look up information about Python and Rust, then calculate "
             + "what percentage of Python's 4 key use cases overlap with Rust's 4 use cases.");
         result.printResult();
 
-        Agentspan.shutdown();
+        runtime.shutdown();
     }
 }

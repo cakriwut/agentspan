@@ -4,7 +4,7 @@
 package org.conductoross.conductor.ai.examples;
 
 import org.conductoross.conductor.ai.Agent;
-import org.conductoross.conductor.ai.Agentspan;
+import org.conductoross.conductor.ai.AgentRuntime;
 import org.conductoross.conductor.ai.enums.Strategy;
 import org.conductoross.conductor.ai.model.AgentResult;
 
@@ -26,6 +26,7 @@ import org.conductoross.conductor.ai.model.AgentResult;
 public class Example66HandoffToParallel {
 
     public static void main(String[] args) {
+        AgentRuntime runtime = new AgentRuntime();
         // ── Quick check (single agent) ─────────────────────────────────────
 
         Agent quickCheck = Agent.builder()
@@ -72,15 +73,15 @@ public class Example66HandoffToParallel {
             .build();
 
         System.out.println("=== Scenario 1: Deep analysis (handoff → parallel group) ===");
-        AgentResult r1 = Agentspan.run(coordinator,
+        AgentResult r1 = runtime.run(coordinator,
             "Provide a deep analysis of entering the AI healthcare market.");
         r1.printResult();
 
         System.out.println("\n=== Scenario 2: Quick check (handoff → single agent) ===");
-        AgentResult r2 = Agentspan.run(coordinator,
+        AgentResult r2 = runtime.run(coordinator,
             "Is the mobile app market still growing?");
         r2.printResult();
 
-        Agentspan.shutdown();
+        runtime.shutdown();
     }
 }

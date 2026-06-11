@@ -4,7 +4,7 @@
 package org.conductoross.conductor.ai.examples;
 
 import org.conductoross.conductor.ai.Agent;
-import org.conductoross.conductor.ai.Agentspan;
+import org.conductoross.conductor.ai.AgentRuntime;
 import org.conductoross.conductor.ai.annotations.Tool;
 import org.conductoross.conductor.ai.internal.ToolRegistry;
 import org.conductoross.conductor.ai.model.AgentResult;
@@ -48,6 +48,7 @@ public class Example47Callbacks {
     }
 
     public static void main(String[] args) {
+        AgentRuntime runtime = new AgentRuntime();
         List<ToolDef> tools = ToolRegistry.fromInstance(new FactTools());
 
         Agent agent = Agent.builder()
@@ -69,10 +70,10 @@ public class Example47Callbacks {
             })
             .build();
 
-        AgentResult agentResult = Agentspan.run(agent,
+        AgentResult agentResult = runtime.run(agent,
             "Tell me interesting facts about AI and space.");
         agentResult.printResult();
 
-        Agentspan.shutdown();
+        runtime.shutdown();
     }
 }

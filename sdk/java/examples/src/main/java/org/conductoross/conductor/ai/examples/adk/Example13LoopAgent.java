@@ -5,7 +5,7 @@ package org.conductoross.conductor.ai.examples.adk;
 
 import org.conductoross.conductor.ai.examples.Settings;
 
-import org.conductoross.conductor.ai.Agentspan;
+import org.conductoross.conductor.ai.AgentRuntime;
 import org.conductoross.conductor.ai.model.AgentResult;
 
 import com.google.adk.agents.LlmAgent;
@@ -24,6 +24,7 @@ import com.google.adk.agents.LoopAgent;
 public class Example13LoopAgent {
 
     public static void main(String[] args) {
+        AgentRuntime runtime = new AgentRuntime();
         // Writer drafts content
         LlmAgent writer = LlmAgent.builder()
             .name("draft_writer")
@@ -57,10 +58,10 @@ public class Example13LoopAgent {
             .subAgents(writer, critic)
             .build();
 
-        AgentResult result = Agentspan.run(refinementLoop, "Write a haiku about autumn leaves");
+        AgentResult result = runtime.run(refinementLoop, "Write a haiku about autumn leaves");
         System.out.println("Status: " + result.getStatus());
         result.printResult();
 
-        Agentspan.shutdown();
+        runtime.shutdown();
     }
 }

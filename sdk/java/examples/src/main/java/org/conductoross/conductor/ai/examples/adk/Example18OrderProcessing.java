@@ -5,7 +5,7 @@ package org.conductoross.conductor.ai.examples.adk;
 
 import org.conductoross.conductor.ai.examples.Settings;
 
-import org.conductoross.conductor.ai.Agentspan;
+import org.conductoross.conductor.ai.AgentRuntime;
 import org.conductoross.conductor.ai.model.AgentResult;
 
 import com.google.adk.agents.LlmAgent;
@@ -133,6 +133,7 @@ public class Example18OrderProcessing {
     }
 
     public static void main(String[] args) {
+        AgentRuntime runtime = new AgentRuntime();
         LlmAgent orderProcessor = LlmAgent.builder()
             .name("order_processor")
             .description("End-to-end TechMart order processor: search, stock check, totals, and order placement.")
@@ -149,12 +150,12 @@ public class Example18OrderProcessing {
                 FunctionTool.create(Example18OrderProcessing.class, "placeOrder"))
             .build();
 
-        AgentResult result = Agentspan.run(orderProcessor,
+        AgentResult result = runtime.run(orderProcessor,
             "I need a laptop for work. Show me what's available, check stock for your recommendation, "
             + "and calculate the total with express shipping.");
         System.out.println("Status: " + result.getStatus());
         result.printResult();
 
-        Agentspan.shutdown();
+        runtime.shutdown();
     }
 }

@@ -3,7 +3,7 @@
 
 package org.conductoross.conductor.ai.examples.langchain;
 
-import org.conductoross.conductor.ai.Agentspan;
+import org.conductoross.conductor.ai.AgentRuntime;
 import org.conductoross.conductor.ai.model.AgentResult;
 
 import dev.langchain4j.agent.tool.P;
@@ -167,6 +167,7 @@ public class Example02ReactWithTools {
     }
 
     public static void main(String[] args) {
+        AgentRuntime runtime = new AgentRuntime();
         // apiKey is required by LangChain4j's builder but unused — Agentspan
         // runs the LLM call on the server with server-registered credentials.
         ChatModel model = OpenAiChatModel.builder()
@@ -177,7 +178,7 @@ public class Example02ReactWithTools {
         // Python's create_agent(llm, tools=[...]) sends no system prompt unless
         // the caller provides one — the drop-in overload defaults to no system
         // prompt, which matches.
-        AgentResult result = Agentspan.run(
+        AgentResult result = runtime.run(
             model,
             "What is sqrt(256)? Also count words in 'the quick brown fox'. What is today's date?",
             new UtilityTools()
@@ -185,6 +186,6 @@ public class Example02ReactWithTools {
         System.out.println("Status: " + result.getStatus());
         result.printResult();
 
-        Agentspan.shutdown();
+        runtime.shutdown();
     }
 }

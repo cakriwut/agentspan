@@ -5,7 +5,7 @@ package org.conductoross.conductor.ai.examples.adk;
 
 import org.conductoross.conductor.ai.examples.Settings;
 
-import org.conductoross.conductor.ai.Agentspan;
+import org.conductoross.conductor.ai.AgentRuntime;
 import org.conductoross.conductor.ai.model.AgentResult;
 
 import com.google.adk.agents.LlmAgent;
@@ -70,6 +70,7 @@ public class Example26SafetyGuardrails {
     }
 
     public static void main(String[] args) {
+        AgentRuntime runtime = new AgentRuntime();
         LlmAgent assistant = LlmAgent.builder()
             .name("helpful_assistant")
             .description("Answers customer service questions with relevant details.")
@@ -108,11 +109,11 @@ public class Example26SafetyGuardrails {
             .subAgents(assistant, safetyChecker)
             .build();
 
-        AgentResult result = Agentspan.run(safePipeline,
+        AgentResult result = runtime.run(safePipeline,
             "What are the contact details for our support team? "
             + "Include email support@company.com and phone 555-123-4567.");
         result.printResult();
 
-        Agentspan.shutdown();
+        runtime.shutdown();
     }
 }

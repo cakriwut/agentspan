@@ -4,7 +4,7 @@
 package org.conductoross.conductor.ai.examples.langchain;
 
 import org.conductoross.conductor.ai.Agent;
-import org.conductoross.conductor.ai.Agentspan;
+import org.conductoross.conductor.ai.AgentRuntime;
 import org.conductoross.conductor.ai.model.AgentResult;
 import org.conductoross.conductor.ai.frameworks.LangChainBridge;
 
@@ -69,6 +69,7 @@ public class Example07MemoryAgent {
     }
 
     public static void main(String[] args) {
+        AgentRuntime runtime = new AgentRuntime();
         String instructions =
             "You are a helpful HR assistant. Remember information from earlier in the conversation.";
 
@@ -90,13 +91,13 @@ public class Example07MemoryAgent {
             .stateful(true)
             .build();
 
-        AgentResult result = Agentspan.run(
+        AgentResult result = runtime.run(
             agent,
             "Look up the profile for alice and tell me about her skills."
         );
         System.out.println("Status: " + result.getStatus());
         result.printResult();
 
-        Agentspan.shutdown();
+        runtime.shutdown();
     }
 }

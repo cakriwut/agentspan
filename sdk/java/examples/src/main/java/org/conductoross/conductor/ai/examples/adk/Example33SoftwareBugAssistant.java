@@ -5,7 +5,7 @@ package org.conductoross.conductor.ai.examples.adk;
 
 import org.conductoross.conductor.ai.examples.Settings;
 
-import org.conductoross.conductor.ai.Agentspan;
+import org.conductoross.conductor.ai.AgentRuntime;
 import org.conductoross.conductor.ai.model.AgentResult;
 
 import com.google.adk.agents.LlmAgent;
@@ -177,6 +177,7 @@ public class Example33SoftwareBugAssistant {
     }
 
     public static void main(String[] args) {
+        AgentRuntime runtime = new AgentRuntime();
         LlmAgent searchAgent = LlmAgent.builder()
             .name("search_agent")
             .description("Technical search assistant for Conductor workflow orchestration issues.")
@@ -217,13 +218,13 @@ public class Example33SoftwareBugAssistant {
                 AgentTool.create(searchAgent))
             .build();
 
-        AgentResult result = Agentspan.run(softwareAssistant,
+        AgentResult result = runtime.run(softwareAssistant,
             "Review the latest open issues and PRs on conductor-oss/conductor. "
             + "Check if any of them relate to our internal tickets. "
             + "Pay attention to the DO_WHILE fix (PR #820) and the scheduler "
             + "persistence PRs. Give me a triage summary.");
         result.printResult();
 
-        Agentspan.shutdown();
+        runtime.shutdown();
     }
 }

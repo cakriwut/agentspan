@@ -5,7 +5,7 @@ package org.conductoross.conductor.ai.examples.adk;
 
 import org.conductoross.conductor.ai.examples.Settings;
 
-import org.conductoross.conductor.ai.Agentspan;
+import org.conductoross.conductor.ai.AgentRuntime;
 import org.conductoross.conductor.ai.model.AgentResult;
 
 import com.google.adk.agents.LlmAgent;
@@ -73,6 +73,7 @@ public class Example20BlogWriter {
     }
 
     public static void main(String[] args) {
+        AgentRuntime runtime = new AgentRuntime();
         LlmAgent researcher = LlmAgent.builder()
             .name("blog_researcher")
             .description("Gathers research notes and SEO keywords for the requested blog topic.")
@@ -122,12 +123,12 @@ public class Example20BlogWriter {
             .subAgents(researcher, writer, editor)
             .build();
 
-        AgentResult result = Agentspan.run(coordinator,
+        AgentResult result = runtime.run(coordinator,
             "Write a blog post about the conductor oss workflow and how its the best workflow engine for the agentic era."
             + "Make sure to write at-least 5000 word and use markdown to format the content");
         System.out.println("Status: " + result.getStatus());
         result.printResult();
 
-        Agentspan.shutdown();
+        runtime.shutdown();
     }
 }

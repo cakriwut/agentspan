@@ -4,7 +4,7 @@
 package org.conductoross.conductor.ai.examples;
 
 import org.conductoross.conductor.ai.Agent;
-import org.conductoross.conductor.ai.Agentspan;
+import org.conductoross.conductor.ai.AgentRuntime;
 import org.conductoross.conductor.ai.enums.Strategy;
 import org.conductoross.conductor.ai.handoff.OnTextMention;
 import org.conductoross.conductor.ai.model.AgentResult;
@@ -25,6 +25,7 @@ import org.conductoross.conductor.ai.model.AgentResult;
 public class Example17SwarmOrchestration {
 
     public static void main(String[] args) {
+        AgentRuntime runtime = new AgentRuntime();
         // ── Specialist agents ────────────────────────────────────────────
 
         Agent refundAgent = Agent.builder()
@@ -66,15 +67,15 @@ public class Example17SwarmOrchestration {
         // ── Run test scenarios ───────────────────────────────────────────
 
         System.out.println("=== Refund Scenario ===");
-        AgentResult refundResult = Agentspan.run(support,
+        AgentResult refundResult = runtime.run(support,
             "I bought a product last week and it arrived damaged. I want my money back.");
         refundResult.printResult();
 
         System.out.println("\n=== Technical Issue Scenario ===");
-        AgentResult techResult = Agentspan.run(support,
+        AgentResult techResult = runtime.run(support,
             "My app keeps crashing whenever I try to upload a file larger than 10MB.");
         techResult.printResult();
 
-        Agentspan.shutdown();
+        runtime.shutdown();
     }
 }

@@ -4,7 +4,7 @@
 package org.conductoross.conductor.ai.examples;
 
 import org.conductoross.conductor.ai.Agent;
-import org.conductoross.conductor.ai.Agentspan;
+import org.conductoross.conductor.ai.AgentRuntime;
 import org.conductoross.conductor.ai.annotations.Tool;
 import org.conductoross.conductor.ai.enums.Strategy;
 import org.conductoross.conductor.ai.internal.ToolRegistry;
@@ -54,6 +54,7 @@ public class Example65ParallelWithTools {
     }
 
     public static void main(String[] args) {
+        AgentRuntime runtime = new AgentRuntime();
         List<ToolDef> financialTools = ToolRegistry.fromInstance(new FinancialTools());
         List<ToolDef> orderTools = ToolRegistry.fromInstance(new OrderTools());
 
@@ -83,10 +84,10 @@ public class Example65ParallelWithTools {
             .strategy(Strategy.PARALLEL)
             .build();
 
-        AgentResult result = Agentspan.run(analysis,
+        AgentResult result = runtime.run(analysis,
             "Check account ACC-200 balance and look up order ORD-300 status.");
         result.printResult();
 
-        Agentspan.shutdown();
+        runtime.shutdown();
     }
 }

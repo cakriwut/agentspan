@@ -32,12 +32,12 @@ import io.orkes.conductor.client.spring.OrkesConductorClientAutoConfiguration;
  * <p>All three beans are conditional — define your own to override any of them.
  */
 @AutoConfiguration(after = OrkesConductorClientAutoConfiguration.class)
-@EnableConfigurationProperties(AgentspanProperties.class)
-public class AgentspanAutoConfiguration {
+@EnableConfigurationProperties(AgentProperties.class)
+public class AgentAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
-    public AgentConfig agentspanConfig(AgentspanProperties props) {
+    public AgentConfig agentspanConfig(AgentProperties props) {
         return new AgentConfig(props.getWorkerPollIntervalMs(), props.getWorkerThreadCount());
     }
 

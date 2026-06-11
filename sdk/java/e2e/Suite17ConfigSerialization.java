@@ -10,8 +10,6 @@ import java.util.stream.Collectors;
 import org.conductoross.conductor.ai.Agent;
 import org.conductoross.conductor.ai.AgentConfig;
 import org.conductoross.conductor.ai.AgentRuntime;
-import org.conductoross.conductor.ai.ClaudeCode;
-import org.conductoross.conductor.ai.UserProxyAgent;
 import org.conductoross.conductor.ai.enums.OnFail;
 import org.conductoross.conductor.ai.enums.Position;
 import org.conductoross.conductor.ai.enums.Strategy;
@@ -36,7 +34,7 @@ import org.junit.jupiter.api.*;
  * <p>Verifies that agent fields and features serialize correctly into the compiled
  * agentDef via the SDK → /agent/compile → compiled-output round-trip. Covered:
  * stateful, baseUrl, TextGate, before/after_agent callbacks, StopMessageTermination,
- * RegexGuardrail, LLMGuardrail, OnCondition handoff, UserProxyAgent, ClaudeCode model,
+ * RegexGuardrail, LLMGuardrail, OnCondition handoff,
  * MediaTools, WaitForMessageTool, HumanTool, GPTAssistantAgent, deploy(), and the
  * parity fields reasoningEffort / contextWindowBudget / maskedFields / memory.
  *
@@ -441,58 +439,6 @@ class Suite17ConfigSerialization extends BaseTest {
     }
 
     /**
-     * UserProxyAgent creates an agent with metadata _agent_type == "user_proxy".
-     *
-     * COUNTERFACTUAL: if metadata is missing, the server won't treat it as a human proxy.
-     */
-    @Test
-    @Order(10)
-    @SuppressWarnings("unchecked")
-    void test_user_proxy_agent_metadata_serialized() {
-        Agent user = UserProxyAgent.create("e2e_java_user_proxy", "ALWAYS", "Continue.", MODEL);
-        Agent assistant = Agent.builder()
-                .name("e2e_java_proxy_assistant")
-                .model(MODEL)
-                .instructions("Assist the user.")
-                .build();
-        Agent team = Agent.builder()
-                .name("e2e_java_proxy_team")
-                .model(MODEL)
-                .instructions("Coordinate.")
-                .agents(user, assistant)
-                .strategy(Strategy.ROUND_ROBIN)
-                .build();
-
-        CompileResponse plan = runtime.plan(team);
-        Map<String, Object> agentDef = getAgentDef(plan);
-
-        List<Map<String, Object>> agents = (List<Map<String, Object>>) agentDef.get("agents");
-        assertNotNull(agents, "agentDef has no 'agents'");
-
-        Map<String, Object> userDef = agents.stream()
-                .filter(a -> "e2e_java_user_proxy".equals(a.get("name")))
-                .findFirst()
-                .orElseGet(() -> {
-                    fail("UserProxyAgent not found in agents: "
-                            + agents.stream().map(a -> (String) a.get("name")).collect(Collectors.toList()));
-                    return null;
-                });
-
-        Map<String, Object> metadata = (Map<String, Object>) userDef.get("metadata");
-        assertNotNull(
-                metadata, "UserProxyAgent has no 'metadata'. COUNTERFACTUAL: UserProxyAgent must set _agent_type.");
-        assertEquals(
-                "user_proxy",
-                metadata.get("_agent_type"),
-                "_agent_type should be 'user_proxy' but got: " + metadata.get("_agent_type")
-                        + ". COUNTERFACTUAL: UserProxyAgent must set metadata._agent_type='user_proxy'.");
-        assertEquals(
-                "ALWAYS",
-                metadata.get("_human_input_mode"),
-                "_human_input_mode should be 'ALWAYS' but got: " + metadata.get("_human_input_mode"));
-    }
-
-    /**
      * MediaTools (imageTool) serializes with toolType "image".
      *
      * COUNTERFACTUAL: if toolType is wrong, the server won't handle media correctly.
@@ -584,50 +530,6 @@ class Suite17ConfigSerialization extends BaseTest {
                 tool.get("toolType"),
                 "HumanTool toolType should be 'human' but got: " + tool.get("toolType")
                         + ". COUNTERFACTUAL: HumanTool must serialize toolType='human'.");
-    }
-
-    /**
-     * ClaudeCode model string produces "claude-code/{model}" format.
-     *
-     * COUNTERFACTUAL: if the model string is wrong, the agent runs on the wrong LLM.
-     */
-    @Test
-    @Order(14)
-    void test_claude_code_model_string() {
-        ClaudeCode cc = new ClaudeCode("opus", ClaudeCode.PermissionMode.ACCEPT_EDITS);
-
-        String modelString = cc.toModelString();
-        assertTrue(
-                modelString.startsWith("claude-code/"),
-                "ClaudeCode model string should start with 'claude-code/' but got: " + modelString
-                        + ". COUNTERFACTUAL: ClaudeCode.toModelString() must return 'claude-code/{model}'.");
-        assertTrue(
-                modelString.contains("opus"), "ClaudeCode model string should contain 'opus' but got: " + modelString);
-    }
-
-    /**
-     * ClaudeCode agent serializes with the correct model string in agentDef.model.
-     *
-     * COUNTERFACTUAL: if not serialized correctly, server uses a different LLM.
-     */
-    @Test
-    @Order(15)
-    void test_claude_code_agent_plan() {
-        ClaudeCode cc = new ClaudeCode("sonnet");
-        Agent agent = Agent.builder()
-                .name("e2e_java_claude_code_agent")
-                .model(cc.toModelString())
-                .instructions("Use Claude Code.")
-                .build();
-
-        CompileResponse plan = runtime.plan(agent);
-        Map<String, Object> agentDef = getAgentDef(plan);
-
-        String model = (String) agentDef.get("model");
-        assertTrue(
-                model != null && model.startsWith("claude-code/"),
-                "agentDef.model should start with 'claude-code/' but got: " + model
-                        + ". COUNTERFACTUAL: ClaudeCode.toModelString() in Agent.model() must be preserved.");
     }
 
     /**

@@ -52,7 +52,7 @@ Key requirements for each stage (referencing spec traceability matrix feature nu
 - **Stage 2** (features 4, 10, 11, 12, 18, 19, 21, 52, 53, 55, 56, 76): Parallel + scatter_gather + all tool types + credentials + ToolContext + external tool
 - **Stage 3** (features 3, 31, 32, 39, 62, 77): Sequential (>>) + memory + callbacks (all 6 positions) + stop_when
 - **Stage 4** (features 20, 22-29): All guardrail types + all OnFail modes + tool guardrails
-- **Stage 5** (features 17, 40-42, 65): HITL approve + reject + feedback + UserProxyAgent + human_tool
+- **Stage 5** (features 17, 40-42): HITL approve + reject + feedback + human_tool
 - **Stage 6** (features 6-9, 35, 37, 38): All remaining strategies + OnTextMention + introductions + transitions
 - **Stage 7** (features 2, 33, 34, 36, 71, 88): Handoff + termination + handoff conditions + gate + external agent
 - **Stage 8** (features 13, 15, 16, 58-61, 64, 66-70, 72): Code execution + media + RAG + agent_tool + GPTAssistant + thinking + include_contents + required_tools + planner + CLI config
@@ -264,7 +264,7 @@ from agentspan.agents import (
     CodeExecutionConfig, CodeExecutor, LocalCodeExecutor, DockerCodeExecutor,
     JupyterCodeExecutor, ServerlessCodeExecutor, ExecutionResult,
     # Extended
-    UserProxyAgent, GPTAssistantAgent, CallbackHandler, CliConfig,
+    GPTAssistantAgent, CallbackHandler, CliConfig,
     # Credentials
     get_credential, CredentialFile,
     # Execution (top-level convenience + runtime)
@@ -554,7 +554,7 @@ review_agent = Agent(
 # ═══════════════════════════════════════════════════════════════════════
 # STAGE 5: Editorial Approval
 # Features: #17 approval_required, #40 approve, #41 reject,
-#   #42 feedback/respond, #14 human_tool, #65 UserProxyAgent
+#   #42 feedback/respond, #14 human_tool
 # ═══════════════════════════════════════════════════════════════════════
 
 @tool(approval_required=True)
@@ -572,19 +572,11 @@ editorial_question = human_tool(
     },
 )
 
-editorial_reviewer = UserProxyAgent(
-    name="editorial_reviewer",
-    model=settings.llm_model,
-    instructions="You are the editorial reviewer. Provide feedback on article quality.",
-    human_input_mode="TERMINATE",
-)
-
 editorial_agent = Agent(
     name="editorial_approval",
     model=settings.llm_model,
     instructions="Review the article, ask questions, get approval before publishing.",
     tools=[publish_article, editorial_question],
-    agents=[editorial_reviewer],
     strategy=Strategy.HANDOFF,
 )
 

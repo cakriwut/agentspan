@@ -3,7 +3,7 @@
 
 package org.conductoross.conductor.ai.examples.langgraph;
 
-import org.conductoross.conductor.ai.Agentspan;
+import org.conductoross.conductor.ai.AgentRuntime;
 import org.conductoross.conductor.ai.model.AgentResult;
 
 import dev.langchain4j.model.chat.ChatModel;
@@ -22,6 +22,7 @@ import org.bsc.langgraph4j.agentexecutor.AgentExecutor;
 public class Example01HelloWorld {
 
     public static void main(String[] args) {
+        AgentRuntime runtime = new AgentRuntime();
         // apiKey is required by LangChain4j's builder but unused — Agentspan
         // runs the LLM call on the server with server-registered credentials.
         ChatModel model = OpenAiChatModel.builder()
@@ -31,12 +32,12 @@ public class Example01HelloWorld {
 
         AgentExecutor.Builder agent = AgentExecutor.builder().chatModel(model);
 
-        AgentResult result = Agentspan.run(
+        AgentResult result = runtime.run(
                 agent,
                 "Say hello and tell me a fun fact about state machines."
         );
         result.printResult();
 
-        Agentspan.shutdown();
+        runtime.shutdown();
     }
 }

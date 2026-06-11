@@ -4,7 +4,7 @@
 package org.conductoross.conductor.ai.examples;
 
 import org.conductoross.conductor.ai.Agent;
-import org.conductoross.conductor.ai.Agentspan;
+import org.conductoross.conductor.ai.AgentRuntime;
 import org.conductoross.conductor.ai.CallbackHandler;
 import org.conductoross.conductor.ai.annotations.Tool;
 import org.conductoross.conductor.ai.internal.ToolRegistry;
@@ -94,6 +94,7 @@ public class Example53AgentLifecycleCallbacks {
     }
 
     public static void main(String[] args) {
+        AgentRuntime runtime = new AgentRuntime();
         List<ToolDef> tools = ToolRegistry.fromInstance(new WeatherTools());
 
         Agent agent = Agent.builder()
@@ -104,9 +105,9 @@ public class Example53AgentLifecycleCallbacks {
             .callbacks(new TimingHandler(), new LoggingHandler())
             .build();
 
-        AgentResult result = Agentspan.run(agent, "What's the weather like in Tokyo?");
+        AgentResult result = runtime.run(agent, "What's the weather like in Tokyo?");
         result.printResult();
 
-        Agentspan.shutdown();
+        runtime.shutdown();
     }
 }

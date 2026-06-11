@@ -4,7 +4,7 @@
 package org.conductoross.conductor.ai.examples;
 
 import org.conductoross.conductor.ai.Agent;
-import org.conductoross.conductor.ai.Agentspan;
+import org.conductoross.conductor.ai.AgentRuntime;
 import org.conductoross.conductor.ai.annotations.Tool;
 import org.conductoross.conductor.ai.enums.Strategy;
 import org.conductoross.conductor.ai.internal.ToolRegistry;
@@ -44,6 +44,7 @@ public class Example05Handoffs {
     }
 
     public static void main(String[] args) {
+        AgentRuntime runtime = new AgentRuntime();
         List<ToolDef> billingTools = ToolRegistry.fromInstance(new BillingTools());
         List<ToolDef> technicalTools = ToolRegistry.fromInstance(new TechnicalTools());
         List<ToolDef> salesTools = ToolRegistry.fromInstance(new SalesTools());
@@ -79,9 +80,9 @@ public class Example05Handoffs {
             .strategy(Strategy.HANDOFF)
             .build();
 
-        AgentResult result = Agentspan.run(support, "What's the balance on account ACC-123?");
+        AgentResult result = runtime.run(support, "What's the balance on account ACC-123?");
         result.printResult();
 
-        Agentspan.shutdown();
+        runtime.shutdown();
     }
 }

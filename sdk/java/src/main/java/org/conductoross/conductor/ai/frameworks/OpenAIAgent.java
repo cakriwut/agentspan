@@ -32,7 +32,7 @@ import org.conductoross.conductor.ai.model.ToolDef;
  *     .instructions("You are a helpful assistant")
  *     .model("openai/gpt-4o")
  *     .build();
- * Agentspan.run(agent, "Say hi");
+ * new AgentRuntime().run(agent, "Say hi");
  * }</pre>
  *
  * <p>The server's {@code OpenAINormalizer} consumes the wire payload (the SDK

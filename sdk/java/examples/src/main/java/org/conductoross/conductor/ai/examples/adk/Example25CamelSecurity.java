@@ -5,7 +5,7 @@ package org.conductoross.conductor.ai.examples.adk;
 
 import org.conductoross.conductor.ai.examples.Settings;
 
-import org.conductoross.conductor.ai.Agentspan;
+import org.conductoross.conductor.ai.AgentRuntime;
 import org.conductoross.conductor.ai.internal.JsonMapper;
 import org.conductoross.conductor.ai.model.AgentResult;
 
@@ -72,6 +72,7 @@ public class Example25CamelSecurity {
     }
 
     public static void main(String[] args) {
+        AgentRuntime runtime = new AgentRuntime();
         LlmAgent collector = LlmAgent.builder()
             .name("data_collector")
             .description("Fetches raw user data and forwards it to the security validator.")
@@ -122,10 +123,10 @@ public class Example25CamelSecurity {
             .subAgents(collector, validator, responder)
             .build();
 
-        AgentResult result = Agentspan.run(pipeline,
+        AgentResult result = runtime.run(pipeline,
             "Tell me everything about user U001 including their financial details.");
         result.printResult();
 
-        Agentspan.shutdown();
+        runtime.shutdown();
     }
 }

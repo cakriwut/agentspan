@@ -5,7 +5,7 @@ package org.conductoross.conductor.ai.examples.adk;
 
 import org.conductoross.conductor.ai.examples.Settings;
 
-import org.conductoross.conductor.ai.Agentspan;
+import org.conductoross.conductor.ai.AgentRuntime;
 import org.conductoross.conductor.ai.model.AgentResult;
 
 import com.google.adk.agents.LlmAgent;
@@ -64,6 +64,7 @@ public class Example08InstructionTemplating {
     }
 
     public static void main(String[] args) {
+        AgentRuntime runtime = new AgentRuntime();
         LlmAgent concierge = LlmAgent.builder()
             .name("adaptive_tutor")
             .description("A programming tutor that adapts its explanations to the user's expertise level.")
@@ -79,10 +80,10 @@ public class Example08InstructionTemplating {
                 FunctionTool.create(Example08InstructionTemplating.class, "searchTutorials"))
             .build();
 
-        AgentResult result = Agentspan.run(concierge,
+        AgentResult result = runtime.run(concierge,
             "I want to learn Python. What tutorials do you recommend?");
         result.printResult();
 
-        Agentspan.shutdown();
+        runtime.shutdown();
     }
 }

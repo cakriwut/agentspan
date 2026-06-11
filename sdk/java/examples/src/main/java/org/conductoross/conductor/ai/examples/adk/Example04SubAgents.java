@@ -5,7 +5,7 @@ package org.conductoross.conductor.ai.examples.adk;
 
 import org.conductoross.conductor.ai.examples.Settings;
 
-import org.conductoross.conductor.ai.Agentspan;
+import org.conductoross.conductor.ai.AgentRuntime;
 import org.conductoross.conductor.ai.model.AgentResult;
 
 import com.google.adk.agents.LlmAgent;
@@ -77,6 +77,7 @@ public class Example04SubAgents {
     }
 
     public static void main(String[] args) {
+        AgentRuntime runtime = new AgentRuntime();
         LlmAgent flightAgent = LlmAgent.builder()
             .name("flight_specialist")
             .description("Searches for flights and presents options with prices and schedules.")
@@ -121,11 +122,11 @@ public class Example04SubAgents {
             .subAgents(flightAgent, hotelAgent, advisoryAgent)
             .build();
 
-        AgentResult result = Agentspan.run(coordinator,
+        AgentResult result = runtime.run(coordinator,
             "I want to plan a trip to Japan. I need a flight from San Francisco "
             + "on 2025-04-15 and a hotel for 5 nights. Also, what's the travel advisory?");
         result.printResult();
 
-        Agentspan.shutdown();
+        runtime.shutdown();
     }
 }

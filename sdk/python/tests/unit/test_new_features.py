@@ -4,7 +4,7 @@
 """Unit tests for all new gap-closing features.
 
 Tests code executors, swarm strategy, semantic memory, OTel tracing,
-manual pattern, agent introductions, UserProxyAgent, GPTAssistantAgent,
+manual pattern, agent introductions, GPTAssistantAgent,
 and handoff conditions.
 """
 
@@ -330,61 +330,6 @@ class TestTracing:
 
         # Should not raise
         record_token_usage(None, prompt_tokens=100, completion_tokens=50)
-
-
-# ── UserProxyAgent ──────────────────────────────────────────────────────
-
-
-class TestUserProxyAgent:
-    """Test UserProxyAgent."""
-
-    def test_creation(self):
-        from agentspan.agents.ext import UserProxyAgent
-
-        agent = UserProxyAgent(name="human")
-        assert agent.name == "human"
-        assert agent.human_input_mode == "ALWAYS"
-        assert agent.metadata["_agent_type"] == "user_proxy"
-
-    def test_default_name(self):
-        from agentspan.agents.ext import UserProxyAgent
-
-        agent = UserProxyAgent()
-        assert agent.name == "user"
-
-    def test_terminate_mode(self):
-        from agentspan.agents.ext import UserProxyAgent
-
-        agent = UserProxyAgent(human_input_mode="TERMINATE")
-        assert agent.human_input_mode == "TERMINATE"
-
-    def test_never_mode(self):
-        from agentspan.agents.ext import UserProxyAgent
-
-        agent = UserProxyAgent(human_input_mode="NEVER", default_response="Skip")
-        assert agent.human_input_mode == "NEVER"
-        assert agent.default_response == "Skip"
-
-    def test_invalid_mode_raises(self):
-        from agentspan.agents.ext import UserProxyAgent
-
-        with pytest.raises(ValueError, match="Invalid human_input_mode"):
-            UserProxyAgent(human_input_mode="SOMETIMES")
-
-    def test_is_agent_subclass(self):
-        from agentspan.agents.agent import Agent
-        from agentspan.agents.ext import UserProxyAgent
-
-        agent = UserProxyAgent()
-        assert isinstance(agent, Agent)
-
-    def test_repr(self):
-        from agentspan.agents.ext import UserProxyAgent
-
-        agent = UserProxyAgent(name="tester", human_input_mode="ALWAYS")
-        r = repr(agent)
-        assert "tester" in r
-        assert "ALWAYS" in r
 
 
 # ── GPTAssistantAgent ──────────────────────────────────────────────────

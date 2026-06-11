@@ -5,7 +5,7 @@ package org.conductoross.conductor.ai.examples.adk;
 
 import org.conductoross.conductor.ai.examples.Settings;
 
-import org.conductoross.conductor.ai.Agentspan;
+import org.conductoross.conductor.ai.AgentRuntime;
 import org.conductoross.conductor.ai.model.AgentResult;
 
 import com.google.adk.agents.LlmAgent;
@@ -24,6 +24,7 @@ import com.google.adk.agents.LlmAgent;
 public class Example32NestedStrategies {
 
     public static void main(String[] args) {
+        AgentRuntime runtime = new AgentRuntime();
         // ── Parallel research agents ────────────────────────────────────
         LlmAgent marketAnalyst = LlmAgent.builder()
             .name("market_analyst")
@@ -76,10 +77,10 @@ public class Example32NestedStrategies {
             .subAgents(parallelResearch, summarizer)
             .build();
 
-        AgentResult result = Agentspan.run(pipeline,
+        AgentResult result = runtime.run(pipeline,
             "Launching an AI-powered healthcare diagnostics tool in the US");
         result.printResult();
 
-        Agentspan.shutdown();
+        runtime.shutdown();
     }
 }

@@ -5,7 +5,7 @@ package org.conductoross.conductor.ai.examples.adk;
 
 import org.conductoross.conductor.ai.examples.Settings;
 
-import org.conductoross.conductor.ai.Agentspan;
+import org.conductoross.conductor.ai.AgentRuntime;
 import org.conductoross.conductor.ai.model.AgentResult;
 
 import com.google.adk.agents.LlmAgent;
@@ -54,6 +54,7 @@ public class Example15GlobalInstruction {
     }
 
     public static void main(String[] args) {
+        AgentRuntime runtime = new AgentRuntime();
         String globalInstruction =
             "You work for TechStore, a premium electronics retailer. "
             + "Always be professional and mention our satisfaction guarantee. "
@@ -75,11 +76,11 @@ public class Example15GlobalInstruction {
                 FunctionTool.create(Example15GlobalInstruction.class, "getStoreHours"))
             .build();
 
-        AgentResult result = Agentspan.run(supportAgent,
+        AgentResult result = runtime.run(supportAgent,
             "I'm looking for the Widget Pro. Is it in stock? Also, what are the downtown store hours?");
         System.out.println("Status: " + result.getStatus());
         result.printResult();
 
-        Agentspan.shutdown();
+        runtime.shutdown();
     }
 }

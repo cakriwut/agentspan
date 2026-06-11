@@ -5,7 +5,7 @@ package org.conductoross.conductor.ai.examples.adk;
 
 import org.conductoross.conductor.ai.examples.Settings;
 
-import org.conductoross.conductor.ai.Agentspan;
+import org.conductoross.conductor.ai.AgentRuntime;
 import org.conductoross.conductor.ai.model.AgentResult;
 
 import com.google.adk.agents.LlmAgent;
@@ -25,6 +25,7 @@ import com.google.adk.agents.LlmAgent;
 public class Example34MlEngineering {
 
     public static void main(String[] args) {
+        AgentRuntime runtime = new AgentRuntime();
         // ── Phase 1: Data Analysis ────────────────────────────────────────
         LlmAgent dataAnalyst = LlmAgent.builder()
             .name("data_analyst")
@@ -202,13 +203,13 @@ public class Example34MlEngineering {
             .subAgents(dataAnalyst, parallelModeling, evaluator, refinementLoop, reporter)
             .build();
 
-        AgentResult result = Agentspan.run(mlPipeline,
+        AgentResult result = runtime.run(mlPipeline,
             "Build a model to predict California housing prices. The dataset has 20,640 samples "
             + "with 8 features: MedInc, HouseAge, AveRooms, AveBedrms, Population, AveOccup, "
             + "Latitude, Longitude. Target: MedianHouseValue (continuous, in $100k units). "
             + "Metric: RMSE. Some features have skewed distributions.");
         result.printResult();
 
-        Agentspan.shutdown();
+        runtime.shutdown();
     }
 }

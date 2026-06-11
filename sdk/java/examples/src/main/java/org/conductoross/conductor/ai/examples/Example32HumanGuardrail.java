@@ -4,7 +4,7 @@
 package org.conductoross.conductor.ai.examples;
 
 import org.conductoross.conductor.ai.Agent;
-import org.conductoross.conductor.ai.Agentspan;
+import org.conductoross.conductor.ai.AgentRuntime;
 import org.conductoross.conductor.ai.annotations.Tool;
 import org.conductoross.conductor.ai.enums.OnFail;
 import org.conductoross.conductor.ai.enums.Position;
@@ -48,6 +48,7 @@ public class Example32HumanGuardrail {
     }
 
     public static void main(String[] args) {
+        AgentRuntime runtime = new AgentRuntime();
         List<ToolDef> marketTools = ToolRegistry.fromInstance(new MarketTools());
 
         // Guardrail: flag regulated financial language — pause for human review on fail
@@ -88,7 +89,7 @@ public class Example32HumanGuardrail {
             .build();
 
         // Start async — the compliance guardrail may pause the workflow
-        AgentHandle handle = Agentspan.start(financeAgent,
+        AgentHandle handle = runtime.start(financeAgent,
             "What is the current price of AAPL and is it a good risk-free investment?");
 
         System.out.println("Execution ID: " + handle.getExecutionId());
@@ -106,6 +107,6 @@ public class Example32HumanGuardrail {
         AgentResult result = handle.waitForResult();
         result.printResult();
 
-        Agentspan.shutdown();
+        runtime.shutdown();
     }
 }

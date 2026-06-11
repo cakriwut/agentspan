@@ -3,7 +3,7 @@
 
 package org.conductoross.conductor.ai.examples.langgraph;
 
-import org.conductoross.conductor.ai.Agentspan;
+import org.conductoross.conductor.ai.AgentRuntime;
 import org.conductoross.conductor.ai.model.AgentResult;
 
 import dev.langchain4j.agent.tool.P;
@@ -59,6 +59,7 @@ public class Example02ReactWithTools {
     }
 
     public static void main(String[] args) {
+        AgentRuntime runtime = new AgentRuntime();
         // apiKey is required by LangChain4j's builder but unused — Agentspan
         // runs the LLM call on the server with server-registered credentials.
         ChatModel model = OpenAiChatModel.builder()
@@ -70,7 +71,7 @@ public class Example02ReactWithTools {
         AgentExecutor.Builder agent = AgentExecutor.builder().chatModel(model);
         agent.toolsFromObject(tools);
 
-        AgentResult result = Agentspan.run(
+        AgentResult result = runtime.run(
                 agent,
                 "What is 17 + 25? Also count words in 'the quick brown fox jumps'. "
                 + "And what is today's date?",
@@ -79,6 +80,6 @@ public class Example02ReactWithTools {
         System.out.println("Status: " + result.getStatus());
         result.printResult();
 
-        Agentspan.shutdown();
+        runtime.shutdown();
     }
 }

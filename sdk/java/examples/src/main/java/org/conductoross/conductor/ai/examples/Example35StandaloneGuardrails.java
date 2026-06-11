@@ -20,7 +20,7 @@ import java.util.regex.Pattern;
  *   <li>Reusing the same validation functions in multiple agents</li>
  * </ul>
  *
- * <p>This example runs entirely without a server — no {@code Agentspan.run()} call.
+ * <p>This example runs entirely without a server — no {@code runtime.run()} call.
  */
 public class Example35StandaloneGuardrails {
 
@@ -98,7 +98,6 @@ public class Example35StandaloneGuardrails {
 
     @SuppressWarnings("unchecked")
     public static void main(String[] args) {
-
         System.out.println("=== Standalone Guardrail Validation (no server required) ===");
 
         // Test 1: Clean text — all checks should pass

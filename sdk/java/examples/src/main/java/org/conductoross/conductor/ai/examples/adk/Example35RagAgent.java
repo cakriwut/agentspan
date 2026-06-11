@@ -5,7 +5,7 @@ package org.conductoross.conductor.ai.examples.adk;
 
 import org.conductoross.conductor.ai.examples.Settings;
 
-import org.conductoross.conductor.ai.Agentspan;
+import org.conductoross.conductor.ai.AgentRuntime;
 import org.conductoross.conductor.ai.model.AgentResult;
 
 import com.google.adk.agents.LlmAgent;
@@ -153,6 +153,7 @@ public class Example35RagAgent {
     }
 
     public static void main(String[] args) {
+        AgentRuntime runtime = new AgentRuntime();
         LlmAgent ragAgent = LlmAgent.builder()
             .name("rag_assistant")
             .description("RAG product-support assistant that indexes and searches a documentation knowledge base.")
@@ -190,7 +191,7 @@ public class Example35RagAgent {
             indexPrompt.append("Text: ").append(doc.text).append("\n\n");
         }
 
-        AgentResult result = Agentspan.run(ragAgent, indexPrompt.toString());
+        AgentResult result = runtime.run(ragAgent, indexPrompt.toString());
         result.printResult();
 
         // ── Phase 2: Search the indexed documents ────────────────────────
@@ -209,10 +210,10 @@ public class Example35RagAgent {
         for (int i = 0; i < queries.size(); i++) {
             String query = queries.get(i);
             System.out.println("\n--- Query " + (i + 1) + ": " + query);
-            result = Agentspan.run(ragAgent, query);
+            result = runtime.run(ragAgent, query);
             result.printResult();
         }
 
-        Agentspan.shutdown();
+        runtime.shutdown();
     }
 }

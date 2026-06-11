@@ -10,7 +10,7 @@ Demonstrates:
     - All 8 multi-agent strategies
     - All tool types (worker, http, mcp, api, agent_tool, human, media, RAG)
     - All guardrail types (regex, llm, custom, external) with all OnFail modes
-    - HITL (approve, reject, feedback, UserProxyAgent, human_tool)
+    - HITL (approve, reject, feedback, human_tool)
     - Memory (conversation + semantic)
     - Code execution (local, docker, jupyter, serverless)
     - Credentials (all isolation modes, CredentialFile)
@@ -115,7 +115,6 @@ from agentspan.agents import (
     ServerlessCodeExecutor,
     ExecutionResult,
     # Extended
-    UserProxyAgent,
     GPTAssistantAgent,
     CallbackHandler,
     CliConfig,
@@ -462,7 +461,7 @@ review_agent = Agent(
 # ═══════════════════════════════════════════════════════════════════════
 # STAGE 5: Editorial Approval
 # Features: #17 approval_required, #40 approve, #41 reject,
-#   #42 feedback/respond, #14 human_tool, #65 UserProxyAgent
+#   #42 feedback/respond, #14 human_tool
 # ═══════════════════════════════════════════════════════════════════════
 
 
@@ -482,19 +481,11 @@ editorial_question = human_tool(
     },
 )
 
-editorial_reviewer = UserProxyAgent(
-    name="editorial_reviewer",
-    model=settings.llm_model,
-    instructions="You are the editorial reviewer. Provide feedback on article quality.",
-    human_input_mode="TERMINATE",
-)
-
 editorial_agent = Agent(
     name="editorial_approval",
     model=settings.llm_model,
     instructions="Review the article, ask questions, get approval before publishing.",
     tools=[publish_article, editorial_question],
-    agents=[editorial_reviewer],
     strategy=Strategy.HANDOFF,
 )
 

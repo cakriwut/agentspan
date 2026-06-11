@@ -4,7 +4,7 @@
 package org.conductoross.conductor.ai.examples;
 
 import org.conductoross.conductor.ai.Agent;
-import org.conductoross.conductor.ai.Agentspan;
+import org.conductoross.conductor.ai.AgentRuntime;
 import org.conductoross.conductor.ai.enums.Strategy;
 import org.conductoross.conductor.ai.model.AgentResult;
 
@@ -21,6 +21,7 @@ import org.conductoross.conductor.ai.model.AgentResult;
 public class Example16RandomStrategy {
 
     public static void main(String[] args) {
+        AgentRuntime runtime = new AgentRuntime();
         Agent creative = Agent.builder()
             .name("creative")
             .model(Settings.LLM_MODEL)
@@ -54,10 +55,10 @@ public class Example16RandomStrategy {
             .maxTurns(6)
             .build();
 
-        AgentResult result = Agentspan.run(brainstorm,
+        AgentResult result = runtime.run(brainstorm,
             "How should we approach building an AI-powered customer service platform?");
         result.printResult();
 
-        Agentspan.shutdown();
+        runtime.shutdown();
     }
 }

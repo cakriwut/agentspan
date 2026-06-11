@@ -5,7 +5,7 @@ package org.conductoross.conductor.ai.examples.adk;
 
 import org.conductoross.conductor.ai.examples.Settings;
 
-import org.conductoross.conductor.ai.Agentspan;
+import org.conductoross.conductor.ai.AgentRuntime;
 import org.conductoross.conductor.ai.model.AgentResult;
 
 import com.google.adk.agents.LlmAgent;
@@ -107,6 +107,7 @@ public class Example19SupplyChain {
     }
 
     public static void main(String[] args) {
+        AgentRuntime runtime = new AgentRuntime();
         LlmAgent inventoryAgent = LlmAgent.builder()
             .name("inventory_manager")
             .description("Inspects inventory levels and supplier status, flagging items below reorder points.")
@@ -147,12 +148,12 @@ public class Example19SupplyChain {
             .subAgents(inventoryAgent, logisticsAgent, demandAgent)
             .build();
 
-        AgentResult result = Agentspan.run(coordinator,
+        AgentResult result = runtime.run(coordinator,
             "Give me a full supply chain status report. Check both warehouses, "
             + "identify any items below reorder points, and recommend restocking actions.");
         System.out.println("Status: " + result.getStatus());
         result.printResult();
 
-        Agentspan.shutdown();
+        runtime.shutdown();
     }
 }

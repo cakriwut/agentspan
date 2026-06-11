@@ -228,8 +228,8 @@ export type { CliConfigOptions } from "./cli-config.js";
 export { makeCliTool } from "./cli-config.js";
 
 // ── Extended Agent Types ────────────────────────────────
-export type { UserProxyMode, UserProxyAgentOptions, GPTAssistantAgentOptions } from "./ext.js";
-export { UserProxyAgent, GPTAssistantAgent } from "./ext.js";
+export type { GPTAssistantAgentOptions } from "./ext.js";
+export { GPTAssistantAgent } from "./ext.js";
 
 // ── Discovery ───────────────────────────────────────────
 export { discoverAgents } from "./discovery.js";

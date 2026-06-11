@@ -39,14 +39,15 @@ class ScheduleIntegrationTest {
     // AGENTSPAN_SERVER_URL conventionally INCLUDES "/api" (see BaseTest), so normalize it
     // away here — otherwise every URL gets a double "/api" and the scheduler probe 404s,
     // silently skipping the whole suite.
-    private static final String SERVER = stripApiSuffix(
-            System.getenv().getOrDefault("AGENTSPAN_SERVER_URL", "http://localhost:6767"));
+    private static final String SERVER =
+            stripApiSuffix(System.getenv().getOrDefault("AGENTSPAN_SERVER_URL", "http://localhost:6767"));
 
     private static String stripApiSuffix(String url) {
         if (url.endsWith("/")) url = url.substring(0, url.length() - 1);
         if (url.endsWith("/api")) url = url.substring(0, url.length() - 4);
         return url;
     }
+
     private static final HttpClient HTTP =
             HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(5)).build();
 

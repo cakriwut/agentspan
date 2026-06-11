@@ -5,7 +5,7 @@ package org.conductoross.conductor.ai.examples.adk;
 
 import org.conductoross.conductor.ai.examples.Settings;
 
-import org.conductoross.conductor.ai.Agentspan;
+import org.conductoross.conductor.ai.AgentRuntime;
 import org.conductoross.conductor.ai.model.AgentResult;
 
 import com.google.adk.agents.LlmAgent;
@@ -24,6 +24,7 @@ import com.google.adk.agents.ParallelAgent;
 public class Example12ParallelAgent {
 
     public static void main(String[] args) {
+        AgentRuntime runtime = new AgentRuntime();
         LlmAgent marketAnalyst = LlmAgent.builder()
             .name("market_analyst")
             .description("Provides a brief market analysis focused on trends and competition.")
@@ -58,10 +59,10 @@ public class Example12ParallelAgent {
             .subAgents(marketAnalyst, techAnalyst, riskAnalyst)
             .build();
 
-        AgentResult result = Agentspan.run(parallelAnalysis, "Analyze Tesla's electric vehicle business");
+        AgentResult result = runtime.run(parallelAnalysis, "Analyze Tesla's electric vehicle business");
         System.out.println("Status: " + result.getStatus());
         result.printResult();
 
-        Agentspan.shutdown();
+        runtime.shutdown();
     }
 }

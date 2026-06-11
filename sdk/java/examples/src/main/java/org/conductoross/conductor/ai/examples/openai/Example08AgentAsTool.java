@@ -6,7 +6,7 @@ package org.conductoross.conductor.ai.examples.openai;
 import org.conductoross.conductor.ai.examples.Settings;
 
 import org.conductoross.conductor.ai.Agent;
-import org.conductoross.conductor.ai.Agentspan;
+import org.conductoross.conductor.ai.AgentRuntime;
 import org.conductoross.conductor.ai.annotations.Tool;
 import org.conductoross.conductor.ai.frameworks.OpenAIAgent;
 import org.conductoross.conductor.ai.model.AgentResult;
@@ -82,6 +82,7 @@ public class Example08AgentAsTool {
     }
 
     public static void main(String[] args) {
+        AgentRuntime runtime = new AgentRuntime();
         Agent sentimentAgent = OpenAIAgent.builder()
                 .name("sentiment_analyzer")
                 .instructions(
@@ -112,13 +113,13 @@ public class Example08AgentAsTool {
                 .handoffs(sentimentAgent, keywordAgent)
                 .build();
 
-        AgentResult result = Agentspan.run(
+        AgentResult result = runtime.run(
                 manager,
                 "Analyze this review: 'The new laptop is excellent! The display is amazing "
                         + "and the battery life is wonderful. However, the keyboard feels terrible "
                         + "and the trackpad is the worst I've used.'");
         result.printResult();
 
-        Agentspan.shutdown();
+        runtime.shutdown();
     }
 }

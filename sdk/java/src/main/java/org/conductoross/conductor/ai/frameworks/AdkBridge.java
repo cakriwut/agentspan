@@ -90,7 +90,7 @@ public final class AdkBridge {
     /**
      * Convert any native ADK {@link BaseAgent} ({@code LlmAgent},
      * {@code SequentialAgent}, {@code ParallelAgent}, {@code LoopAgent}, …)
-     * into an Agentspan {@link Agent} ready for {@code Agentspan.run(...)}.
+     * into an Agentspan {@link Agent} ready for {@code runtime.run(...)}.
      */
     public static Agent toAgentspan(BaseAgent adk) {
         return agentBuilder(adk).build();
@@ -106,7 +106,7 @@ public final class AdkBridge {
      * Agent decorated = AdkBridge.agentBuilder(llmAgent)
      *     .guardrails(piiGuard)
      *     .build();
-     * Agentspan.run(decorated, "...");
+     * new AgentRuntime().run(decorated, "...");
      * }</pre>
      */
     public static Agent.Builder agentBuilder(BaseAgent adk) {

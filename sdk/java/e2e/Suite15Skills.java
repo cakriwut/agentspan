@@ -13,13 +13,13 @@ import java.util.concurrent.TimeUnit;
 import org.conductoross.conductor.ai.Agent;
 import org.conductoross.conductor.ai.AgentConfig;
 import org.conductoross.conductor.ai.AgentRuntime;
-import org.conductoross.conductor.ai.AgentTool;
 import org.conductoross.conductor.ai.internal.AgentConfigSerializer;
 import org.conductoross.conductor.ai.model.AgentResult;
 import org.conductoross.conductor.ai.model.CompileResponse;
 import org.conductoross.conductor.ai.model.ToolDef;
 import org.conductoross.conductor.ai.skill.Skill;
 import org.conductoross.conductor.ai.skill.SkillLoadError;
+import org.conductoross.conductor.ai.tools.AgentTool;
 import org.junit.jupiter.api.*;
 import org.junit.jupiter.api.io.TempDir;
 

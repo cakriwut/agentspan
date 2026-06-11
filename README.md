@@ -579,7 +579,6 @@ Execution order: `on_agent_start` → (`on_model_start` → LLM → `on_model_en
 | [`24_code_execution.py`](sdk/python/examples/24_code_execution.py) | Code execution sandboxes |
 | [`25_semantic_memory.py`](sdk/python/examples/25_semantic_memory.py) | Long-term memory with retrieval |
 | [`26_opentelemetry_tracing.py`](sdk/python/examples/26_opentelemetry_tracing.py) | OpenTelemetry spans |
-| [`27_user_proxy_agent.py`](sdk/python/examples/27_user_proxy_agent.py) | Interactive conversations |
 | [`28_gpt_assistant_agent.py`](sdk/python/examples/28_gpt_assistant_agent.py) | OpenAI Assistants API wrapper |
 | [`29_agent_introductions.py`](sdk/python/examples/29_agent_introductions.py) | Agents introduce themselves |
 | [`30_multimodal_agent.py`](sdk/python/examples/30_multimodal_agent.py) | Vision model analysis |

@@ -5,7 +5,7 @@ package org.conductoross.conductor.ai.examples.adk;
 
 import org.conductoross.conductor.ai.examples.Settings;
 
-import org.conductoross.conductor.ai.Agentspan;
+import org.conductoross.conductor.ai.AgentRuntime;
 import org.conductoross.conductor.ai.model.AgentResult;
 
 import com.google.adk.agents.LlmAgent;
@@ -110,6 +110,7 @@ public class Example03StructuredOutput {
     }
 
     public static void main(String[] args) {
+        AgentRuntime runtime = new AgentRuntime();
         LlmAgent extractor = LlmAgent.builder()
             .name("recipe_generator")
             .description("Generates complete, structured recipes as JSON matching the Recipe schema.")
@@ -124,10 +125,10 @@ public class Example03StructuredOutput {
 
         // OpenAI's `json_object` response format requires the word "json" to
         // appear in the input messages. Gemini has no such constraint.
-        AgentResult result = Agentspan.run(extractor,
+        AgentResult result = runtime.run(extractor,
             "Give me a recipe for classic Italian carbonara pasta. Return as JSON.");
         result.printResult();
 
-        Agentspan.shutdown();
+        runtime.shutdown();
     }
 }

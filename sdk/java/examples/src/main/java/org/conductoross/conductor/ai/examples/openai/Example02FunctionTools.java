@@ -6,7 +6,7 @@ package org.conductoross.conductor.ai.examples.openai;
 import org.conductoross.conductor.ai.examples.Settings;
 
 import org.conductoross.conductor.ai.Agent;
-import org.conductoross.conductor.ai.Agentspan;
+import org.conductoross.conductor.ai.AgentRuntime;
 import org.conductoross.conductor.ai.annotations.Tool;
 import org.conductoross.conductor.ai.frameworks.OpenAIAgent;
 import org.conductoross.conductor.ai.model.AgentResult;
@@ -101,6 +101,7 @@ public class Example02FunctionTools {
     }
 
     public static void main(String[] args) {
+        AgentRuntime runtime = new AgentRuntime();
         Agent agent = OpenAIAgent.builder()
                 .name("multi_tool_agent")
                 .instructions(
@@ -110,12 +111,12 @@ public class Example02FunctionTools {
                 .tools(new WeatherTools())
                 .build();
 
-        AgentResult result = Agentspan.run(
+        AgentResult result = runtime.run(
                 agent,
                 "What's the weather in San Francisco? Also, what's the population there "
                         + "and what's the square root of that number (just the digits)?");
         result.printResult();
 
-        Agentspan.shutdown();
+        runtime.shutdown();
     }
 }

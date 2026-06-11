@@ -5,7 +5,7 @@ package org.conductoross.conductor.ai.examples.adk;
 
 import org.conductoross.conductor.ai.examples.Settings;
 
-import org.conductoross.conductor.ai.Agentspan;
+import org.conductoross.conductor.ai.AgentRuntime;
 import org.conductoross.conductor.ai.model.AgentResult;
 
 import com.google.adk.agents.LlmAgent;
@@ -103,6 +103,7 @@ public class Example16CustomerService {
     }
 
     public static void main(String[] args) {
+        AgentRuntime runtime = new AgentRuntime();
         LlmAgent customerService = LlmAgent.builder()
             .name("customer_service_rep")
             .description("CloudServe customer service rep handling accounts, billing, plans, and support tickets.")
@@ -120,12 +121,12 @@ public class Example16CustomerService {
                 FunctionTool.create(Example16CustomerService.class, "updateAccountPlan"))
             .build();
 
-        AgentResult result = Agentspan.run(customerService,
+        AgentResult result = runtime.run(customerService,
             "I'm customer ACC-001. Can you check my billing history and tell me my current plan? "
             + "I'm thinking about downgrading to the basic plan.");
         System.out.println("Status: " + result.getStatus());
         result.printResult();
 
-        Agentspan.shutdown();
+        runtime.shutdown();
     }
 }

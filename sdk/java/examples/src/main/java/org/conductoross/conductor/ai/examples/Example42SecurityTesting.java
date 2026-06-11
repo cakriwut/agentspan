@@ -4,7 +4,7 @@
 package org.conductoross.conductor.ai.examples;
 
 import org.conductoross.conductor.ai.Agent;
-import org.conductoross.conductor.ai.Agentspan;
+import org.conductoross.conductor.ai.AgentRuntime;
 import org.conductoross.conductor.ai.annotations.Tool;
 import org.conductoross.conductor.ai.enums.Strategy;
 import org.conductoross.conductor.ai.internal.ToolRegistry;
@@ -66,6 +66,7 @@ public class Example42SecurityTesting {
     }
 
     public static void main(String[] args) {
+        AgentRuntime runtime = new AgentRuntime();
         List<ToolDef> redTeamTools = ToolRegistry.fromInstance(new RedTeamTools());
         List<ToolDef> evaluatorTools = ToolRegistry.fromInstance(new EvaluatorTools());
 
@@ -113,11 +114,11 @@ public class Example42SecurityTesting {
             .strategy(Strategy.SEQUENTIAL)
             .build();
 
-        AgentResult result = Agentspan.run(pipeline,
+        AgentResult result = runtime.run(pipeline,
             "Run a security test: attempt a prompt injection attack on the "
             + "target customer service agent.");
         result.printResult();
 
-        Agentspan.shutdown();
+        runtime.shutdown();
     }
 }

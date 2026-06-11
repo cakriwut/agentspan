@@ -4,7 +4,7 @@
 package org.conductoross.conductor.ai.examples;
 
 import org.conductoross.conductor.ai.Agent;
-import org.conductoross.conductor.ai.Agentspan;
+import org.conductoross.conductor.ai.AgentRuntime;
 import org.conductoross.conductor.ai.annotations.Tool;
 import org.conductoross.conductor.ai.internal.ToolRegistry;
 import org.conductoross.conductor.ai.model.AgentResult;
@@ -36,6 +36,7 @@ public class Example33SingleTurnTool {
     }
 
     public static void main(String[] args) {
+        AgentRuntime runtime = new AgentRuntime();
         List<ToolDef> tools = ToolRegistry.fromInstance(new WeatherTools());
 
         Agent agent = Agent.builder()
@@ -46,9 +47,9 @@ public class Example33SingleTurnTool {
             .maxTurns(2)
             .build();
 
-        AgentResult result = Agentspan.run(agent, "What's the weather in San Francisco?");
+        AgentResult result = runtime.run(agent, "What's the weather in San Francisco?");
         result.printResult();
 
-        Agentspan.shutdown();
+        runtime.shutdown();
     }
 }

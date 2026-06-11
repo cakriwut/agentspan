@@ -4,7 +4,7 @@
 package org.conductoross.conductor.ai.examples.langchain;
 
 import org.conductoross.conductor.ai.Agent;
-import org.conductoross.conductor.ai.Agentspan;
+import org.conductoross.conductor.ai.AgentRuntime;
 import org.conductoross.conductor.ai.enums.OnFail;
 import org.conductoross.conductor.ai.enums.Position;
 import org.conductoross.conductor.ai.frameworks.LangChainBridge;
@@ -54,6 +54,7 @@ public class Example26AgentspanGuardrails {
     }
 
     public static void main(String[] args) {
+        AgentRuntime runtime = new AgentRuntime();
         // apiKey is required by LangChain4j's builder but unused — Agentspan
         // runs the LLM call on the server with server-registered credentials.
         ChatModel model = OpenAiChatModel.builder()
@@ -78,11 +79,11 @@ public class Example26AgentspanGuardrails {
                 .guardrails(piiRedaction)
                 .build();
 
-        AgentResult result = Agentspan.run(guarded,
+        AgentResult result = runtime.run(guarded,
                 "Please confirm: alice@example.com and 555-867-5309. "
                 + "Echo them back so I can double-check the spelling.");
         result.printResult();
 
-        Agentspan.shutdown();
+        runtime.shutdown();
     }
 }

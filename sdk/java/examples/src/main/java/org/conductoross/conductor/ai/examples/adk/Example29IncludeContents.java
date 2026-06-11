@@ -5,7 +5,7 @@ package org.conductoross.conductor.ai.examples.adk;
 
 import org.conductoross.conductor.ai.examples.Settings;
 
-import org.conductoross.conductor.ai.Agentspan;
+import org.conductoross.conductor.ai.AgentRuntime;
 import org.conductoross.conductor.ai.model.AgentResult;
 
 import com.google.adk.agents.LlmAgent;
@@ -21,6 +21,7 @@ import com.google.adk.agents.LlmAgent;
 public class Example29IncludeContents {
 
     public static void main(String[] args) {
+        AgentRuntime runtime = new AgentRuntime();
         // Sub-coordinator with include_contents="none" — no parent context.
         LlmAgent independentSummarizer = LlmAgent.builder()
             .name("independent_summarizer")
@@ -49,12 +50,12 @@ public class Example29IncludeContents {
             .subAgents(independentSummarizer, contextAwareHelper)
             .build();
 
-        AgentResult result = Agentspan.run(coordinator,
+        AgentResult result = runtime.run(coordinator,
             "Please summarize this: 'The quick brown fox jumps over the lazy dog. "
             + "This sentence contains every letter of the alphabet and is commonly "
             + "used for typography testing.'");
         result.printResult();
 
-        Agentspan.shutdown();
+        runtime.shutdown();
     }
 }

@@ -6,7 +6,7 @@ package org.conductoross.conductor.ai.examples.openai;
 import org.conductoross.conductor.ai.examples.Settings;
 
 import org.conductoross.conductor.ai.Agent;
-import org.conductoross.conductor.ai.Agentspan;
+import org.conductoross.conductor.ai.AgentRuntime;
 import org.conductoross.conductor.ai.annotations.Tool;
 import org.conductoross.conductor.ai.frameworks.OpenAIAgent;
 import org.conductoross.conductor.ai.model.AgentResult;
@@ -58,6 +58,7 @@ public class Example07Streaming {
     }
 
     public static void main(String[] args) {
+        AgentRuntime runtime = new AgentRuntime();
         Agent agent = OpenAIAgent.builder()
                 .name("support_agent")
                 .instructions(
@@ -67,9 +68,9 @@ public class Example07Streaming {
                 .tools(new KnowledgeBaseTools())
                 .build();
 
-        AgentResult result = Agentspan.run(agent, "What's your return policy for electronics?");
+        AgentResult result = runtime.run(agent, "What's your return policy for electronics?");
         result.printResult();
 
-        Agentspan.shutdown();
+        runtime.shutdown();
     }
 }

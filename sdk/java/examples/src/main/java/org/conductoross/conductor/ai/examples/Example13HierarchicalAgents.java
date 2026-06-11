@@ -4,7 +4,7 @@
 package org.conductoross.conductor.ai.examples;
 
 import org.conductoross.conductor.ai.Agent;
-import org.conductoross.conductor.ai.Agentspan;
+import org.conductoross.conductor.ai.AgentRuntime;
 import org.conductoross.conductor.ai.enums.Strategy;
 import org.conductoross.conductor.ai.handoff.OnTextMention;
 import org.conductoross.conductor.ai.model.AgentResult;
@@ -28,6 +28,7 @@ import org.conductoross.conductor.ai.model.AgentResult;
 public class Example13HierarchicalAgents {
 
     public static void main(String[] args) {
+        AgentRuntime runtime = new AgentRuntime();
         // ── Level 3: Individual specialists ─────────────────────────────
 
         Agent backendDev = Agent.builder()
@@ -104,11 +105,11 @@ public class Example13HierarchicalAgents {
             .build();
 
         System.out.println("--- Technical question (CEO -> Engineering -> Backend) ---");
-        AgentResult result = Agentspan.run(ceo,
+        AgentResult result = runtime.run(ceo,
             "Design a REST API for a user management system with authentication "
             + "and then come up with a marketing campaign for the system");
         result.printResult();
 
-        Agentspan.shutdown();
+        runtime.shutdown();
     }
 }

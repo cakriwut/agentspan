@@ -34,10 +34,12 @@ import com.netflix.conductor.common.run.WorkflowSummary;
 import com.netflix.conductor.core.exception.NotFoundException;
 import com.netflix.conductor.core.execution.StartWorkflowInput;
 import com.netflix.conductor.core.execution.WorkflowExecutor;
+import com.netflix.conductor.core.utils.IDGenerator;
 import com.netflix.conductor.dao.ExecutionDAO;
 import com.netflix.conductor.dao.MetadataDAO;
 import com.netflix.conductor.model.WorkflowModel;
 import com.netflix.conductor.service.ExecutionService;
+import com.netflix.conductor.service.MetadataService;
 import com.netflix.conductor.service.WorkflowService;
 
 import dev.agentspan.runtime.compiler.AgentCompiler;
@@ -73,6 +75,26 @@ public class AgentService {
 
     @Autowired(required = false)
     private SkillRegistryService skillRegistryService;
+
+    /**
+     * Conductor's configured ID generator. When embedded in a host that uses time-based IDs
+     * (e.g. orkes-conductor with {@code conductor.id.generator=time_based}), pre-allocated
+     * execution IDs must be v1 time-based UUIDs — the host derives a workflow's createTime from
+     * its ID and yields 0 for non-v1 (random) UUIDs. Falls back to a random UUID when unset
+     * (standalone tests / no Spring context).
+     */
+    @Autowired(required = false)
+    private IDGenerator idGenerator;
+
+    /**
+     * Stable metadata service for task-def registration. The low-level {@code MetadataDAO}'s
+     * {@code createTaskDef}/{@code updateTaskDef} return types differ across Conductor cores
+     * (orkes' vendored oss-core returns {@code void}; 3.30.2 returns {@code TaskDef}), so calling
+     * the DAO directly throws {@code NoSuchMethodError} when embedded. {@code MetadataService}'s
+     * methods return {@code void} in all cores. Optional so the test constructor still works.
+     */
+    @Autowired(required = false)
+    private MetadataService metadataService;
 
     /** Package-private constructor for testing with ExecutionTokenService */
     AgentService(
@@ -267,6 +289,19 @@ public class AgentService {
         startReq.setVersion(def.getVersion());
         startReq.setWorkflowDef(def);
 
+        // Attribute the execution to the calling principal (the host populates the
+        // RequestContext: orkes' principal filter when embedded, the standalone AuthFilter
+        // otherwise). Security-enabled hosts key on this standard Conductor field: orkes
+        // records workflow.createdBy from it, stamps _createdBy into every scheduled task,
+        // impersonates it during decide so sub-workflows inherit attribution, and its
+        // workers' poll-time secret substitution REQUIRES it (tasks of workflows without
+        // createdBy fail to poll). Stock Conductor simply records the value.
+        String principal =
+                RequestContextHolder.get().map(ctx -> ctx.getUserId()).orElse(null);
+        if (principal != null) {
+            startReq.setCreatedBy(principal);
+        }
+
         Map<String, Object> input = new LinkedHashMap<>();
         input.put("prompt", request.getPrompt());
         input.put("media", request.getMedia() != null ? request.getMedia() : List.of());
@@ -293,7 +328,10 @@ public class AgentService {
         // with NPE when it tries Map.of(..., null, ...) on the not-null
         // execution_id column. Passing this id to setWorkflowId on the start
         // input below makes Conductor adopt it instead of generating one.
-        String preallocatedExecutionId = UUID.randomUUID().toString();
+        // Use the host's configured ID generator (time-based when embedded in orkes) so the
+        // host can derive createTime from the ID; fall back to a random UUID outside Spring.
+        String preallocatedExecutionId =
+                idGenerator != null ? idGenerator.generate() : UUID.randomUUID().toString();
 
         // Mint execution token and embed in workflow variables for worker credential resolution
         if (executionTokenService != null) {
@@ -310,8 +348,7 @@ public class AgentService {
                         }
                     }
                 }
-                String currentUserId =
-                        RequestContextHolder.get().map(ctx -> ctx.getUserId()).orElse(null);
+                String currentUserId = principal;
                 if (currentUserId != null) {
                     String token = executionTokenService.mint(
                             currentUserId, preallocatedExecutionId, declaredNames, timeoutSeconds);
@@ -399,7 +436,14 @@ public class AgentService {
      */
     @SuppressWarnings("unchecked")
     public List<AgentSummary> listAgents() {
-        List<WorkflowDef> allDefs = metadataDAO.getAllWorkflowDefsLatestVersions();
+        // Use the portable getAllWorkflowDefs() (present across Conductor cores, incl. orkes'
+        // vendored oss-core which lacks getAllWorkflowDefsLatestVersions()) and reduce to the
+        // latest version per name ourselves.
+        Map<String, WorkflowDef> latestByName = new HashMap<>();
+        for (WorkflowDef d : metadataDAO.getAllWorkflowDefs()) {
+            latestByName.merge(d.getName(), d, (a, b) -> a.getVersion() >= b.getVersion() ? a : b);
+        }
+        List<WorkflowDef> allDefs = new ArrayList<>(latestByName.values());
         List<AgentSummary> agents = new ArrayList<>();
 
         for (WorkflowDef def : allDefs) {
@@ -1334,7 +1378,11 @@ public class AgentService {
         try {
             TaskDef existing = metadataDAO.getTaskDef(taskName);
             if (existing != null) {
-                metadataDAO.updateTaskDef(taskDef);
+                if (metadataService != null) {
+                    metadataService.updateTaskDef(taskDef);
+                } else {
+                    metadataDAO.updateTaskDef(taskDef);
+                }
                 log.debug("Updated task definition: {}", taskName);
                 return;
             }
@@ -1342,7 +1390,13 @@ public class AgentService {
             // Task doesn't exist, create it
         }
 
-        metadataDAO.createTaskDef(taskDef);
+        // Prefer the stable MetadataService (registerTaskDef upserts, returns void in all cores);
+        // fall back to the DAO only outside Spring (tests).
+        if (metadataService != null) {
+            metadataService.registerTaskDef(List.of(taskDef));
+        } else {
+            metadataDAO.createTaskDef(taskDef);
+        }
         log.info("Registered task definition: {}", taskName);
     }
 

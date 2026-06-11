@@ -4,7 +4,7 @@
 package org.conductoross.conductor.ai.examples;
 
 import org.conductoross.conductor.ai.Agent;
-import org.conductoross.conductor.ai.Agentspan;
+import org.conductoross.conductor.ai.AgentRuntime;
 import org.conductoross.conductor.ai.enums.Strategy;
 import org.conductoross.conductor.ai.model.AgentHandle;
 import org.conductoross.conductor.ai.model.AgentResult;
@@ -33,6 +33,7 @@ import java.util.Map;
 public class Example18ManualSelection {
 
     public static void main(String[] args) {
+        AgentRuntime runtime = new AgentRuntime();
         Agent writer = Agent.builder()
             .name("writer")
             .model(Settings.LLM_MODEL)
@@ -72,7 +73,7 @@ public class Example18ManualSelection {
             "Draft a short paragraph about the discovery of penicillin, "
             + "then have it reviewed for accuracy and style.";
 
-        AgentHandle handle = Agentspan.start(editorialTeam, prompt);
+        AgentHandle handle = runtime.start(editorialTeam, prompt);
         System.out.println("Execution ID: " + handle.getExecutionId());
 
         // Drive the 3 manual turns. Each turn the MANUAL strategy creates a
@@ -96,6 +97,6 @@ public class Example18ManualSelection {
         AgentResult result = handle.waitForResult();
         result.printResult();
 
-        Agentspan.shutdown();
+        runtime.shutdown();
     }
 }

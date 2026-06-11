@@ -4,7 +4,7 @@
 package org.conductoross.conductor.ai.examples;
 
 import org.conductoross.conductor.ai.Agent;
-import org.conductoross.conductor.ai.Agentspan;
+import org.conductoross.conductor.ai.AgentRuntime;
 import org.conductoross.conductor.ai.annotations.Tool;
 import org.conductoross.conductor.ai.enums.Strategy;
 import org.conductoross.conductor.ai.internal.ToolRegistry;
@@ -72,6 +72,7 @@ public class Example44SafetyGuardrails {
 
     @SuppressWarnings("unchecked")
     public static void main(String[] args) {
+        AgentRuntime runtime = new AgentRuntime();
         List<ToolDef> rawSafetyTools = ToolRegistry.fromInstance(new SafetyTools());
         // Python's sanitize_response has pii_types with a default "" — only text is required
         ToolDef rawSanitize = rawSafetyTools.get(1); // sanitize_response is second tool
@@ -115,11 +116,11 @@ public class Example44SafetyGuardrails {
             .strategy(Strategy.SEQUENTIAL)
             .build();
 
-        AgentResult result = Agentspan.run(pipeline,
+        AgentResult result = runtime.run(pipeline,
             "What are the contact details for our support team? "
             + "Include email support@company.com and phone 555-123-4567.");
         result.printResult();
 
-        Agentspan.shutdown();
+        runtime.shutdown();
     }
 }

@@ -5,7 +5,7 @@ package org.conductoross.conductor.ai.examples.adk;
 
 import org.conductoross.conductor.ai.examples.Settings;
 
-import org.conductoross.conductor.ai.Agentspan;
+import org.conductoross.conductor.ai.AgentRuntime;
 import org.conductoross.conductor.ai.model.AgentResult;
 
 import com.google.adk.agents.LlmAgent;
@@ -123,6 +123,7 @@ public class Example09MultiToolAgent {
     }
 
     public static void main(String[] args) {
+        AgentRuntime runtime = new AgentRuntime();
         LlmAgent shopper = LlmAgent.builder()
             .name("shopping_assistant")
             .description("Helps users search products, check stock, calculate shipping, and apply coupons.")
@@ -140,11 +141,11 @@ public class Example09MultiToolAgent {
                 FunctionTool.create(Example09MultiToolAgent.class, "applyCoupon"))
             .build();
 
-        AgentResult result = Agentspan.run(shopper,
+        AgentResult result = runtime.run(shopper,
             "I'm looking for electronics. Show me what you have, check if they're "
             + "in stock, and calculate shipping to San Francisco. I have coupon code SAVE10.");
         result.printResult();
 
-        Agentspan.shutdown();
+        runtime.shutdown();
     }
 }

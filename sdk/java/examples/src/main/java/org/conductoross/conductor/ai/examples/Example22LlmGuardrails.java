@@ -4,7 +4,7 @@
 package org.conductoross.conductor.ai.examples;
 
 import org.conductoross.conductor.ai.Agent;
-import org.conductoross.conductor.ai.Agentspan;
+import org.conductoross.conductor.ai.AgentRuntime;
 import org.conductoross.conductor.ai.enums.OnFail;
 import org.conductoross.conductor.ai.enums.Position;
 import org.conductoross.conductor.ai.model.AgentResult;
@@ -26,6 +26,7 @@ import java.util.Map;
 public class Example22LlmGuardrails {
 
     public static void main(String[] args) {
+        AgentRuntime runtime = new AgentRuntime();
         // ── LLM-based tone guardrail ───────────────────────────────────────
         // Ensures customer communications are professional and positive.
 
@@ -61,10 +62,10 @@ public class Example22LlmGuardrails {
             .guardrails(List.of(toneGuard))
             .build();
 
-        AgentResult result = Agentspan.run(agent,
+        AgentResult result = runtime.run(agent,
             "A customer is frustrated that their order arrived late. Write a response.");
         result.printResult();
 
-        Agentspan.shutdown();
+        runtime.shutdown();
     }
 }

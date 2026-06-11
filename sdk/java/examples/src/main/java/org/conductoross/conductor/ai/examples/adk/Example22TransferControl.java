@@ -5,7 +5,7 @@ package org.conductoross.conductor.ai.examples.adk;
 
 import org.conductoross.conductor.ai.examples.Settings;
 
-import org.conductoross.conductor.ai.Agentspan;
+import org.conductoross.conductor.ai.AgentRuntime;
 import org.conductoross.conductor.ai.model.AgentResult;
 
 import com.google.adk.agents.LlmAgent;
@@ -21,6 +21,7 @@ import com.google.adk.agents.LlmAgent;
 public class Example22TransferControl {
 
     public static void main(String[] args) {
+        AgentRuntime runtime = new AgentRuntime();
         // Cannot return to coordinator directly (disallow_transfer_to_parent=True)
         LlmAgent specialistA = LlmAgent.builder()
             .name("data_collector")
@@ -70,10 +71,10 @@ public class Example22TransferControl {
             .subAgents(specialistA, specialistB, specialistC)
             .build();
 
-        AgentResult result = Agentspan.run(coordinator,
+        AgentResult result = runtime.run(coordinator,
             "Research the current state of renewable energy adoption worldwide.");
         result.printResult();
 
-        Agentspan.shutdown();
+        runtime.shutdown();
     }
 }

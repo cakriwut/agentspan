@@ -4,7 +4,7 @@
 package org.conductoross.conductor.ai.examples.adk;
 
 import org.conductoross.conductor.ai.Agent;
-import org.conductoross.conductor.ai.Agentspan;
+import org.conductoross.conductor.ai.AgentRuntime;
 import org.conductoross.conductor.ai.enums.OnFail;
 import org.conductoross.conductor.ai.enums.Position;
 import org.conductoross.conductor.ai.examples.Settings;
@@ -73,6 +73,7 @@ public class Example38AgentspanGuardrails {
     }
 
     public static void main(String[] args) {
+        AgentRuntime runtime = new AgentRuntime();
         LlmAgent helper = LlmAgent.builder()
                 .name("contact_directory")
                 .description("Confirms contact details the user has just supplied.")
@@ -100,12 +101,12 @@ public class Example38AgentspanGuardrails {
                 .guardrails(piiRedaction)
                 .build();
 
-        AgentResult result = Agentspan.run(guarded,
+        AgentResult result = runtime.run(guarded,
                 "Please confirm the contact details I just sent: alice@example.com "
                 + "and phone 555-867-5309. Echo them back in your reply so I can "
                 + "double-check the spelling.");
         result.printResult();
 
-        Agentspan.shutdown();
+        runtime.shutdown();
     }
 }

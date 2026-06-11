@@ -4,7 +4,7 @@
 package org.conductoross.conductor.ai.examples;
 
 import org.conductoross.conductor.ai.Agent;
-import org.conductoross.conductor.ai.Agentspan;
+import org.conductoross.conductor.ai.AgentRuntime;
 import org.conductoross.conductor.ai.annotations.Tool;
 import org.conductoross.conductor.ai.internal.ToolRegistry;
 import org.conductoross.conductor.ai.model.AgentResult;
@@ -58,6 +58,7 @@ public class Example51SharedState {
     }
 
     public static void main(String[] args) {
+        AgentRuntime runtime = new AgentRuntime();
         List<ToolDef> rawTools = ToolRegistry.fromInstance(new ShoppingListTools());
         // getMethods() order is not guaranteed — find by name and match Python order:
         // [add_item, get_list, clear_list]
@@ -81,10 +82,10 @@ public class Example51SharedState {
                 + "in the same batch as add_item calls.")
             .build();
 
-        AgentResult result = Agentspan.run(agent,
+        AgentResult result = runtime.run(agent,
             "Add milk, eggs, and bread to my shopping list, then show me the list.");
         result.printResult();
 
-        Agentspan.shutdown();
+        runtime.shutdown();
     }
 }

@@ -4,7 +4,7 @@
 package org.conductoross.conductor.ai.examples;
 
 import org.conductoross.conductor.ai.Agent;
-import org.conductoross.conductor.ai.Agentspan;
+import org.conductoross.conductor.ai.AgentRuntime;
 import org.conductoross.conductor.ai.annotations.Tool;
 import org.conductoross.conductor.ai.internal.ToolRegistry;
 import org.conductoross.conductor.ai.model.AgentResult;
@@ -51,6 +51,7 @@ public class Example02cTypedToolArgs {
     }
 
     public static void main(String[] args) {
+        AgentRuntime runtime = new AgentRuntime();
         List<ToolDef> tools = ToolRegistry.fromInstance(new CalendarTools());
 
         Agent agent = Agent.builder()
@@ -62,11 +63,11 @@ public class Example02cTypedToolArgs {
                 + "and record events. Pass dates and times exactly as the user gives them.")
             .build();
 
-        AgentResult result = Agentspan.run(agent,
+        AgentResult result = runtime.run(agent,
             "Schedule a one-hour meeting starting May 12th, 2026 at 2 PM, "
             + "then record an event at 2026-05-12T13:45:00Z.");
         result.printResult();
 
-        Agentspan.shutdown();
+        runtime.shutdown();
     }
 }

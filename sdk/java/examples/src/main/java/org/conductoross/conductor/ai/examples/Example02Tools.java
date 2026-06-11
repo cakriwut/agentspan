@@ -4,7 +4,7 @@
 package org.conductoross.conductor.ai.examples;
 
 import org.conductoross.conductor.ai.Agent;
-import org.conductoross.conductor.ai.Agentspan;
+import org.conductoross.conductor.ai.AgentRuntime;
 import org.conductoross.conductor.ai.annotations.Tool;
 import org.conductoross.conductor.ai.internal.ToolRegistry;
 import org.conductoross.conductor.ai.model.AgentResult;
@@ -35,6 +35,7 @@ public class Example02Tools {
     }
 
     public static void main(String[] args) {
+        AgentRuntime runtime = new AgentRuntime();
         List<ToolDef> tools = ToolRegistry.fromInstance(new AgentTools());
 
         Agent agent = Agent.builder()
@@ -44,9 +45,9 @@ public class Example02Tools {
             .instructions("You are a helpful assistant. Use tools to answer questions.")
             .build();
 
-        AgentResult result = Agentspan.run(agent, "What's the weather like in San Francisco?");
+        AgentResult result = runtime.run(agent, "What's the weather like in San Francisco?");
         result.printResult();
 
-        Agentspan.shutdown();
+        runtime.shutdown();
     }
 }

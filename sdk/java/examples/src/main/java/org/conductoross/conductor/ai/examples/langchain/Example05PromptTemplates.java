@@ -3,7 +3,7 @@
 
 package org.conductoross.conductor.ai.examples.langchain;
 
-import org.conductoross.conductor.ai.Agentspan;
+import org.conductoross.conductor.ai.AgentRuntime;
 import org.conductoross.conductor.ai.model.AgentResult;
 
 import dev.langchain4j.agent.tool.P;
@@ -91,6 +91,7 @@ public class Example05PromptTemplates {
         + "Always use the available tools to look up definitions and synonyms before answering.";
 
     public static void main(String[] args) {
+        AgentRuntime runtime = new AgentRuntime();
         // apiKey is required by LangChain4j's builder but unused — Agentspan
         // runs the LLM call on the server with server-registered credentials.
         ChatModel model = OpenAiChatModel.builder()
@@ -100,7 +101,7 @@ public class Example05PromptTemplates {
 
         // The drop-in overload does not take a system prompt — fold the
         // persona into the user message instead.
-        AgentResult result = Agentspan.run(
+        AgentResult result = runtime.run(
             model,
             SYSTEM_PROMPT
                 + "\n\nWhat does 'serendipity' mean? And what are some synonyms for 'happy'?",
@@ -109,6 +110,6 @@ public class Example05PromptTemplates {
         System.out.println("Status: " + result.getStatus());
         result.printResult();
 
-        Agentspan.shutdown();
+        runtime.shutdown();
     }
 }

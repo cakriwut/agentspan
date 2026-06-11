@@ -4,7 +4,7 @@
 package org.conductoross.conductor.ai.examples;
 
 import org.conductoross.conductor.ai.Agent;
-import org.conductoross.conductor.ai.Agentspan;
+import org.conductoross.conductor.ai.AgentRuntime;
 import org.conductoross.conductor.ai.annotations.Tool;
 import org.conductoross.conductor.ai.enums.Strategy;
 import org.conductoross.conductor.ai.internal.ToolRegistry;
@@ -90,6 +90,7 @@ public class Example41SequentialPipelineTools {
 
     @SuppressWarnings("unchecked")
     public static void main(String[] args) {
+        AgentRuntime runtime = new AgentRuntime();
         List<ToolDef> conceptTools = ToolRegistry.fromInstance(new ConceptTools());
         List<ToolDef> rawScriptTools = ToolRegistry.fromInstance(new ScriptTools());
         // Python's write_scene has dialogue with a default "" — only first 3 params required
@@ -165,11 +166,11 @@ public class Example41SequentialPipelineTools {
             .strategy(Strategy.SEQUENTIAL)
             .build();
 
-        AgentResult result = Agentspan.run(pipeline,
+        AgentResult result = runtime.run(pipeline,
             "Create a 3-scene short film about a robot discovering music "
             + "for the first time in a post-apocalyptic world.");
         result.printResult();
 
-        Agentspan.shutdown();
+        runtime.shutdown();
     }
 }

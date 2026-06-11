@@ -5,7 +5,7 @@ package org.conductoross.conductor.ai.examples.adk;
 
 import org.conductoross.conductor.ai.examples.Settings;
 
-import org.conductoross.conductor.ai.Agentspan;
+import org.conductoross.conductor.ai.AgentRuntime;
 import org.conductoross.conductor.ai.model.AgentResult;
 
 import com.google.adk.agents.LlmAgent;
@@ -28,6 +28,7 @@ import com.google.adk.tools.GoogleSearchTool;
 public class Example36BuiltInTools {
 
     public static void main(String[] args) {
+        AgentRuntime runtime = new AgentRuntime();
         LlmAgent toolUser = LlmAgent.builder()
                 .name("research_assistant")
                 .description("An assistant that can search the web with the built-in Google Search tool.")
@@ -39,10 +40,10 @@ public class Example36BuiltInTools {
                 .tools(new GoogleSearchTool())
                 .build();
 
-        AgentResult result = Agentspan.run(toolUser,
+        AgentResult result = runtime.run(toolUser,
                 "What are the most recent developments in fusion energy research?");
         result.printResult();
 
-        Agentspan.shutdown();
+        runtime.shutdown();
     }
 }

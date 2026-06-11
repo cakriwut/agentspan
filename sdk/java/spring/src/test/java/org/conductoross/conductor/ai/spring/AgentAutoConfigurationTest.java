@@ -10,7 +10,7 @@ import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 
 import io.orkes.conductor.client.ApiClient;
 
-class AgentspanAutoConfigurationTest {
+class AgentAutoConfigurationTest {
 
     /**
      * Provide a minimal ApiClient so tests don't need a live conductor-client-spring
@@ -23,8 +23,8 @@ class AgentspanAutoConfigurationTest {
     }
 
     private final ApplicationContextRunner runner = new ApplicationContextRunner()
-            .withConfiguration(AutoConfigurations.of(AgentspanAutoConfiguration.class))
-            .withBean(ApiClient.class, AgentspanAutoConfigurationTest::stubApiClient);
+            .withConfiguration(AutoConfigurations.of(AgentAutoConfiguration.class))
+            .withBean(ApiClient.class, AgentAutoConfigurationTest::stubApiClient);
 
     @Test
     void wiresConfigAndRuntimeWithDefaults() {

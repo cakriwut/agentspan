@@ -39,7 +39,7 @@ sdk/go/
       run.go                     # Top-level Run, Start, Stream, Deploy, etc.
       serialize.go               # AgentConfig JSON serialization
       errors.go                  # Error types
-      ext.go                     # UserProxyAgent, GPTAssistantAgent
+      ext.go                     # GPTAssistantAgent
       discovery.go               # DiscoverAgents
       tracing.go                 # IsTracingEnabled
     agentspan/sse/               # internal SSE client
@@ -1655,16 +1655,9 @@ editorialQuestion := agentspan.HumanTool("ask_editor",
     "Ask the editor a question about the article.",
 )
 
-editorialReviewer := agentspan.NewUserProxyAgent("editorial_reviewer",
-    agentspan.WithModel(llmModel),
-    agentspan.WithInstructions("You are the editorial reviewer."),
-    agentspan.WithHumanInputMode("TERMINATE"),
-)
-
 editorialAgent := agentspan.NewAgent("editorial_approval",
     agentspan.WithModel(llmModel),
     agentspan.WithTools(publishTool, editorialQuestion),
-    agentspan.WithSubAgents(editorialReviewer),
     agentspan.WithStrategy(agentspan.StrategyHandoff),
 )
 ```

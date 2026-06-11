@@ -5,7 +5,7 @@ package org.conductoross.conductor.ai.examples.adk;
 
 import org.conductoross.conductor.ai.examples.Settings;
 
-import org.conductoross.conductor.ai.Agentspan;
+import org.conductoross.conductor.ai.AgentRuntime;
 import org.conductoross.conductor.ai.model.AgentResult;
 
 import com.google.adk.agents.LlmAgent;
@@ -49,6 +49,7 @@ public class Example31SharedState {
     }
 
     public static void main(String[] args) {
+        AgentRuntime runtime = new AgentRuntime();
         LlmAgent stateAgent = LlmAgent.builder()
             .name("shopping_assistant")
             .description("Manages a shopping list shared across tool calls via add/get/clear tools.")
@@ -62,10 +63,10 @@ public class Example31SharedState {
                 FunctionTool.create(Example31SharedState.class, "clearList"))
             .build();
 
-        AgentResult result = Agentspan.run(stateAgent,
+        AgentResult result = runtime.run(stateAgent,
             "Add milk, eggs, and bread to my shopping list, then show me the list.");
         result.printResult();
 
-        Agentspan.shutdown();
+        runtime.shutdown();
     }
 }

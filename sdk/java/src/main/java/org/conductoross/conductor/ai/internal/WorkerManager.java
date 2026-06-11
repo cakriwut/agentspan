@@ -13,7 +13,6 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
 
 import org.conductoross.conductor.ai.AgentConfig;
-import org.conductoross.conductor.ai.Credentials;
 import org.conductoross.conductor.ai.exceptions.CredentialAuthException;
 import org.conductoross.conductor.ai.exceptions.CredentialNotFoundException;
 import org.conductoross.conductor.ai.exceptions.CredentialRateLimitException;
@@ -401,14 +400,14 @@ public class WorkerManager {
         }
 
         try {
-            Credentials.setForCall(resolvedSecrets);
+            CredentialContext.set(resolvedSecrets);
             try {
                 Object out = handler.apply(inputData);
                 result.setStatus(TaskResult.Status.COMPLETED);
                 result.setOutputData(buildOutput(out));
                 logger.debug("Completed task {} ({})", taskName, task.getTaskId());
             } finally {
-                Credentials.clearForCall();
+                CredentialContext.clear();
             }
         } catch (Exception e) {
             logger.error("Task {} ({}) failed: {}", taskName, task.getTaskId(), e.getMessage(), e);

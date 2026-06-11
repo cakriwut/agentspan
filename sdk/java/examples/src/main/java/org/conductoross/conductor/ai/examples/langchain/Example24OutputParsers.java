@@ -3,7 +3,7 @@
 
 package org.conductoross.conductor.ai.examples.langchain;
 
-import org.conductoross.conductor.ai.Agentspan;
+import org.conductoross.conductor.ai.AgentRuntime;
 import org.conductoross.conductor.ai.model.AgentResult;
 
 import dev.langchain4j.model.chat.ChatModel;
@@ -149,6 +149,7 @@ public class Example24OutputParsers {
     }
 
     public static void main(String[] args) {
+        AgentRuntime runtime = new AgentRuntime();
         // Demonstrate the record-like value object so it isn't unused.
         @SuppressWarnings("unused")
         ExtractedFields example = new ExtractedFields("2025-03-15", "$249.99", "billing@example.com");
@@ -162,7 +163,7 @@ public class Example24OutputParsers {
 
         // Python uses the shorter prompt below — fold it into the user
         // message via the drop-in overload for parity.
-        AgentResult result = Agentspan.run(
+        AgentResult result = runtime.run(
             model,
             "You are a data extraction and formatting assistant. "
                 + "Use tools to retrieve, parse, and structure information clearly.\n\n"
@@ -174,6 +175,6 @@ public class Example24OutputParsers {
         System.out.println("Status: " + result.getStatus());
         result.printResult();
 
-        Agentspan.shutdown();
+        runtime.shutdown();
     }
 }

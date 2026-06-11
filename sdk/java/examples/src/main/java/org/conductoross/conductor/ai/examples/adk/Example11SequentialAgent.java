@@ -5,7 +5,7 @@ package org.conductoross.conductor.ai.examples.adk;
 
 import org.conductoross.conductor.ai.examples.Settings;
 
-import org.conductoross.conductor.ai.Agentspan;
+import org.conductoross.conductor.ai.AgentRuntime;
 import org.conductoross.conductor.ai.model.AgentResult;
 
 import com.google.adk.agents.LlmAgent;
@@ -24,6 +24,7 @@ import com.google.adk.agents.SequentialAgent;
 public class Example11SequentialAgent {
 
     public static void main(String[] args) {
+        AgentRuntime runtime = new AgentRuntime();
         // Step 1: Research pipeline gathers facts
         LlmAgent researcher = LlmAgent.builder()
             .name("researcher")
@@ -65,10 +66,10 @@ public class Example11SequentialAgent {
             .subAgents(researcher, writer, editor)
             .build();
 
-        AgentResult result = Agentspan.run(pipeline, "The history of the Internet");
+        AgentResult result = runtime.run(pipeline, "The history of the Internet");
         System.out.println("Status: " + result.getStatus());
         result.printResult();
 
-        Agentspan.shutdown();
+        runtime.shutdown();
     }
 }

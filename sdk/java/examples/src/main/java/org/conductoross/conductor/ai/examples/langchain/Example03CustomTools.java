@@ -3,7 +3,7 @@
 
 package org.conductoross.conductor.ai.examples.langchain;
 
-import org.conductoross.conductor.ai.Agentspan;
+import org.conductoross.conductor.ai.AgentRuntime;
 import org.conductoross.conductor.ai.model.AgentResult;
 
 import dev.langchain4j.agent.tool.P;
@@ -97,6 +97,7 @@ public class Example03CustomTools {
     }
 
     public static void main(String[] args) {
+        AgentRuntime runtime = new AgentRuntime();
         // apiKey is required by LangChain4j's builder but unused — Agentspan
         // runs the LLM call on the server with server-registered credentials.
         ChatModel model = OpenAiChatModel.builder()
@@ -107,7 +108,7 @@ public class Example03CustomTools {
         // Python's create_agent(llm, tools=[...]) sends no system prompt unless
         // the caller provides one — the drop-in overload defaults to no system
         // prompt, which matches.
-        AgentResult result = Agentspan.run(
+        AgentResult result = runtime.run(
             model,
             "Convert 100°C to Fahrenheit and Kelvin. Also format 1234567.891 with 2 decimal places.",
             new CustomTools()
@@ -115,6 +116,6 @@ public class Example03CustomTools {
         System.out.println("Status: " + result.getStatus());
         result.printResult();
 
-        Agentspan.shutdown();
+        runtime.shutdown();
     }
 }

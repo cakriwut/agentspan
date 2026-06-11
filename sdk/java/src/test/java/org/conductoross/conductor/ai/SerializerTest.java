@@ -518,27 +518,6 @@ class SerializerTest {
         assertEquals("supervisor", handoffs.get(0).get("target"));
     }
 
-    // ── UserProxyAgent ────────────────────────────────────────────────────
-
-    @Test
-    @SuppressWarnings("unchecked")
-    void user_proxy_agent_sets_metadata() {
-        Agent proxy = UserProxyAgent.create("human_user", "ALWAYS", "Continue.", "openai/gpt-4o-mini");
-        Map<String, Object> out = ser.serialize(proxy);
-
-        Map<String, Object> metadata = (Map<String, Object>) out.get("metadata");
-        assertNotNull(metadata, "UserProxyAgent must set metadata");
-        assertEquals("user_proxy", metadata.get("_agent_type"));
-        assertEquals("ALWAYS", metadata.get("_human_input_mode"));
-    }
-
-    @Test
-    void user_proxy_agent_rejects_invalid_mode() {
-        assertThrows(
-                IllegalArgumentException.class,
-                () -> UserProxyAgent.create("u", "INVALID_MODE", "ok", "openai/gpt-4o-mini"));
-    }
-
     // ── MediaTools ────────────────────────────────────────────────────────
 
     @Test
@@ -621,38 +600,6 @@ class SerializerTest {
 
         Map<String, Object> out = ser.serialize(agent);
         assertEquals("human", tool(out, "human_tool").get("toolType"));
-    }
-
-    // ── ClaudeCode ────────────────────────────────────────────────────────
-
-    @Test
-    void claude_code_model_string_format() {
-        ClaudeCode cc = new ClaudeCode("opus");
-        assertTrue(cc.toModelString().startsWith("claude-code/"), "toModelString() must start with 'claude-code/'");
-        assertTrue(cc.toModelString().contains("opus"));
-    }
-
-    @Test
-    void claude_code_permission_modes() {
-        for (ClaudeCode.PermissionMode mode : ClaudeCode.PermissionMode.values()) {
-            ClaudeCode cc = new ClaudeCode("sonnet", mode);
-            assertNotNull(cc.toModelString());
-            assertTrue(cc.toModelString().startsWith("claude-code/"));
-        }
-    }
-
-    @Test
-    void claude_code_model_in_agent_serialized() {
-        ClaudeCode cc = new ClaudeCode("sonnet");
-        Agent agent = Agent.builder()
-                .name("cc_agent")
-                .model(cc.toModelString())
-                .instructions("test")
-                .build();
-
-        Map<String, Object> out = ser.serialize(agent);
-        String model = (String) out.get("model");
-        assertTrue(model.startsWith("claude-code/"), "model in serialized output must start with 'claude-code/'");
     }
 
     // ── GPTAssistantAgent ─────────────────────────────────────────────────

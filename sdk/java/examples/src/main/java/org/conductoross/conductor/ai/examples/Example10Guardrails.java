@@ -4,7 +4,7 @@
 package org.conductoross.conductor.ai.examples;
 
 import org.conductoross.conductor.ai.Agent;
-import org.conductoross.conductor.ai.Agentspan;
+import org.conductoross.conductor.ai.AgentRuntime;
 import org.conductoross.conductor.ai.annotations.GuardrailDef;
 import org.conductoross.conductor.ai.annotations.Tool;
 import org.conductoross.conductor.ai.enums.OnFail;
@@ -71,6 +71,7 @@ public class Example10Guardrails {
     }
 
     public static void main(String[] args) {
+        AgentRuntime runtime = new AgentRuntime();
         List<org.conductoross.conductor.ai.model.ToolDef> tools = ToolRegistry.fromInstance(new CustomerTools());
         List<org.conductoross.conductor.ai.model.GuardrailDef> guardrails =
             ToolRegistry.guardrailsFromInstance(new PiiGuardrails());
@@ -86,7 +87,7 @@ public class Example10Guardrails {
             .guardrails(guardrails)
             .build();
 
-        AgentResult result = Agentspan.run(agent,
+        AgentResult result = runtime.run(agent,
             "I need a full summary: What's the status of order ORD-42, "
             + "and what's the profile for customer CUST-7?");
         result.printResult();
@@ -98,6 +99,6 @@ public class Example10Guardrails {
             System.out.println("[OK] PII was redacted from the final output.");
         }
 
-        Agentspan.shutdown();
+        runtime.shutdown();
     }
 }

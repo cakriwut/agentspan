@@ -6,7 +6,7 @@ package org.conductoross.conductor.ai.examples.openai;
 import org.conductoross.conductor.ai.examples.Settings;
 
 import org.conductoross.conductor.ai.Agent;
-import org.conductoross.conductor.ai.Agentspan;
+import org.conductoross.conductor.ai.AgentRuntime;
 import org.conductoross.conductor.ai.annotations.Tool;
 import org.conductoross.conductor.ai.frameworks.OpenAIAgent;
 import org.conductoross.conductor.ai.model.AgentResult;
@@ -67,6 +67,7 @@ public class Example04Handoffs {
     }
 
     public static void main(String[] args) {
+        AgentRuntime runtime = new AgentRuntime();
         // ── Specialist agents ─────────────────────────────────────────
         Agent orderAgent = OpenAIAgent.builder()
                 .name("order_specialist")
@@ -109,11 +110,11 @@ public class Example04Handoffs {
                 .handoffs(orderAgent, refundAgent, salesAgent)
                 .build();
 
-        AgentResult result = Agentspan.run(
+        AgentResult result = runtime.run(
                 triage,
                 "I'd like a refund for order ORD-002, the product arrived damaged.");
         result.printResult();
 
-        Agentspan.shutdown();
+        runtime.shutdown();
     }
 }

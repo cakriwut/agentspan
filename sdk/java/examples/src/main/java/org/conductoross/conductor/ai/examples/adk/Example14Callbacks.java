@@ -5,7 +5,7 @@ package org.conductoross.conductor.ai.examples.adk;
 
 import org.conductoross.conductor.ai.examples.Settings;
 
-import org.conductoross.conductor.ai.Agentspan;
+import org.conductoross.conductor.ai.AgentRuntime;
 import org.conductoross.conductor.ai.model.AgentResult;
 
 import com.google.adk.agents.LlmAgent;
@@ -80,6 +80,7 @@ public class Example14Callbacks {
     }
 
     public static void main(String[] args) {
+        AgentRuntime runtime = new AgentRuntime();
         LlmAgent calculator = LlmAgent.builder()
             .name("customer_service_agent")
             .description("Handles customer service lookups, order status checks, and discount application.")
@@ -96,12 +97,12 @@ public class Example14Callbacks {
                 FunctionTool.create(Example14Callbacks.class, "checkOrderStatus"))
             .build();
 
-        AgentResult result = Agentspan.run(calculator,
+        AgentResult result = runtime.run(calculator,
             "Look up customer C001 and check if order ORD-1001 has shipped. "
             + "If the customer is gold tier, apply a 10% discount.");
         System.out.println("Status: " + result.getStatus());
         result.printResult();
 
-        Agentspan.shutdown();
+        runtime.shutdown();
     }
 }

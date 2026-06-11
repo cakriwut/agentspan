@@ -4,7 +4,7 @@
 package org.conductoross.conductor.ai.examples;
 
 import org.conductoross.conductor.ai.Agent;
-import org.conductoross.conductor.ai.Agentspan;
+import org.conductoross.conductor.ai.AgentRuntime;
 import org.conductoross.conductor.ai.annotations.Tool;
 import org.conductoross.conductor.ai.internal.ToolRegistry;
 import org.conductoross.conductor.ai.model.AgentResult;
@@ -67,6 +67,7 @@ public class Example33ExternalWorkers {
     }
 
     public static void main(String[] args) {
+        AgentRuntime runtime = new AgentRuntime();
         List<ToolDef> tools = ToolRegistry.fromInstance(new SupportTools());
 
         Agent supportAgent = Agent.builder()
@@ -82,11 +83,11 @@ public class Example33ExternalWorkers {
         System.out.println("=== Mixed Local + External Worker Tools ===");
         System.out.println("(In production, get_customer and process_order run in separate services)\n");
 
-        AgentResult result = Agentspan.run(supportAgent,
+        AgentResult result = runtime.run(supportAgent,
             "Customer C-1234 wants to cancel order ORD-5678. "
             + "Look up the customer, process the cancellation, and give me a formatted summary.");
         result.printResult();
 
-        Agentspan.shutdown();
+        runtime.shutdown();
     }
 }

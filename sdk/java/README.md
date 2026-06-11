@@ -46,7 +46,7 @@ implementation 'org.conductoross.conductor.ai:java-sdk-spring:0.1.0'
 
 ```java
 import org.conductoross.conductor.ai.Agent;
-import org.conductoross.conductor.ai.Agentspan;
+import org.conductoross.conductor.ai.AgentRuntime;
 import org.conductoross.conductor.ai.model.AgentResult;
 
 public class Main {
@@ -57,12 +57,16 @@ public class Main {
             .instructions("You are a helpful assistant.")
             .build();
 
-        AgentResult result = Agentspan.run(agent, "What is the capital of France?");
-        result.printResult();
-        Agentspan.shutdown();
+        // AgentRuntime is AutoCloseable — try-with-resources shuts down workers cleanly.
+        try (AgentRuntime runtime = new AgentRuntime()) {
+            AgentResult result = runtime.run(agent, "What is the capital of France?");
+            result.printResult();
+        }
     }
 }
 ```
+
+> In Spring, inject the auto-configured `AgentRuntime` bean instead of constructing one.
 
 ## Configuration
 
@@ -79,7 +83,7 @@ Or configure programmatically:
 
 ```java
 import org.conductoross.conductor.ai.AgentConfig;
-import org.conductoross.conductor.ai.Agentspan;
+import org.conductoross.conductor.ai.AgentRuntime;
 
 AgentConfig config = new AgentConfig(
     "http://localhost:6767/api",
@@ -88,7 +92,7 @@ AgentConfig config = new AgentConfig(
     100,  // poll interval ms
     5     // worker threads
 );
-Agentspan.configure(config);
+AgentRuntime runtime = new AgentRuntime(config);
 ```
 
 ## Tools
@@ -125,7 +129,9 @@ Agent writer = Agent.builder().name("writer").model("openai/gpt-4o")
 
 // Sequential pipeline
 Agent pipeline = researcher.then(writer);
-AgentResult result = Agentspan.run(pipeline, "Write about AI trends");
+try (AgentRuntime runtime = new AgentRuntime()) {
+    AgentResult result = runtime.run(pipeline, "Write about AI trends");
+}
 ```
 
 ## Streaming
