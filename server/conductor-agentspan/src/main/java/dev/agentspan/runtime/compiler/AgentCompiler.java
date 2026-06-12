@@ -91,8 +91,8 @@ public class AgentCompiler {
     /**
      * Public entry point: compile an {@link AgentConfig} into a
      * {@link WorkflowDef}. An agent's compiled tool list is exactly its
-     * declared tool list — server-side capabilities (e.g. OCG) are opted
-     * into explicitly from the SDK, never injected here.
+     * declared tool list — capabilities are opted into explicitly from
+     * the SDK, never injected here.
      */
     public WorkflowDef compile(AgentConfig config) {
         WorkflowDef wf;

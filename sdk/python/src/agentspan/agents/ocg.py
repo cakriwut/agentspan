@@ -5,10 +5,10 @@
 
 OCG is a retrieval engine over a knowledge graph of entities (messages,
 channels, people, code) linked by claims and relationships. This module is
-the canonical definition of the OCG retrieval agent — system prompt, tool
-schemas, and instance binding all live here; the server provides only the
-execution layer (the seven ``OCG_*`` system tasks that make the HTTP calls,
-resolve credentials, and cap responses).
+the canonical — and only — definition of the OCG integration: system
+prompt, tool schemas, endpoint routing, and instance binding all live
+here. The tools compile to plain Conductor HTTP tasks (with path
+templating); there is no OCG-specific server code at all.
 
 Typical usage — delegate retrieval from a main agent::
 
@@ -138,6 +138,8 @@ def _object(properties: Dict[str, Any], required: List[str]) -> Dict[str, Any]:
 def _query_tool() -> Dict[str, Any]:
     return {
         "name": "ocg_query",
+        "method": "POST",
+        "path": "/api/v1/agent/query",
         "description": (
             "Query the Open Context Graph for structured retrieval. "
             "Returns citations (source_item_id, title, container_id, snippet) "
@@ -161,6 +163,8 @@ def _query_tool() -> Dict[str, Any]:
 def _get_entity_tool() -> Dict[str, Any]:
     return {
         "name": "ocg_get_entity",
+        "method": "GET",
+        "path": "/api/v1/entities/{entity_id}",
         "description": "Fetch one entity by its canonical id.",
         "schema": _object(
             {"entity_id": _prop("string", "Canonical entity id from an ocg_query result row.")},
@@ -172,6 +176,9 @@ def _get_entity_tool() -> Dict[str, Any]:
 def _neighborhood_tool() -> Dict[str, Any]:
     return {
         "name": "ocg_neighborhood",
+        "method": "GET",
+        "path": "/api/v1/graph/neighborhood/{entity_id}",
+        "query_params": ["depth", "limit"],
         "description": (
             "Get an entity plus its graph neighbors out to `depth` hops. "
             "Use limit <= 10, depth=1 on the first call — well-connected "
@@ -193,6 +200,9 @@ def _neighborhood_tool() -> Dict[str, Any]:
 def _code_history_tool() -> Dict[str, Any]:
     return {
         "name": "ocg_code_history",
+        "method": "GET",
+        "path": "/api/v1/code/history/{repo_id}",
+        "query_params": ["path", "limit"],
         "description": "Last N commits that touched a file in an ingested repo.",
         "schema": _object(
             {
@@ -208,6 +218,8 @@ def _code_history_tool() -> Dict[str, Any]:
 def _memory_set_tool() -> Dict[str, Any]:
     return {
         "name": "ocg_memory_set",
+        "method": "POST",
+        "path": "/api/v1/memories",
         "description": (
             "Create or overwrite a memory in OCG. Cap inferred confidence at 0.7; "
             "never write PII or secrets."
@@ -240,6 +252,8 @@ def _memory_set_tool() -> Dict[str, Any]:
 def _memory_reinforce_tool() -> Dict[str, Any]:
     return {
         "name": "ocg_memory_reinforce",
+        "method": "POST",
+        "path": "/api/v1/memories/{key}/reinforce",
         "description": (
             "Reinforce an existing memory on independent re-observation. confidence_boost must be <= 0.05."
         ),
@@ -261,6 +275,9 @@ def _memory_reinforce_tool() -> Dict[str, Any]:
 def _memory_delete_tool() -> Dict[str, Any]:
     return {
         "name": "ocg_memory_delete",
+        "method": "DELETE",
+        "path": "/api/v1/memories/{key}",
+        "query_params": ["agent", "user"],
         "description": (
             "Delete a memory by key. Prefer ocg_memory_set with a corrected value "
             "over deletion (preserves history)."
@@ -290,9 +307,10 @@ def ocg_tools(
 ) -> List[ToolDef]:
     """Build the raw OCG :class:`ToolDef` list for a custom retrieval agent.
 
-    Each tool dispatches to the matching ``OCG_*`` system task on the
-    server, which owns the HTTP call, credential resolution, field
-    projection, and response capping.
+    Each tool is a plain Conductor HTTP task: the compile bakes the
+    instance URL, endpoint path template, and auth header into the tool's
+    dispatch config, and the LLM's arguments fill the path/query/body at
+    call time. No OCG-specific code runs server-side.
 
     Args:
         url: Base URL of the OCG instance this tool set targets. Required —
@@ -314,10 +332,13 @@ def ocg_tools(
             "ocg_tools() requires a non-blank url: every OCG tool set binds its own instance."
         )
 
-    config: Dict[str, Any] = {"url": url}
+    base_url = url.strip().rstrip("/")
+    headers: Dict[str, str] = {}
     credentials: List[str] = []
     if credential:
-        config["credential"] = credential
+        # Standard http-tool placeholder — resolved server-side from the
+        # credential store at execution; the token never appears here.
+        headers["Authorization"] = "Bearer ${" + credential + "}"
         credentials = [credential]
 
     selected: List[Dict[str, Any]] = []
@@ -333,17 +354,28 @@ def ocg_tools(
         selected.append(_memory_reinforce_tool())
         selected.append(_memory_delete_tool())
 
-    return [
-        ToolDef(
-            name=spec["name"],
-            description=spec["description"],
-            input_schema=spec["schema"],
-            tool_type=spec["name"],
-            config=dict(config),
-            credentials=list(credentials),
+    tools: List[ToolDef] = []
+    for spec in selected:
+        config: Dict[str, Any] = {
+            "url": base_url,
+            "method": spec["method"],
+            "pathTemplate": spec["path"],
+        }
+        if spec.get("query_params"):
+            config["queryParams"] = list(spec["query_params"])
+        if headers:
+            config["headers"] = dict(headers)
+        tools.append(
+            ToolDef(
+                name=spec["name"],
+                description=spec["description"],
+                input_schema=spec["schema"],
+                tool_type="http",
+                config=config,
+                credentials=list(credentials),
+            )
         )
-        for spec in selected
-    ]
+    return tools
 
 
 def ocg_agent(

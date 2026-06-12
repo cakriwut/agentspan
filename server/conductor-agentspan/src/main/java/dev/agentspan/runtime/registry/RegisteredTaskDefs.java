@@ -14,7 +14,7 @@ import com.netflix.conductor.common.metadata.tasks.TaskDef;
  * entries to the metadata store at startup.
  *
  * <p>Conductor's dynamic-fork dispatcher resolves tasks <em>by name</em>
- * via the TaskDef registry. Custom system task types (e.g. {@code OCG_QUERY})
+ * via the TaskDef registry. Custom system task types
  * therefore need a matching TaskDef registered before any workflow can
  * dispatch them. Beans of this type plug into
  * {@link RegisteredTaskDefsRegistrar} and the registration happens

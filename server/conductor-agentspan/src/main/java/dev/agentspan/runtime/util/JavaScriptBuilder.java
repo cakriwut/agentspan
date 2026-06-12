@@ -526,7 +526,6 @@ public class JavaScriptBuilder {
             String cliConfigJson,
             String humanConfigJson,
             String wmqConfigJson,
-            String ocgConfigJson,
             String knownToolNamesJson) {
         return iife("  var httpCfg = " + httpConfigJson + ";" + "  var mcpCfg = "
                 + mcpConfigJson + ";" + "  var mediaCfg = "
@@ -535,8 +534,7 @@ public class JavaScriptBuilder {
                 + ragConfigJson + ";" + "  var cliCfg = "
                 + cliConfigJson + ";" + "  var humanCfg = "
                 + humanConfigJson + ";" + "  var wmqCfg = "
-                + wmqConfigJson + ";" + "  var ocgCfg = "
-                + ocgConfigJson + ";" + "  var knownNames = " + knownToolNamesJson + ";"
+                + wmqConfigJson + ";" + "  var knownNames = " + knownToolNamesJson + ";"
                 + "  var agentState = $.agentState || {};"
                 + "  var tcs = $.toolCalls || [];"
                 + "  var result = [];"
@@ -548,7 +546,7 @@ public class JavaScriptBuilder {
                 // SIMPLE task gets queued under the unknown name with no worker
                 // polling for it and the workflow hangs forever.
                 + "    var isCfg = !!(httpCfg[n] || mcpCfg[n] || agentToolCfg[n] ||"
-                + "                  mediaCfg[n] || ragCfg[n] || humanCfg[n] || wmqCfg[n] || ocgCfg[n]);"
+                + "                  mediaCfg[n] || ragCfg[n] || humanCfg[n] || wmqCfg[n]);"
                 // Reject any name not in the agent's declared tools. The
                 // previous gate (``hasKnownNames``) skipped this check when
                 // ``knownNames`` was empty, which allowed an agent declared
@@ -578,13 +576,41 @@ public class JavaScriptBuilder {
                 + "             retryDelaySeconds: 2};"
                 + "    if (httpCfg[n]) {"
                 + "      t.type = 'HTTP';"
+                + "      var hc = httpCfg[n];"
+                + "      var hargs = tc.inputParameters || {};"
+                + "      var huri = hc.url || '';"
+                + "      var hbody = hargs;"
+                // Optional URI templating: pathTemplate consumes {param}s from
+                // the LLM's arguments (URL-encoded); queryParams append the
+                // listed args as a query string. Consumed args leave the body.
+                // Tools without these keys keep the static-uri/args-as-body
+                // shape unchanged.
+                + "      if (hc.pathTemplate || hc.queryParams) {"
+                + "        var consumed = {};"
+                + "        if (hc.pathTemplate) {"
+                + "          huri = huri + hc.pathTemplate.replace(/\\{(\\w+)\\}/g,"
+                + "            function(m, k) { consumed[k] = true;"
+                + "              return encodeURIComponent(String(hargs[k] == null ? '' : hargs[k])); });"
+                + "        }"
+                + "        if (hc.queryParams) {"
+                + "          var qs = [];"
+                + "          for (var qi = 0; qi < hc.queryParams.length; qi++) {"
+                + "            var qk = hc.queryParams[qi];"
+                + "            if (hargs[qk] != null && hargs[qk] !== '') { consumed[qk] = true;"
+                + "              qs.push(encodeURIComponent(qk) + '=' + encodeURIComponent(String(hargs[qk]))); }"
+                + "          }"
+                + "          if (qs.length) { huri = huri + (huri.indexOf('?') >= 0 ? '&' : '?') + qs.join('&'); }"
+                + "        }"
+                + "        hbody = {};"
+                + "        for (var hk in hargs) { if (!consumed[hk]) hbody[hk] = hargs[hk]; }"
+                + "      }"
                 + "      t.inputParameters = {http_request: {"
-                + "        uri: httpCfg[n].url || '',"
-                + "        method: httpCfg[n].method || 'GET',"
-                + "        headers: httpCfg[n].headers || {},"
-                + "        body: tc.inputParameters || {},"
-                + "        accept: httpCfg[n].accept || 'application/json',"
-                + "        contentType: httpCfg[n].contentType || 'application/json',"
+                + "        uri: huri,"
+                + "        method: hc.method || 'GET',"
+                + "        headers: hc.headers || {},"
+                + "        body: hbody,"
+                + "        accept: hc.accept || 'application/json',"
+                + "        contentType: hc.contentType || 'application/json',"
                 + "        connectionTimeOut: 30000,"
                 + "        readTimeOut: 30000}};"
                 + "      if ($.agentspanCtx) { t.inputParameters.__agentspan_ctx__ = $.agentspanCtx; }"
@@ -642,18 +668,6 @@ public class JavaScriptBuilder {
                 + "      var inp = tc.inputParameters || {};"
                 + "      for (var k in inp) { merged[k] = inp[k]; }"
                 + "      t.inputParameters = merged;"
-                + "    } else if (ocgCfg[n]) {"
-                // OCG tools dispatch to per-operation OCG_* system tasks. The
-                // LLM-supplied arguments are forwarded verbatim; a per-tool
-                // instance binding (url + auth placeholder) rides along as
-                // reserved __ocg_* inputs. Tools without one fall back to the
-                // server default (OcgProperties) inside OcgRequestTask.
-                + "      t.type = ocgCfg[n].taskType;"
-                + "      t.name = ocgCfg[n].taskType.toLowerCase();"
-                + "      t.inputParameters = tc.inputParameters || {};"
-                + "      if (ocgCfg[n].url) { t.inputParameters.__ocg_url = ocgCfg[n].url; }"
-                + "      if (ocgCfg[n].auth) { t.inputParameters.__ocg_auth = ocgCfg[n].auth; }"
-                + "      if ($.agentspanCtx) { t.inputParameters.__agentspan_ctx__ = $.agentspanCtx; }"
                 + "    } else if (humanCfg[n]) {"
                 + "      t.type = 'HUMAN';"
                 + "      t.name = n;"
@@ -1138,7 +1152,6 @@ public class JavaScriptBuilder {
             String ragConfigJson,
             String humanConfigJson,
             String wmqConfigJson,
-            String ocgConfigJson,
             String knownToolNamesJson) {
         return iife("  var httpCfg = " + httpConfigJson + ";" + "  var mcpCfg = $.mcpConfig || {};"
                 + "  var apiCfg = $.apiConfig || {};"
@@ -1147,8 +1160,7 @@ public class JavaScriptBuilder {
                 + agentToolConfigJson + ";" + "  var ragCfg = "
                 + ragConfigJson + ";" + "  var humanCfg = "
                 + humanConfigJson + ";" + "  var wmqCfg = "
-                + wmqConfigJson + ";" + "  var ocgCfg = "
-                + ocgConfigJson + ";" + "  var knownNames = " + knownToolNamesJson + ";"
+                + wmqConfigJson + ";" + "  var knownNames = " + knownToolNamesJson + ";"
                 + "  var agentState = $.agentState || {};"
                 + "  var tcs = $.toolCalls || [];"
                 + "  var result = [];"
@@ -1158,7 +1170,7 @@ public class JavaScriptBuilder {
                 // for context). Without this the SIMPLE task gets queued under
                 // an unknown name and the workflow hangs forever.
                 + "    var isCfg = !!(httpCfg[n] || mcpCfg[n] || apiCfg[n] || agentToolCfg[n] ||"
-                + "                  mediaCfg[n] || ragCfg[n] || humanCfg[n] || wmqCfg[n] || ocgCfg[n]);"
+                + "                  mediaCfg[n] || ragCfg[n] || humanCfg[n] || wmqCfg[n]);"
                 // See ``enrichToolsScript`` above — empty knownNames means
                 // NO tool is callable by the LLM (locks down the prefill-only
                 // leak path).
@@ -1183,13 +1195,41 @@ public class JavaScriptBuilder {
                 + "             retryDelaySeconds: 2};"
                 + "    if (httpCfg[n]) {"
                 + "      t.type = 'HTTP';"
+                + "      var hc = httpCfg[n];"
+                + "      var hargs = tc.inputParameters || {};"
+                + "      var huri = hc.url || '';"
+                + "      var hbody = hargs;"
+                // Optional URI templating: pathTemplate consumes {param}s from
+                // the LLM's arguments (URL-encoded); queryParams append the
+                // listed args as a query string. Consumed args leave the body.
+                // Tools without these keys keep the static-uri/args-as-body
+                // shape unchanged.
+                + "      if (hc.pathTemplate || hc.queryParams) {"
+                + "        var consumed = {};"
+                + "        if (hc.pathTemplate) {"
+                + "          huri = huri + hc.pathTemplate.replace(/\\{(\\w+)\\}/g,"
+                + "            function(m, k) { consumed[k] = true;"
+                + "              return encodeURIComponent(String(hargs[k] == null ? '' : hargs[k])); });"
+                + "        }"
+                + "        if (hc.queryParams) {"
+                + "          var qs = [];"
+                + "          for (var qi = 0; qi < hc.queryParams.length; qi++) {"
+                + "            var qk = hc.queryParams[qi];"
+                + "            if (hargs[qk] != null && hargs[qk] !== '') { consumed[qk] = true;"
+                + "              qs.push(encodeURIComponent(qk) + '=' + encodeURIComponent(String(hargs[qk]))); }"
+                + "          }"
+                + "          if (qs.length) { huri = huri + (huri.indexOf('?') >= 0 ? '&' : '?') + qs.join('&'); }"
+                + "        }"
+                + "        hbody = {};"
+                + "        for (var hk in hargs) { if (!consumed[hk]) hbody[hk] = hargs[hk]; }"
+                + "      }"
                 + "      t.inputParameters = {http_request: {"
-                + "        uri: httpCfg[n].url || '',"
-                + "        method: httpCfg[n].method || 'GET',"
-                + "        headers: httpCfg[n].headers || {},"
-                + "        body: tc.inputParameters || {},"
-                + "        accept: httpCfg[n].accept || 'application/json',"
-                + "        contentType: httpCfg[n].contentType || 'application/json',"
+                + "        uri: huri,"
+                + "        method: hc.method || 'GET',"
+                + "        headers: hc.headers || {},"
+                + "        body: hbody,"
+                + "        accept: hc.accept || 'application/json',"
+                + "        contentType: hc.contentType || 'application/json',"
                 + "        connectionTimeOut: 30000,"
                 + "        readTimeOut: 30000}};"
                 + "      if ($.agentspanCtx) { t.inputParameters.__agentspan_ctx__ = $.agentspanCtx; }"
@@ -1280,13 +1320,6 @@ public class JavaScriptBuilder {
                 + "      var inp = tc.inputParameters || {};"
                 + "      for (var k in inp) { merged[k] = inp[k]; }"
                 + "      t.inputParameters = merged;"
-                + "    } else if (ocgCfg[n]) {"
-                + "      t.type = ocgCfg[n].taskType;"
-                + "      t.name = ocgCfg[n].taskType.toLowerCase();"
-                + "      t.inputParameters = tc.inputParameters || {};"
-                + "      if (ocgCfg[n].url) { t.inputParameters.__ocg_url = ocgCfg[n].url; }"
-                + "      if (ocgCfg[n].auth) { t.inputParameters.__ocg_auth = ocgCfg[n].auth; }"
-                + "      if ($.agentspanCtx) { t.inputParameters.__agentspan_ctx__ = $.agentspanCtx; }"
                 + "    } else if (humanCfg[n]) {"
                 + "      t.type = 'HUMAN';"
                 + "      t.name = n;"

@@ -104,21 +104,6 @@ public class ToolCompiler {
     /** RAG tool types that map to Conductor RAG system tasks. */
     private static final Set<String> RAG_TOOL_TYPES = Set.of("rag_index", "rag_search");
 
-    /**
-     * OCG tool types — each maps to a {@code OCG_*} {@code WorkflowSystemTask}
-     * registered by {@code OcgRequestTaskConfig}. Compile-time routing is the
-     * same as RAG/media: the tool name keys into ``ocgConfig`` at runtime, and
-     * the enrich script sets ``t.type`` to the configured task type.
-     */
-    public static final Set<String> OCG_TOOL_TYPES = Set.of(
-            "ocg_query",
-            "ocg_get_entity",
-            "ocg_neighborhood",
-            "ocg_code_history",
-            "ocg_memory_set",
-            "ocg_memory_reinforce",
-            "ocg_memory_delete");
-
     /** Maps SDK tool type strings to Conductor task type strings. */
     private static final Map<String, String> TYPE_MAP = Map.ofEntries(
             Map.entry("worker", "SIMPLE"),
@@ -132,14 +117,7 @@ public class ToolCompiler {
             Map.entry("generate_video", "GENERATE_VIDEO"),
             Map.entry("rag_index", "LLM_INDEX_TEXT"),
             Map.entry("rag_search", "LLM_SEARCH_INDEX"),
-            Map.entry("pull_workflow_messages", "PULL_WORKFLOW_MESSAGES"),
-            Map.entry("ocg_query", "OCG_QUERY"),
-            Map.entry("ocg_get_entity", "OCG_GET_ENTITY"),
-            Map.entry("ocg_neighborhood", "OCG_NEIGHBORHOOD"),
-            Map.entry("ocg_code_history", "OCG_CODE_HISTORY"),
-            Map.entry("ocg_memory_set", "OCG_MEMORY_SET"),
-            Map.entry("ocg_memory_reinforce", "OCG_MEMORY_REINFORCE"),
-            Map.entry("ocg_memory_delete", "OCG_MEMORY_DELETE"));
+            Map.entry("pull_workflow_messages", "PULL_WORKFLOW_MESSAGES"));
 
     // ── Public API ───────────────────────────────────────────────────────
 
@@ -336,7 +314,6 @@ public class ToolCompiler {
         Map<String, Object> cliConfig = new LinkedHashMap<>();
         Map<String, Object> humanConfig = new LinkedHashMap<>();
         Map<String, Object> wmqConfig = new LinkedHashMap<>();
-        Map<String, Object> ocgConfig = new LinkedHashMap<>();
 
         if (tools != null) {
             Set<String> serverSideTypes = new HashSet<>(Set.of(
@@ -352,7 +329,6 @@ public class ToolCompiler {
                     "rag_search",
                     "human",
                     "pull_workflow_messages"));
-            serverSideTypes.addAll(OCG_TOOL_TYPES);
 
             for (ToolConfig tool : tools) {
                 String toolType = tool.getToolType() != null ? tool.getToolType() : "worker";
@@ -416,25 +392,6 @@ public class ToolCompiler {
                     Map<String, Object> wmqEntry = new LinkedHashMap<>();
                     wmqEntry.put("batchSize", cfg.getOrDefault("batchSize", 1));
                     wmqConfig.put(tool.getName(), wmqEntry);
-                } else if (OCG_TOOL_TYPES.contains(toolType)) {
-                    // OCG tools map to per-operation system tasks registered by
-                    // OcgRequestTaskConfig. A tool may bind its own OCG instance
-                    // (url + credential-store name); tools without one fall back
-                    // to the server default in OcgProperties at execution time.
-                    Map<String, Object> ocgEntry = new LinkedHashMap<>();
-                    ocgEntry.put("taskType", TYPE_MAP.getOrDefault(toolType, toolType.toUpperCase()));
-                    Object ocgUrl = cfg.get("url");
-                    if (ocgUrl != null && !ocgUrl.toString().isBlank()) {
-                        ocgEntry.put("url", ocgUrl.toString());
-                    }
-                    Object ocgCredential = cfg.get("credential");
-                    if (ocgCredential != null && !ocgCredential.toString().isBlank()) {
-                        // Same escaping path as HTTP/MCP headers: the secret name
-                        // becomes a placeholder resolved at execution time, never
-                        // a value baked into the workflow definition.
-                        ocgEntry.put("auth", rewriteCredentialPlaceholders("Bearer ${" + ocgCredential + "}"));
-                    }
-                    ocgConfig.put(tool.getName(), ocgEntry);
                 }
             }
         }
@@ -447,7 +404,6 @@ public class ToolCompiler {
         String cliJson = JavaScriptBuilder.toJson(cliConfig);
         String humanJson = JavaScriptBuilder.toJson(humanConfig);
         String wmqJson = JavaScriptBuilder.toJson(wmqConfig);
-        String ocgJson = JavaScriptBuilder.toJson(ocgConfig);
 
         // Build the set of all known tool names so the enrich script can
         // catch hallucinated tool names (LLM emits e.g. "find" when only
@@ -462,16 +418,7 @@ public class ToolCompiler {
         String knownToolNamesJson = JavaScriptBuilder.toJson(knownToolNames);
 
         String script = JavaScriptBuilder.enrichToolsScript(
-                httpJson,
-                mcpJson,
-                mediaJson,
-                agentToolJson,
-                ragJson,
-                cliJson,
-                humanJson,
-                wmqJson,
-                ocgJson,
-                knownToolNamesJson);
+                httpJson, mcpJson, mediaJson, agentToolJson, ragJson, cliJson, humanJson, wmqJson, knownToolNamesJson);
 
         String enrichRef = agentName + "_" + p + "enrich_tools";
 
@@ -1556,7 +1503,6 @@ public class ToolCompiler {
         Map<String, Object> ragConfig = new LinkedHashMap<>();
         Map<String, Object> humanConfig = new LinkedHashMap<>();
         Map<String, Object> wmqConfig = new LinkedHashMap<>();
-        Map<String, Object> ocgConfig = new LinkedHashMap<>();
 
         if (tools != null) {
             for (ToolConfig tool : tools) {
@@ -1602,10 +1548,6 @@ public class ToolCompiler {
                     Map<String, Object> wmqEntry = new LinkedHashMap<>();
                     wmqEntry.put("batchSize", cfg.getOrDefault("batchSize", 1));
                     wmqConfig.put(tool.getName(), wmqEntry);
-                } else if (OCG_TOOL_TYPES.contains(toolType)) {
-                    Map<String, Object> ocgEntry = new LinkedHashMap<>();
-                    ocgEntry.put("taskType", TYPE_MAP.getOrDefault(toolType, toolType.toUpperCase()));
-                    ocgConfig.put(tool.getName(), ocgEntry);
                 }
                 // MCP config comes from runtime — skip here
             }
@@ -1617,7 +1559,6 @@ public class ToolCompiler {
         String ragJson = JavaScriptBuilder.toJson(ragConfig);
         String humanJson = JavaScriptBuilder.toJson(humanConfig);
         String wmqJson = JavaScriptBuilder.toJson(wmqConfig);
-        String ocgJson = JavaScriptBuilder.toJson(ocgConfig);
         Map<String, Object> knownToolNames = new LinkedHashMap<>();
         if (tools != null) {
             for (ToolConfig t : tools) {
@@ -1626,7 +1567,7 @@ public class ToolCompiler {
         }
         String knownToolNamesJson = JavaScriptBuilder.toJson(knownToolNames);
         String script = JavaScriptBuilder.enrichToolsScriptDynamic(
-                httpJson, mediaJson, agentToolJson, ragJson, humanJson, wmqJson, ocgJson, knownToolNamesJson);
+                httpJson, mediaJson, agentToolJson, ragJson, humanJson, wmqJson, knownToolNamesJson);
 
         String enrichRef = agentName + "_" + p + "enrich_tools";
 

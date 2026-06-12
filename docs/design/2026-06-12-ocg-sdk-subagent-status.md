@@ -179,3 +179,20 @@ on `ocg_agent()`/`ocg_tools()`; `OcgProperties` is just
 `enabled` + `responseCapChars`; `OcgRequestTask`/`OcgToolValidator` have no
 fallback. SDK, examples, smoke, and docs updated; full server suite + SDK
 unit tests green; republished to mavenLocal.
+
+## Addendum (2026-06-12, latest): OCG execution layer deleted — plain HttpTask
+
+Per user decision, the custom OCG system tasks are gone entirely. The
+`runtime/ocg` package (request task, operations, target, validator,
+credential resolver, properties, task-def registration) is deleted; the
+seven `ocg_*`→`OCG_*` TYPE_MAP entries and all `agentspan.ocg.*`
+properties with it. In exchange the generic `http` enrich path gained
+optional `pathTemplate`/`queryParams` (URL-encoded fill from LLM args,
+consumed args pruned from the body) — proven by GraalJS execution tests.
+The SDK's `ocg_tools()` now emits `tool_type="http"` defs carrying
+method/pathTemplate/queryParams/headers per operation; auth uses the
+standard http-tool `${NAME}` header placeholder. Rationale: the OCG API
+already returns LLM-friendly responses, removing the last justification
+(projection/capping) for server-side OCG code. Full server suite + SDK
+tests green; two-stub e2e 3/3 on the HttpTask path; republished to
+mavenLocal.

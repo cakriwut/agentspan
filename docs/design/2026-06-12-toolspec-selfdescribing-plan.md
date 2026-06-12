@@ -94,25 +94,12 @@ marker.
 
 ### Change 2 — `server/src/main/resources/application.properties`
 
-Replace the OCG block added in PR #3673 (it documents auto-expose and
-requires `OCG_MODEL`, both removed from agentspan). DONE in the local
-checkout — the block is now just the enable switch (every OCG tool binds
-its own instance from the SDK; there is no server-side instance config):
-
-```properties
-# =============================================================================
-# OCG (Open Context Graph) Configuration
-# =============================================================================
-# OCG agents and tools are declared in user code via the AgentSpan SDK
-# (ocg_agent() / ocg_tools()), each binding its own OCG instance URL and
-# credential-store reference. There is no server-side OCG configuration
-# beyond this switch, which registers the OCG_* system tasks.
-agentspan.ocg.enabled=${OCG_ENABLED:false}
-```
-
-(`agentspan.ocg.model`/`url`/`api-key` are removed and ignored by
-agentspan. The host defaults the switch to false — set `OCG_ENABLED=true`
-in the runtime environment to turn the execution layer on.)
+**Delete the OCG block entirely** (whatever its current state — it was
+added in PR #3673 and trimmed since). As of the HttpTask refactor, OCG
+tools are plain HTTP tools: agentspan reads no `agentspan.ocg.*` property
+at all, registers no OCG task types/TaskDefs, and needs no `OCG_ENABLED`
+env. Stale `ocg_*`/`query`-style TaskDefs left in the metadata store from
+earlier builds are harmless leftovers and may be deleted.
 
 ### Tests (fail-first)
 

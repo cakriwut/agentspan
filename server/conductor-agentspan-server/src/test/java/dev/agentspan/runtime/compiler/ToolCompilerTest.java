@@ -355,9 +355,10 @@ class ToolCompilerTest {
                         .config(Map.of("url", "https://example.com"))
                         .build(),
                 ToolConfig.builder()
-                        .name("ocg_query")
-                        .description("Query OCG")
-                        .toolType("ocg_query")
+                        .name("github")
+                        .description("GitHub MCP")
+                        .toolType("mcp")
+                        .config(Map.of("server_url", "http://localhost:3001/mcp"))
                         .build(),
                 ToolConfig.builder()
                         .name("helper")
@@ -405,44 +406,56 @@ class ToolCompilerTest {
         assertThat(cp.get("selfDescribing")).isEqualTo(Boolean.TRUE);
     }
 
-    // ── OCG per-instance config plumbing ─────────────────────────────────
+    // ── HTTP path templating (used by OCG tools, generally available) ────
 
     @Test
-    void testBuildEnrichTask_ocgInstanceConfig() {
-        // An OCG tool bound to a specific instance carries its url and a
-        // bearer-credential placeholder into the baked ocgCfg, and the script
-        // merges them into the dispatched task input as __ocg_url/__ocg_auth.
+    void testBuildEnrichTask_httpPathTemplate() {
+        // An http tool may declare a pathTemplate + queryParams: the enrich
+        // script builds the URI from the LLM's arguments at dispatch time
+        // (URL-encoded), consumed args are excluded from the body, and
+        // ${NAME} header placeholders are escaped for the credential
+        // resolver. This is how OCG tools compile — plain HTTP tasks.
         ToolConfig tool = ToolConfig.builder()
-                .name("ocg_query")
-                .description("Query the US graph")
-                .toolType("ocg_query")
-                .config(Map.of("url", "https://us.ocg.example.com", "credential", "OCG_US_KEY"))
+                .name("ocg_get_entity")
+                .description("Fetch one entity")
+                .toolType("http")
+                .config(Map.of(
+                        "url", "https://us.ocg.example.com",
+                        "method", "GET",
+                        "pathTemplate", "/api/v1/entities/{entity_id}",
+                        "queryParams", List.of("depth", "limit"),
+                        "headers", Map.of("Authorization", "Bearer ${OCG_US_KEY}")))
                 .build();
 
         Object[] result = new ToolCompiler().buildEnrichTask("agent", "agent_llm", List.of(tool), "");
         String script = (String) ((WorkflowTask) result[0]).getInputParameters().get("expression");
 
         assertThat(script).contains("\"url\":\"https://us.ocg.example.com\"");
-        // Standalone mode: ${OCG_US_KEY} is escaped to #{OCG_US_KEY} so
+        assertThat(script).contains("\"pathTemplate\":\"/api/v1/entities/{entity_id}\"");
+        assertThat(script).contains("\"queryParams\":[\"depth\",\"limit\"]");
+        // Standalone mode: ${OCG_US_KEY} escaped to #{OCG_US_KEY} so
         // Conductor's parameter binding doesn't consume it.
-        assertThat(script).contains("\"auth\":\"Bearer #{OCG_US_KEY}\"");
-        assertThat(script).contains("__ocg_url");
-        assertThat(script).contains("__ocg_auth");
+        assertThat(script).contains("Bearer #{OCG_US_KEY}");
+        // The templating machinery itself must be in the script.
+        assertThat(script).contains("pathTemplate");
+        assertThat(script).contains("encodeURIComponent");
     }
 
     @Test
-    void testBuildEnrichTask_ocgDefaultInstance() {
-        // No url/credential in config → the baked entry carries only the
-        // task type; the system task falls back to the server default.
+    void testBuildEnrichTask_plainHttpToolUnchanged() {
+        // http tools without templating keys keep the existing static-uri,
+        // args-as-body shape — no behavior change for the established path.
         ToolConfig tool = ToolConfig.builder()
-                .name("ocg_query")
-                .description("Query OCG")
-                .toolType("ocg_query")
+                .name("weather")
+                .description("Get weather")
+                .toolType("http")
+                .config(Map.of("url", "https://api.weather.com", "method", "POST"))
                 .build();
 
         Object[] result = new ToolCompiler().buildEnrichTask("agent", "agent_llm", List.of(tool), "");
         String script = (String) ((WorkflowTask) result[0]).getInputParameters().get("expression");
 
-        assertThat(script).contains("\"ocg_query\":{\"taskType\":\"OCG_QUERY\"}");
+        assertThat(script).contains("\"url\":\"https://api.weather.com\"");
+        assertThat(script).doesNotContain("\"weather\":{\"pathTemplate\"");
     }
 }

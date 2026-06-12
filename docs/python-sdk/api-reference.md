@@ -255,10 +255,10 @@ github = mcp_tool(
 ### ocg_agent() / ocg_tools() — OCG Retrieval Sub-Agent
 
 OCG (Open Context Graph) is a retrieval engine over a knowledge graph of
-entities (messages, channels, people, code). The SDK is the canonical home of
-the OCG retrieval agent — the server provides only the execution layer (the
-seven `OCG_*` system tasks that make the HTTP calls, resolve credentials, and
-cap responses). OCG is **opt-in per agent**: nothing is auto-injected.
+entities (messages, channels, people, code). The SDK is the canonical — and
+only — home of the OCG integration: the tools compile to plain Conductor
+HTTP tasks (path-templated), so no OCG-specific code exists server-side.
+OCG is **opt-in per agent**: nothing is auto-injected.
 
 ```python
 from agentspan.agents import Agent, agent_tool

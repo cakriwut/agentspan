@@ -2,11 +2,11 @@
 
 A retrieval sub-agent over the Open Context Graph (OCG) — message search,
 entity lookup, code history, stored memories — that any agent **opts into
-from the SDK**. The SDK is the canonical home of the OCG agent (system
-prompt, tool schemas, instance binding); the server provides only the
-execution layer: seven `OCG_*` system tasks that make the authenticated
-HTTP calls, resolve credentials, project response fields, and cap response
-sizes.
+from the SDK**. The SDK is the canonical — and only — home of the OCG
+integration: system prompt, tool schemas, endpoint routing, and instance
+binding. The tools compile to **plain Conductor HTTP tasks** (with path
+templating); there is no OCG-specific server code at all. The OCG API
+itself returns LLM-friendly responses.
 
 Nothing is auto-injected: an agent that doesn't declare OCG tools never
 makes an OCG call. (The previous design — a server-registered `_ocg_agent`
@@ -94,30 +94,10 @@ hook.
 
 ## Server setup
 
-The server side is the execution layer only. Configuration
-(`application.properties` / env):
-
-| Property | Env var | Default | What it does |
-| --- | --- | --- | --- |
-| `agentspan.ocg.enabled` | `OCG_ENABLED` | `true` | Registers the seven `OCG_*` system tasks and `ocg_*` TaskDefs. When `false`, agent starts that declare OCG tools are rejected with a clear error. |
-| `agentspan.ocg.response-cap-chars` | — | 8192 | Post-projection truncation cap per response. |
-
-That's the whole server surface. There is no server-side OCG instance
-configuration: no `OCG_URL`/`OCG_API_KEY` (every tool binds its own
-instance from the SDK) and no `OCG_MODEL` (the retrieval agent's model is
-a required SDK parameter, `ocg_agent(model=...)`).
-
-### Verifying it's enabled
-
-```bash
-# The seven OCG TaskDefs are registered (names match dispatch):
-curl -s localhost:6767/api/metadata/taskdefs \
-  | jq '[.[].name | select(startswith("ocg_"))]'
-# → ["ocg_query", "ocg_get_entity", ..., "ocg_memory_delete"]
-```
-
-No workflow is registered at boot — retrieval agents are compiled when a
-user agent that declares them starts.
+**None.** OCG tools are plain HTTP tools: no properties, no task types, no
+TaskDefs, no beans. Any agentspan server (standalone or embedded) that runs
+HTTP tools runs OCG tools. Nothing is registered at boot — retrieval agents
+are compiled when a user agent that declares them starts.
 
 ---
 
@@ -125,58 +105,49 @@ user agent that declares them starts.
 
 ```
 main agent LLM ── tool call ──▶ SUB_WORKFLOW (retriever)
-                                   │  retriever LLM picks e.g. ocg_query
+                                   │  retriever LLM picks e.g. ocg_get_entity
                                    ▼
-                            enrich script: t.type = OCG_QUERY,
-                            merges __ocg_url / __ocg_auth from the
-                            tool's compiled instance binding
+                            enrich script (compile-time JS, dispatch-time eval):
+                              uri  = <instance-url> + pathTemplate filled from
+                                     the LLM's args (URL-encoded) + queryParams
+                              body = remaining args (consumed args removed)
+                              headers carry the credential placeholder
                                    ▼
-                            OcgRequestTask (system task)
-                              1. target = __ocg_url (required)
-                              2. auth   = __ocg_auth (placeholder resolved
-                                 via credential store), absent = no auth
-                              3. strip reserved inputs, build HTTP request
-                              4. send → project fields → cap chars
+                            standard Conductor HTTP task
                                    ▼
                             OCG instance  ─── citations ──▶ retriever LLM
 ```
 
 Key properties:
 
-- **Per-call instance binding.** The tool's binding (compiled into the
-  workflow as the reserved `__ocg_url`/`__ocg_auth` task inputs) is the
-  only instance. A tool without one is rejected at agent *start*
-  (`OcgToolValidator`); the task-level check is the backstop.
+- **Per-call instance binding.** Each tool's config carries its instance
+  `url` (required by the SDK) — different agents target different graphs.
 - **Secrets stay server-side.** `credential="OCG_US_KEY"` compiles to a
-  placeholder (`#{OCG_US_KEY}` standalone, `${workflow.secrets.OCG_US_KEY}`
-  embedded). Standalone resolution goes through the credential store scoped
-  by the execution token (same contract as HTTP tool headers); resolved
-  values are never written back to the task model. An unresolvable
-  placeholder fails the task rather than being sent as a bearer token.
-- **Response hygiene.** Each operation projects the raw OCG response down
-  to the fields the LLM needs (e.g. citations), then caps it at
-  `response-cap-chars` *before* it is persisted or enters the LLM context.
+  standard HTTP-tool header placeholder (`#{OCG_US_KEY}` standalone,
+  `${workflow.secrets.OCG_US_KEY}` embedded), resolved from the credential
+  store at execution — the same pipeline every `http_tool` uses.
+- **LLM-friendly responses are the OCG API's job.** The API returns compact
+  citation-shaped responses; agentspan applies no OCG-specific projection
+  or capping.
 
 ## The seven OCG operations
 
-All endpoints sit under `<instance-url>/api/v1`. Each is backed by a
-strategy class implementing `OcgOperation` (under `runtime/ocg/operation/`);
-`OcgRequestTask` is a thin orchestrator that resolves the target instance
-and delegates URL/method/body/projection to the strategy.
+Endpoint routing lives in the SDK (`agentspan/agents/ocg.py`) and compiles
+into each tool's HTTP config (`pathTemplate` + `queryParams` + method):
 
-| Tool name (LLM-visible) | System task type      | Endpoint                                 | Method   |
-| ----------------------- | --------------------- | ---------------------------------------- | -------- |
-| `ocg_query`             | `OCG_QUERY`           | `/api/v1/agent/query`                    | `POST`   |
-| `ocg_get_entity`        | `OCG_GET_ENTITY`      | `/api/v1/entities/{entity_id}`           | `GET`    |
-| `ocg_neighborhood`      | `OCG_NEIGHBORHOOD`    | `/api/v1/graph/neighborhood/{entity_id}` | `GET`    |
-| `ocg_code_history`      | `OCG_CODE_HISTORY`    | `/api/v1/code/history/{repo_id}`         | `GET`    |
-| `ocg_memory_set`        | `OCG_MEMORY_SET`      | `/api/v1/memories`                       | `POST`   |
-| `ocg_memory_reinforce`  | `OCG_MEMORY_REINFORCE`| `/api/v1/memories/{key}/reinforce`       | `POST`   |
-| `ocg_memory_delete`     | `OCG_MEMORY_DELETE`   | `/api/v1/memories/{key}`                 | `DELETE` |
+| Tool name (LLM-visible) | Endpoint                                 | Method   |
+| ----------------------- | ---------------------------------------- | -------- |
+| `ocg_query`             | `/api/v1/agent/query`                    | `POST`   |
+| `ocg_get_entity`        | `/api/v1/entities/{entity_id}`           | `GET`    |
+| `ocg_neighborhood`      | `/api/v1/graph/neighborhood/{entity_id}` | `GET`    |
+| `ocg_code_history`      | `/api/v1/code/history/{repo_id}`         | `GET`    |
+| `ocg_memory_set`        | `/api/v1/memories`                       | `POST`   |
+| `ocg_memory_reinforce`  | `/api/v1/memories/{key}/reinforce`       | `POST`   |
+| `ocg_memory_delete`     | `/api/v1/memories/{key}`                 | `DELETE` |
 
-The registered TaskDef names are the lowercased task types (`ocg_query`,
-…) — Conductor resolves dynamically forked tasks by name, and the dispatch
-script names each task `taskType.toLowerCase()`.
+Path params (`{entity_id}`, `{key}`, `{repo_id}`) are filled from the
+LLM's tool arguments and URL-encoded by the dispatch script; listed query
+params are appended when present; everything else becomes the JSON body.
 
 ---
 
@@ -192,7 +163,7 @@ That behavior is removed with no flag and no shim:
 | `_ocg_agent` workflow registered at boot | No boot-time workflow; retriever compiles when the declaring agent starts |
 | `OCG_MODEL` required, boot failed fast without it | Model is a required SDK parameter; `OCG_MODEL` is ignored |
 | One server-wide OCG instance | Per-tool `url=`/`credential=` — required; no server-side instance config at all |
-| OCG fully off unless `OCG_URL` set | Execution layer gated by `agentspan.ocg.enabled`; instanceless OCG tools rejected at start |
+| Seven `OCG_*` system tasks + TaskDefs + `agentspan.ocg.*` properties | Plain HTTP tasks — zero OCG server code; `agentspan.ocg.*` properties are gone and ignored |
 
 Anything that referenced the `_ocg_agent` workflow by name breaks; declare
 the agent from the SDK instead.

@@ -27,11 +27,14 @@ data residency). The server keeps only the execution layer.
    retrieval agent's model is a required SDK parameter. The boot-time
    fail-fast tied to it is gone.
 
-4. **Gating changed; server-side instance config removed.** The `OCG_*`
-   system tasks are registered when `agentspan.ocg.enabled=true` (the
-   default) — no longer conditional on `OCG_URL`. `agentspan.ocg.url` /
-   `api-key` are **gone**: every OCG tool binds its own instance
-   (`url=`, required) from the SDK; there is no server-wide default.
+4. **All OCG server code removed.** OCG tools compile to plain Conductor
+   HTTP tasks (with path templating, a new generally-available `http`
+   tool capability). The seven `OCG_*` system task types, their TaskDefs,
+   and every `agentspan.ocg.*` property (`enabled`/`url`/`api-key`/
+   `model`/`response-cap-chars`) are gone and ignored. Every OCG tool
+   binds its own instance (`url=`, required) from the SDK; the OCG API
+   itself returns LLM-friendly responses (no server-side projection or
+   capping).
 
 ## New
 
@@ -41,9 +44,11 @@ data residency). The server keeps only the execution layer.
   is required; the credential is a credential-store *name*, resolved
   server-side at execution; secrets never enter Python code or workflow
   definitions.
-- Start-time validation: an OCG tool without a bound `url` is rejected at
-  agent start (not mid-conversation), as is any OCG tool when
-  `agentspan.ocg.enabled=false`.
+- HTTP tool path templating: `http`-type tool configs may declare
+  `pathTemplate` (e.g. `/api/v1/entities/{entity_id}`) and `queryParams`;
+  the dispatch script fills them from the LLM's arguments (URL-encoded)
+  and prunes consumed args from the body. OCG uses this; any HTTP tool
+  can.
 - Every compiled tool spec now carries a `selfDescribing: true` marker —
   top-level and inside `configParams` (the copy that survives `ToolSpec`
   deserialization) — consumed by embedding hosts (orkes-conductor's
