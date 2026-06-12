@@ -33,7 +33,7 @@ from agentspan.agents.ocg import ocg_agent
 
 retriever = ocg_agent(
     model="openai/gpt-4o-mini",
-    url="https://dev.orkescontextgraph.io",
+    url="https://test.contextgraph.io",
     credential="OCG_PUBLIC_KEY",        # secrets-store NAME, never the key
 )
 
@@ -99,7 +99,7 @@ main = Agent(
         "citations."
     ),
     tools=ocg_tools(
-        url="https://dev.orkescontextgraph.io",
+        url="https://test.contextgraph.io",
         credential="OCG_PUBLIC_KEY",
         entities=False,      # subset switches: query / entities / memory
         memory=False,        # → ocg_query only
@@ -228,13 +228,13 @@ continuations.
 cd sdk/python
 
 # sub-agent shape
-OCG_INSTANCE_URL=https://dev.orkescontextgraph.io \
+OCG_INSTANCE_URL=https://test.contextgraph.io \
 OCG_CREDENTIAL=OCG_PUBLIC_KEY \
 AGENTSPAN_SERVER_URL=http://localhost:8080/api \
 uv run python examples/116_ocg_subagent.py
 
 # direct-tools shape
-OCG_INSTANCE_URL=https://dev.orkescontextgraph.io \
+OCG_INSTANCE_URL=https://test.contextgraph.io \
 OCG_CREDENTIAL=OCG_PUBLIC_KEY \
 AGENTSPAN_SERVER_URL=http://localhost:8080/api \
 uv run python examples/117_ocg_direct_tools.py
