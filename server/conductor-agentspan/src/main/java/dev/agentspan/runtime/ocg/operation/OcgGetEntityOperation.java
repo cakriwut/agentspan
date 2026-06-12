@@ -9,8 +9,6 @@ import java.net.URI;
 import java.net.http.HttpRequest;
 import java.util.Map;
 
-import dev.agentspan.runtime.ocg.OcgProperties;
-
 /** {@code GET /api/v1/entities/{entity_id}} — single entity lookup by id. */
 public final class OcgGetEntityOperation implements OcgOperation {
 
@@ -28,13 +26,11 @@ public final class OcgGetEntityOperation implements OcgOperation {
     }
 
     @Override
-    public HttpRequest build(OcgProperties properties, Map<String, Object> input) {
+    public HttpRequest build(OcgTarget target, Map<String, Object> input) {
         String entityId = OcgInputs.required(input, "entity_id");
-        URI uri = OcgUri.forApi(properties)
-                .pathSegment("entities", entityId)
-                .build()
-                .toUri();
-        return OcgRequest.get(properties, uri);
+        URI uri =
+                OcgUri.forApi(target).pathSegment("entities", entityId).build().toUri();
+        return OcgRequest.get(target, uri);
     }
 
     @Override

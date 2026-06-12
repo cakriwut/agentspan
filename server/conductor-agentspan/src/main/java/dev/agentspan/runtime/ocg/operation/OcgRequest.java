@@ -12,8 +12,6 @@ import java.net.http.HttpRequest.BodyPublishers;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 
-import dev.agentspan.runtime.ocg.OcgProperties;
-
 /**
  * HTTP request factory for OCG endpoints. Centralises the bearer-auth
  * header, default timeouts, and JSON body serialization so every
@@ -32,18 +30,18 @@ public final class OcgRequest {
      * timeout, JSON accept, and the optional bearer token. Operations call
      * {@code .uri(...).METHOD(...).build()} on the returned builder.
      */
-    public static HttpRequest.Builder base(OcgProperties properties) {
+    public static HttpRequest.Builder base(OcgTarget target) {
         HttpRequest.Builder b = HttpRequest.newBuilder().timeout(READ_TIMEOUT).header("Accept", "application/json");
-        if (properties.hasApiKey()) {
-            b.header("Authorization", "Bearer " + properties.getApiKey());
+        if (target.hasAuth()) {
+            b.header("Authorization", target.authHeader());
         }
         return b;
     }
 
     /** POST with a JSON-serialized body. */
-    public static HttpRequest postJson(OcgProperties properties, URI uri, Object body) throws IOException {
+    public static HttpRequest postJson(OcgTarget target, URI uri, Object body) throws IOException {
         String json = OcgInputs.writeJson(body);
-        return base(properties)
+        return base(target)
                 .uri(uri)
                 .header("Content-Type", "application/json")
                 .POST(BodyPublishers.ofString(json, StandardCharsets.UTF_8))
@@ -51,12 +49,12 @@ public final class OcgRequest {
     }
 
     /** GET with no body. */
-    public static HttpRequest get(OcgProperties properties, URI uri) {
-        return base(properties).uri(uri).GET().build();
+    public static HttpRequest get(OcgTarget target, URI uri) {
+        return base(target).uri(uri).GET().build();
     }
 
     /** DELETE with no body. */
-    public static HttpRequest delete(OcgProperties properties, URI uri) {
-        return base(properties).uri(uri).DELETE().build();
+    public static HttpRequest delete(OcgTarget target, URI uri) {
+        return base(target).uri(uri).DELETE().build();
     }
 }

@@ -11,8 +11,6 @@ import java.net.http.HttpRequest;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
-import dev.agentspan.runtime.ocg.OcgProperties;
-
 /**
  * {@code POST /api/v1/memories} — create or overwrite a memory.
  *
@@ -37,10 +35,10 @@ public final class OcgMemorySetOperation implements OcgOperation {
     }
 
     @Override
-    public HttpRequest build(OcgProperties properties, Map<String, Object> input) throws IOException {
+    public HttpRequest build(OcgTarget target, Map<String, Object> input) throws IOException {
         Map<String, Object> body = new LinkedHashMap<>(input);
         body.remove("__agentspan_ctx__");
-        URI uri = OcgUri.forApi(properties).pathSegment("memories").build().toUri();
-        return OcgRequest.postJson(properties, uri, body);
+        URI uri = OcgUri.forApi(target).pathSegment("memories").build().toUri();
+        return OcgRequest.postJson(target, uri, body);
     }
 }

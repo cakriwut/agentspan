@@ -8,8 +8,6 @@ package dev.agentspan.runtime.ocg.operation;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.web.util.UriComponentsBuilder;
 
-import dev.agentspan.runtime.ocg.OcgProperties;
-
 /**
  * URI builder for OCG endpoints. Every OCG path sits under {@code /api/v1}
  * on the configured base URL; this helper handles the trailing-slash
@@ -32,8 +30,8 @@ public final class OcgUri {
      * {@code <ocg-url>/api/v1}. Operations chain {@code .pathSegment(...)}
      * + {@code .queryParam(...)} on top.
      */
-    public static UriComponentsBuilder forApi(OcgProperties properties) {
-        String base = StringUtils.removeEnd(StringUtils.defaultString(properties.getUrl()), "/");
+    public static UriComponentsBuilder forApi(OcgTarget target) {
+        String base = StringUtils.removeEnd(StringUtils.defaultString(target.baseUrl()), "/");
         return UriComponentsBuilder.fromUriString(base + API_PREFIX_V1);
     }
 }

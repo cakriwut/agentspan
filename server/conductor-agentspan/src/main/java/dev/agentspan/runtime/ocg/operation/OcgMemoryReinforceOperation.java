@@ -10,8 +10,6 @@ import java.net.URI;
 import java.net.http.HttpRequest;
 import java.util.Map;
 
-import dev.agentspan.runtime.ocg.OcgProperties;
-
 /** {@code POST /api/v1/memories/{key}/reinforce} — confidence boost on re-observation. */
 public final class OcgMemoryReinforceOperation implements OcgOperation {
 
@@ -29,13 +27,13 @@ public final class OcgMemoryReinforceOperation implements OcgOperation {
     }
 
     @Override
-    public HttpRequest build(OcgProperties properties, Map<String, Object> input) throws IOException {
+    public HttpRequest build(OcgTarget target, Map<String, Object> input) throws IOException {
         String key = OcgInputs.required(input, "key");
         Map<String, Object> body = OcgInputs.pick(input, "agent", "user", "confidence_boost", "source_ref");
-        URI uri = OcgUri.forApi(properties)
+        URI uri = OcgUri.forApi(target)
                 .pathSegment("memories", key, "reinforce")
                 .build()
                 .toUri();
-        return OcgRequest.postJson(properties, uri, body);
+        return OcgRequest.postJson(target, uri, body);
     }
 }

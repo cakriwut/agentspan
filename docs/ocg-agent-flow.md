@@ -1,276 +1,168 @@
 # OCG Sub-Agent
 
-A built-in retrieval sub-agent that any user's LLM can delegate to mid-loop
-when it needs context from the Open Context Graph (OCG) — Slack messages,
-Jira tickets, code history, stored memories. Enabled by setting
-`OCG_URL`. Disabled by leaving it unset.
+A retrieval sub-agent over the Open Context Graph (OCG) — message search,
+entity lookup, code history, stored memories — that any agent **opts into
+from the SDK**. The SDK is the canonical home of the OCG agent (system
+prompt, tool schemas, instance binding); the server provides only the
+execution layer: seven `OCG_*` system tasks that make the authenticated
+HTTP calls, resolve credentials, project response fields, and cap response
+sizes.
 
-The feature is also the **first consumer of a generic
-`RegisteredAgent` registry pattern**: any future server-side sub-agent
-plugs in as one `@Component` without touching `AgentCompiler`,
-`AgentService`, or any per-feature `@PostConstruct` boilerplate.
+Nothing is auto-injected: an agent that doesn't declare OCG tools never
+makes an OCG call. (The previous design — a server-registered `_ocg_agent`
+silently appended to every agent when `OCG_URL` was set — is gone; see
+[Migration](#migration-from-auto-expose).)
+
+Design history: [`design/2026-06-12-ocg-sdk-subagent-design.md`](design/2026-06-12-ocg-sdk-subagent-design.md).
 
 ---
 
-## Setup — integrating OCG with AgentSpan
+## Using OCG from the SDK
 
-OCG is fully opt-in. The integration is **three environment variables** the
-AgentSpan server reads at startup:
+Delegate retrieval from a main agent:
 
-| Env var       | Required?           | What it does                                                                                                  |
-| ------------- | ------------------- | ------------------------------------------------------------------------------------------------------------- |
-| `OCG_URL`     | **Yes** (to enable) | Base URL of your OCG instance, e.g. `https://dev.orkescontextgraph.io`. If unset or empty, every OCG bean stays out of the Spring context, no `_ocg_agent` workflow is registered, and no user agent gets the auto-injected `ocg_agent` tool. The feature is completely dormant. |
-| `OCG_MODEL`   | **Yes** (when OCG is enabled) | LLM the OCG sub-agent uses for its own turns, e.g. `openai/gpt-4o-mini`, `anthropic/claude-haiku-4-5`. No silent default — boot fails fast with a clear error if `OCG_URL` is set but `OCG_MODEL` is blank. The right model depends on cost/latency targets and the OCG corpus you're querying, so it has to be an explicit operator decision. |
-| `OCG_API_KEY` | Yes (if OCG requires auth) | Bearer token sent as `Authorization: Bearer <key>` on every OCG HTTP request. Empty means no auth header — fine for unauthenticated local OCG instances; required for the hosted dev / prod instances. |
+```python
+from agentspan.agents import Agent, agent_tool
+from agentspan.agents.ocg import ocg_agent
 
-### Local dev
-
-When starting the server (via `./gradlew bootRun`, IntelliJ run config,
-or `java -jar`):
-
-```bash
-export OCG_URL=https://dev.orkescontextgraph.io
-export OCG_API_KEY=<your-bearer-token>
-export OCG_MODEL=openai/gpt-4o-mini    # required when OCG is enabled
-export OPENAI_API_KEY=sk-...           # provider key for whatever OCG_MODEL points at
-./gradlew bootRun
+retriever = ocg_agent(model="openai/gpt-4o-mini",
+                      url="https://ocg.example.com", credential="OCG_KEY")
+main = Agent(
+    name="support",
+    model="openai/gpt-4o",
+    tools=[agent_tool(retriever)],
+    instructions="...",
+)
 ```
 
-In IntelliJ, add the same four to your Spring Boot run configuration's
-**Environment variables** field.
+The main agent's LLM sees one tool (named after the retriever); calling it
+dispatches the retrieval agent as a SUB_WORKFLOW, which runs its own LLM
+loop with the seven `ocg_*` tools and returns a synthesized, cited answer.
 
-### Docker / production
+### Multi-instance (data residency / multi-tenancy)
 
-Pass them through whatever your deployment system uses — docker `-e`,
-Kubernetes `env`, Helm values, systemd `EnvironmentFile`, etc. They map
-to Spring properties via `application.properties`:
+Each retriever binds its own OCG instance — different agents can target
+different graphs:
 
+```python
+us = ocg_agent(name="ocg_us", model="openai/gpt-4o-mini",
+               url="https://us.ocg.example.com", credential="OCG_US_KEY")
+ca = ocg_agent(name="ocg_canada", model="openai/gpt-4o-mini",
+               url="https://ca.ocg.example.com", credential="OCG_CA_KEY")
 ```
-agentspan.ocg.url=${OCG_URL:}
-agentspan.ocg.api-key=${OCG_API_KEY:}
-agentspan.ocg.model=${OCG_MODEL:}
+
+- `url` — the OCG instance this retriever (and only this retriever) talks
+  to. Required: every OCG tool binds its own instance; there is no
+  server-side default.
+- `credential` — the **name** of a credential-store entry holding the OCG
+  bearer token. The server resolves it at execution time; the secret never
+  appears in Python code, serialized configs, or persisted workflow
+  definitions. Requires `url`.
+- **Names must be distinct per instance.** Inline `agent_tool` child
+  workflows are registered by agent name — two differently-bound agents
+  sharing a name overwrite each other's workflow definition.
+
+### Custom retrieval agents
+
+`ocg_agent()` is just an `Agent` factory. For full control take the raw
+tools and build your own:
+
+```python
+from agentspan.agents.ocg import ocg_tools
+
+my_retriever = Agent(
+    name="retriever",
+    model="anthropic/claude-haiku-4-5",        # your model choice
+    instructions="My custom retrieval prompt...",
+    tools=ocg_tools(url="https://us.ocg.example.com",
+                    credential="OCG_US_KEY",
+                    memory=False),              # retrieval-only subset
+)
 ```
 
-So you can alternatively pass them as Spring properties on the JVM
-command line (`-Dagentspan.ocg.url=…`) or via a `SPRING_APPLICATION_JSON`
-blob if your platform prefers that.
+Subset switches: `query`, `entities` (get_entity + neighborhood),
+`code_history`, `memory` (set/reinforce/delete).
+
+### Pre-flight retrieval
+
+"Retrieve before the main agent acts" is expressed in user space — make the
+retriever the first stage of a sequential pipeline, or instruct the main
+agent to call its retrieval tool first. There is no server-side pre-flight
+hook.
+
+---
+
+## Server setup
+
+The server side is the execution layer only. Configuration
+(`application.properties` / env):
+
+| Property | Env var | Default | What it does |
+| --- | --- | --- | --- |
+| `agentspan.ocg.enabled` | `OCG_ENABLED` | `true` | Registers the seven `OCG_*` system tasks and `ocg_*` TaskDefs. When `false`, agent starts that declare OCG tools are rejected with a clear error. |
+| `agentspan.ocg.response-cap-chars` | — | 8192 | Post-projection truncation cap per response. |
+
+That's the whole server surface. There is no server-side OCG instance
+configuration: no `OCG_URL`/`OCG_API_KEY` (every tool binds its own
+instance from the SDK) and no `OCG_MODEL` (the retrieval agent's model is
+a required SDK parameter, `ocg_agent(model=...)`).
 
 ### Verifying it's enabled
 
-After the server starts with `OCG_URL` set you should see these three
-lines in the log:
-
-```
-INFO  dev.agentspan.runtime.registry.RegisteredTaskDefsRegistrar — Registered 7 TaskDef(s) from 1 supplier(s)
-INFO  dev.agentspan.runtime.registry.RegisteredAgentRegistrar — Registered agent: workflow='_ocg_agent' autoExposeAs='ocg_agent'
-INFO  dev.agentspan.runtime.registry.RegisteredAgentRegistrar — Registered 1 server-side agent(s)
-```
-
-Two quick HTTP checks:
-
 ```bash
-# 1. The OCG sub-agent workflow is registered
-curl -s http://localhost:6767/api/metadata/workflow/_ocg_agent | jq .name
-# → "_ocg_agent"
-
-# 2. The OCG primitive TaskDefs are registered
-curl -s -o /dev/null -w "%{http_code}\n" http://localhost:6767/api/metadata/taskdefs/ocg_query
-# → 200
+# The seven OCG TaskDefs are registered (names match dispatch):
+curl -s localhost:6767/api/metadata/taskdefs \
+  | jq '[.[].name | select(startswith("ocg_"))]'
+# → ["ocg_query", "ocg_get_entity", ..., "ocg_memory_delete"]
 ```
 
-If `OCG_URL` is unset, both endpoints return 404 — that's the disabled
-state.
-
-### Optional tuning knobs
-
-| Property                           | Default | Effect                                                                       |
-| ---------------------------------- | ------- | ---------------------------------------------------------------------------- |
-| `agentspan.ocg.response-cap-chars` | `8192`  | Per-call response truncation budget. Raise if your model context allows; lower to save tokens. |
+No workflow is registered at boot — retrieval agents are compiled when a
+user agent that declares them starts.
 
 ---
 
-## 1. Architecture in one picture
+## How a call executes
 
-```mermaid
-flowchart TB
-    subgraph L4["Layer 4 — Generic auto-expose (OCG-agnostic)"]
-        AC["AgentCompiler +<br/>AutoExposedToolsMerger<br/>(reads RegisteredAgent beans)"]
-        RAR["RegisteredAgentRegistrar<br/>(picks up RegisteredAgent beans)"]
-        RTR["RegisteredTaskDefsRegistrar<br/>(picks up RegisteredTaskDefs beans)"]
-    end
-    subgraph L3["Layer 3 — OCG sub-agent definition"]
-        ORA["OcgRegisteredAgent<br/>@Component"]
-        ORT["OcgRegisteredTaskDefs<br/>@Component"]
-        OAF["OcgAgentFactory<br/>(builds the AgentConfig)"]
-    end
-    subgraph L2["Layer 2 — OCG primitive system tasks"]
-        OcgReq["OcgRequestTask × 7<br/>(OCG_QUERY, OCG_GET_ENTITY, …)"]
-        Strats["Strategy classes:<br/>OcgQueryOperation,<br/>OcgGetEntityOperation, …"]
-    end
-    subgraph L1["Layer 1 — Configuration"]
-        Props["OcgProperties<br/>(url, apiKey, model, responseCapChars)"]
-        Cond["@ConditionalOnExpression<br/>('${agentspan.ocg.url:}'.length() > 0)"]
-    end
-
-    L1 --> L2
-    L1 --> L3
-    L3 --> L4
-    L2 -.exposes task types.-> L4
+```
+main agent LLM ── tool call ──▶ SUB_WORKFLOW (retriever)
+                                   │  retriever LLM picks e.g. ocg_query
+                                   ▼
+                            enrich script: t.type = OCG_QUERY,
+                            merges __ocg_url / __ocg_auth from the
+                            tool's compiled instance binding
+                                   ▼
+                            OcgRequestTask (system task)
+                              1. target = __ocg_url (required)
+                              2. auth   = __ocg_auth (placeholder resolved
+                                 via credential store), absent = no auth
+                              3. strip reserved inputs, build HTTP request
+                              4. send → project fields → cap chars
+                                   ▼
+                            OCG instance  ─── citations ──▶ retriever LLM
 ```
 
-Reading bottom-up: each layer is independent of the ones above it.
-**Removing OCG entirely means deleting layers 1-3; layer 4 stays generic
-and useful for any other server-side sub-agent.**
+Key properties:
 
----
+- **Per-call instance binding.** The tool's binding (compiled into the
+  workflow as the reserved `__ocg_url`/`__ocg_auth` task inputs) is the
+  only instance. A tool without one is rejected at agent *start*
+  (`OcgToolValidator`); the task-level check is the backstop.
+- **Secrets stay server-side.** `credential="OCG_US_KEY"` compiles to a
+  placeholder (`#{OCG_US_KEY}` standalone, `${workflow.secrets.OCG_US_KEY}`
+  embedded). Standalone resolution goes through the credential store scoped
+  by the execution token (same contract as HTTP tool headers); resolved
+  values are never written back to the task model. An unresolvable
+  placeholder fails the task rather than being sent as a bearer token.
+- **Response hygiene.** Each operation projects the raw OCG response down
+  to the fields the LLM needs (e.g. citations), then caps it at
+  `response-cap-chars` *before* it is persisted or enters the LLM context.
 
-## 2. Startup — the registry does the work
+## The seven OCG operations
 
-```mermaid
-sequenceDiagram
-    autonumber
-    participant SB as Spring Boot
-    participant OcgBeans as OcgRegisteredAgent +<br/>OcgRegisteredTaskDefs<br/>(@Component, gated by url)
-    participant TaskCfg as OcgRequestTaskConfig<br/>(gated by url)
-    participant TDR as RegisteredTaskDefsRegistrar<br/>(generic)
-    participant AR as RegisteredAgentRegistrar<br/>(generic)
-    participant AC as AgentCompiler
-    participant DAO as MetadataDAO
-
-    SB->>+OcgBeans: instantiate (URL is set)
-    deactivate OcgBeans
-    SB->>+TaskCfg: instantiate — 7 OCG_* system task beans
-    deactivate TaskCfg
-
-    Note over TDR,AR: @DependsOn ensures TaskDefs run first
-
-    SB->>+TDR: @PostConstruct
-    TDR->>+OcgBeans: taskDefs()
-    OcgBeans-->>-TDR: 7 TaskDefs<br/>(ocg_query, ocg_get_entity, …)
-    TDR->>+DAO: updateTaskDef × 7
-    DAO-->>-TDR: ok
-    deactivate TDR
-
-    SB->>+AR: @PostConstruct
-    AR->>+OcgBeans: agentConfig()
-    OcgBeans-->>-AR: AgentConfig("_ocg_agent")
-    AR->>+AC: compileWithoutAutoExpose(AgentConfig)
-    AC-->>-AR: WorkflowDef "_ocg_agent"
-    AR->>+DAO: updateWorkflowDef
-    DAO-->>-AR: ok
-    deactivate AR
-    Note over DAO: _ocg_agent is now dispatchable<br/>by name at runtime
-```
-
-The registrars know nothing about OCG. They iterate `List<RegisteredAgent>`
-and `List<RegisteredTaskDefs>` provided by Spring, run each through a
-fixed pipeline (compile + persist for agents; persist for TaskDefs), and
-call it a day. OCG just happens to be the one feature providing those
-beans today.
-
-LLM visibility is handled separately: `AutoExposedToolsMerger` reads
-`autoExpose()` straight from the same `RegisteredAgent` bean list at
-construction, so user compiles see `ocg_agent` regardless of when these
-DAO writes happen — there is no startup-ordering dependency between
-registration and visibility.
-
----
-
-## 3. Compile-time merge — how every user agent gets `ocg_agent`
-
-```mermaid
-sequenceDiagram
-    autonumber
-    participant U as Client
-    participant AS as AgentService
-    participant AC as AgentCompiler
-    participant DAO as MetadataDAO
-
-    U->>+AS: POST /api/agent/start {agentConfig, prompt}
-    AS->>AS: resolveConfig() — normalize framework
-    AS->>+AC: compile(config)
-
-    Note over AC: AutoExposedToolsMerger.merge(config)<br/>entries fixed at construction from<br/>the RegisteredAgent bean list — no DAO read
-    loop for each auto-exposed RegisteredAgent
-        alt name != config.name, not duplicate
-            AC->>AC: append ToolConfig{<br/>  name: expose.toolName<br/>  toolType: "agent_tool"<br/>  config.workflowName: agent workflow name<br/>}
-        end
-    end
-
-    AC->>AC: strategy dispatch (compileSimple / compileWithTools / …)<br/>ocg_agent → SUB_WORKFLOW handler at runtime
-    AC-->>-AS: WorkflowDef
-    AS->>+DAO: updateWorkflowDef
-    DAO-->>-AS: ok
-    AS->>+DAO: startWorkflow
-    DAO-->>-AS: executionId
-    AS-->>-U: 200 {executionId}
-```
-
-Guards inside the merger:
-
-| Guard                      | Why                                                                |
-| -------------------------- | ------------------------------------------------------------------ |
-| No `RegisteredAgent` beans | Unit tests using `new AgentCompiler()` should still work          |
-| Self-recursion             | Re-compiling `_ocg_agent` itself won't inject itself as a tool    |
-| Duplicate name             | A caller's explicit declaration wins                              |
-
----
-
-## 4. Runtime delegation — the nested agent dispatch
-
-```mermaid
-sequenceDiagram
-    autonumber
-    participant MLM as Main agent LLM
-    participant Enrich as enrich INLINE<br/>(JS dispatch table)
-    participant FORK as FORK_JOIN_DYNAMIC
-    participant OA as _ocg_agent<br/>(SUB_WORKFLOW)
-    participant OLM as OCG sub-agent LLM
-    participant Enrich2 as nested enrich INLINE
-    participant ORT as OcgRequestTask
-    participant OCG as OCG service<br/>(HTTPS)
-
-    activate MLM
-    MLM->>MLM: sees ocg_agent in tool spec list<br/>decides to delegate
-    MLM->>+Enrich: toolCalls=[{name:"ocg_agent",args:{...}}]
-    Enrich->>Enrich: agentToolCfg["ocg_agent"]<br/>→ {workflowName:"_ocg_agent"}
-    Enrich->>+FORK: dynamicTasks=[{type:"SUB_WORKFLOW",<br/>  name:"_ocg_agent", ...}]
-    FORK->>+OA: dispatch child workflow
-
-    loop until no more tool calls
-        OA->>+OLM: LLM_CHAT_COMPLETE<br/>(OCG system prompt with today's date<br/>+ 7 ocg_* tools)
-        OLM-->>-OA: toolCalls=[{name:"ocg_query",<br/>args:{query, max_results, …}}]
-        OA->>+Enrich2: enrich runs again<br/>(this workflow's dispatch table)
-        Enrich2->>Enrich2: ocgCfg["ocg_query"]<br/>→ {taskType:"OCG_QUERY"}
-        Enrich2->>+ORT: OCG_QUERY system task
-        deactivate Enrich2
-        ORT->>+OCG: POST /api/v1/agent/query<br/>Authorization: Bearer <key>
-        OCG-->>-ORT: raw JSON citations
-        ORT->>ORT: project fields, cap to responseCapChars
-        ORT-->>-OA: result (≤ cap)
-    end
-
-    OA-->>-FORK: synthesized prose answer
-    FORK-->>-Enrich: child workflow output
-    Enrich-->>-MLM: tool result (as if ocg_agent were a function)
-    MLM->>MLM: continues conversation with answer<br/>as the latest tool result
-    deactivate MLM
-```
-
-The same compiled-workflow shape (LLM → enrich → fork → join → loop) runs
-at **both** levels — the outer dispatches `SUB_WORKFLOW`, the inner
-dispatches `OCG_QUERY` and friends. That's because `_ocg_agent` is just
-another `AgentConfig` compiled through the same `AgentCompiler.compile()`
-pipeline that produced the user's agent.
-
----
-
-## 5. The seven OCG operations
-
-All endpoints sit under `${agentspan.ocg.url}/api/v1`. Each is backed by
-a strategy class implementing `OcgOperation` (under
-`runtime/ocg/operation/`); `OcgRequestTask` is a thin orchestrator that
-delegates URL/method/body/projection to the strategy.
+All endpoints sit under `<instance-url>/api/v1`. Each is backed by a
+strategy class implementing `OcgOperation` (under `runtime/ocg/operation/`);
+`OcgRequestTask` is a thin orchestrator that resolves the target instance
+and delegates URL/method/body/projection to the strategy.
 
 | Tool name (LLM-visible) | System task type      | Endpoint                                 | Method   |
 | ----------------------- | --------------------- | ---------------------------------------- | -------- |
@@ -282,64 +174,33 @@ delegates URL/method/body/projection to the strategy.
 | `ocg_memory_reinforce`  | `OCG_MEMORY_REINFORCE`| `/api/v1/memories/{key}/reinforce`       | `POST`   |
 | `ocg_memory_delete`     | `OCG_MEMORY_DELETE`   | `/api/v1/memories/{key}`                 | `DELETE` |
 
----
-
-## 6. Why `@ConditionalOnExpression` instead of `@ConditionalOnProperty`
-
-The OCG `@Component`s use:
-
-```java
-@ConditionalOnExpression("'${agentspan.ocg.url:}'.length() > 0")
-```
-
-rather than the more obvious `@ConditionalOnProperty(name = "url")`
-because Spring's default for the latter is *"present and not equal to
-false"* — an empty string satisfies that and would load every OCG bean
-even with `OCG_URL` unset. The expression form requires a non-empty
-value, which matches the intent.
+The registered TaskDef names are the lowercased task types (`ocg_query`,
+…) — Conductor resolves dynamically forked tasks by name, and the dispatch
+script names each task `taskType.toLowerCase()`.
 
 ---
 
-## 7. Adding a new server-side sub-agent
+## Migration from auto-expose
 
-Drop one `@Component`. That's it.
+Prior to 2026-06-12, setting `OCG_URL` registered a `_ocg_agent` workflow at
+boot and **silently appended** an `ocg_agent` tool to every compiled agent.
+That behavior is removed with no flag and no shim:
 
-```java
-@Component
-@ConditionalOnExpression("'${agentspan.myfeature.url:}'.length() > 0")
-@RequiredArgsConstructor
-public class MyRegisteredAgent implements RegisteredAgent {
+| Before | After |
+| --- | --- |
+| Every agent got `ocg_agent` for free when `OCG_URL` was set | Each agent opts in: `tools=[agent_tool(ocg_agent(model=...))]` |
+| `_ocg_agent` workflow registered at boot | No boot-time workflow; retriever compiles when the declaring agent starts |
+| `OCG_MODEL` required, boot failed fast without it | Model is a required SDK parameter; `OCG_MODEL` is ignored |
+| One server-wide OCG instance | Per-tool `url=`/`credential=` — required; no server-side instance config at all |
+| OCG fully off unless `OCG_URL` set | Execution layer gated by `agentspan.ocg.enabled`; instanceless OCG tools rejected at start |
 
-    private final MyFeatureProperties properties;
+Anything that referenced the `_ocg_agent` workflow by name breaks; declare
+the agent from the SDK instead.
 
-    @Override
-    public AgentConfig agentConfig() {
-        return MyAgentFactory.build(properties);
-    }
+## Non-SDK clients
 
-    @Override
-    public ExposeAsTool autoExpose() {
-        return new ExposeAsTool(
-                "my_agent",
-                "Use this when …");
-    }
-}
-```
-
-If your agent has primitive system tasks that need TaskDef entries
-(most pure-LLM sub-agents won't), add one more:
-
-```java
-@Component
-@ConditionalOnExpression("'${agentspan.myfeature.url:}'.length() > 0")
-public class MyRegisteredTaskDefs implements RegisteredTaskDefs {
-    @Override
-    public List<TaskDef> taskDefs() {
-        return List.of(/* … */);
-    }
-}
-```
-
-**No `AgentCompiler` edit. No `AgentService` edit. No
-`@PostConstruct registerWorkflow()`. No per-feature service class.** The
-generic registrars handle the rest.
+REST/UI clients inline the equivalent agent JSON: an `agent_tool` whose
+`config.agentConfig` carries the retrieval agent — `tools` entries with
+`toolType: "ocg_query"` … `"ocg_memory_delete"`, each optionally with
+`config: {"url": ..., "credential": ...}`. The canonical prompt is exported
+as `agentspan.agents.ocg.OCG_SYSTEM_PROMPT`.

@@ -10,7 +10,6 @@ import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -44,32 +43,6 @@ public class AgentCompiler {
     private int llmRetryCount = 3;
     private int contextMaxSizeBytes = 32768;
     private int contextMaxValueSizeBytes = 4096;
-
-    /**
-     * Owns the per-config merge of auto-exposed server-registered agents.
-     * Pulled out so {@code AgentCompiler} stays focused on workflow
-     * compilation; the merger sources its entries from the
-     * {@code RegisteredAgent} bean list at construction.
-     */
-    private final AutoExposedToolsMerger autoExposedMerger;
-
-    /**
-     * Default no-arg constructor for tests that don't need the auto-expose
-     * merge — it becomes a no-op.
-     */
-    public AgentCompiler() {
-        this(AutoExposedToolsMerger.disabled());
-    }
-
-    /**
-     * Spring-injected constructor. The merger is itself a {@code @Component}
-     * built from the {@code RegisteredAgent} bean list, so this is the path
-     * the runtime uses.
-     */
-    @Autowired
-    public AgentCompiler(AutoExposedToolsMerger autoExposedMerger) {
-        this.autoExposedMerger = autoExposedMerger;
-    }
 
     /**
      * Sanitizes an agent name for use as a Conductor task reference name.
@@ -116,40 +89,12 @@ public class AgentCompiler {
     }
 
     /**
-     * Public entry point: compile a top-level {@link AgentConfig} into a
-     * {@link WorkflowDef}.
-     *
-     * <p>Before strategy dispatch, every auto-exposed
-     * {@code RegisteredAgent} is silently appended to {@code config.tools}
-     * as an {@code agent_tool}. That's how the OCG sub-agent (and any
-     * future server-side sub-agent) becomes LLM-visible without
-     * per-feature injection code.</p>
-     *
-     * <p>Internal recursion (nested sub-agents, graph-structure sub-compiles,
-     * MultiAgentCompiler swarm) must go through {@link #compileWithoutAutoExpose}
-     * instead so a specialist sub-agent isn't polluted with an unrelated
-     * retrieval tool.</p>
+     * Public entry point: compile an {@link AgentConfig} into a
+     * {@link WorkflowDef}. An agent's compiled tool list is exactly its
+     * declared tool list — server-side capabilities (e.g. OCG) are opted
+     * into explicitly from the SDK, never injected here.
      */
     public WorkflowDef compile(AgentConfig config) {
-        autoExposedMerger.merge(config);
-        return compileWithoutAutoExpose(config);
-    }
-
-    /**
-     * Compile entry that performs strategy dispatch and post-processing
-     * <em>without</em> running the auto-expose merge.
-     *
-     * <p>Two callers:</p>
-     * <ul>
-     *   <li>Internal recursion ({@link #compileSubAgent}, graph subgraph
-     *       compile, {@code MultiAgentCompiler}) — nested specialist agents
-     *       must not inherit unrelated server-side tools.</li>
-     *   <li>{@link dev.agentspan.runtime.registry.RegisteredAgentRegistrar}
-     *       at {@code @PostConstruct} time — registered server agents
-     *       shouldn't have other registered agents auto-exposed to them.</li>
-     * </ul>
-     */
-    public WorkflowDef compileWithoutAutoExpose(AgentConfig config) {
         WorkflowDef wf;
 
         // Passthrough check MUST be first — passthrough configs have null model.
@@ -1079,10 +1024,7 @@ public class AgentCompiler {
             task.getSubWorkflowParam().setName(sub.getName());
             task.setInputParameters(inputs);
         } else {
-            // Compile inline. ``compileWithoutAutoExpose`` (not ``compile``) so
-            // the auto-expose merge stays a top-level-only concern — nested
-            // sub-agents must not inherit unrelated server-registered tools.
-            WorkflowDef subWf = compileWithoutAutoExpose(sub);
+            WorkflowDef subWf = compile(sub);
             task.setType("SUB_WORKFLOW");
             task.setName(sub.getName());
             task.setSubWorkflowParam(new SubWorkflowParams());
@@ -1883,10 +1825,8 @@ public class AgentCompiler {
         List<WorkflowTask> defaultTasks = new ArrayList<>();
 
         if (subAgent != null) {
-            // Compile the subgraph into a WorkflowDef. ``compileWithoutAutoExpose``
-            // because this is internal recursion — only the top-level compile
-            // entry runs the auto-expose merge.
-            WorkflowDef subWf = compileWithoutAutoExpose(subAgent);
+            // Compile the subgraph into a WorkflowDef.
+            WorkflowDef subWf = compile(subAgent);
             String subRef = allocRef(usedRefs, "_sg_sub_" + nodeName);
 
             WorkflowTask subTask = new WorkflowTask();

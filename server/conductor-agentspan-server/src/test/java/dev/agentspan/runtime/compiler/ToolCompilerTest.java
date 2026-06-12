@@ -334,4 +334,115 @@ class ToolCompilerTest {
         assertThat(router.getType()).isEqualTo("SWITCH");
         assertThat(router.getDecisionCases()).containsKey("tool_call");
     }
+
+    // ── selfDescribing marker (OrkesLLM contract) ────────────────────────
+
+    @Test
+    void testCompileToolSpecs_everySpecIsSelfDescribing() {
+        // Every AgentSpan-compiled tool spec is complete (name + description +
+        // inputSchema inline), so every spec must carry the selfDescribing
+        // marker that tells OrkesLLM to skip integration resolution.
+        List<ToolConfig> tools = List.of(
+                ToolConfig.builder()
+                        .name("search")
+                        .description("Search")
+                        .toolType("worker")
+                        .build(),
+                ToolConfig.builder()
+                        .name("fetch")
+                        .description("Fetch")
+                        .toolType("http")
+                        .config(Map.of("url", "https://example.com"))
+                        .build(),
+                ToolConfig.builder()
+                        .name("ocg_query")
+                        .description("Query OCG")
+                        .toolType("ocg_query")
+                        .build(),
+                ToolConfig.builder()
+                        .name("helper")
+                        .description("Sub-agent")
+                        .toolType("agent_tool")
+                        .config(Map.of("workflowName", "helper_wf"))
+                        .build());
+
+        List<Map<String, Object>> specs = new ToolCompiler().compileToolSpecs(tools);
+
+        assertThat(specs).hasSize(4);
+        for (Map<String, Object> spec : specs) {
+            assertThat(spec.get("selfDescribing"))
+                    .as("spec '%s' must be marked selfDescribing", spec.get("name"))
+                    .isEqualTo(Boolean.TRUE);
+            // The marker must ALSO ride configParams: conductor-ai's ToolSpec
+            // has no selfDescribing field, so the top-level key is dropped at
+            // deserialization — configParams is a Map<String,Object> that
+            // survives, letting OrkesLLM read it without a conductor-oss
+            // release.
+            assertThat(spec.get("configParams"))
+                    .as("spec '%s' must carry the marker in configParams", spec.get("name"))
+                    .isInstanceOfSatisfying(Map.class, cp -> assertThat(cp.get("selfDescribing"))
+                            .isEqualTo(Boolean.TRUE));
+        }
+    }
+
+    @Test
+    void testCompileToolSpecs_markerMergesIntoExistingConfigParams() {
+        // MCP tools already populate configParams (mcpServer/headers) — the
+        // marker must merge in, not clobber them.
+        ToolConfig mcp = ToolConfig.builder()
+                .name("github")
+                .description("GitHub MCP")
+                .toolType("mcp")
+                .config(Map.of("server_url", "http://localhost:3001/mcp"))
+                .build();
+
+        Map<String, Object> spec =
+                new ToolCompiler().compileToolSpecs(List.of(mcp)).get(0);
+
+        @SuppressWarnings("unchecked")
+        Map<String, Object> cp = (Map<String, Object>) spec.get("configParams");
+        assertThat(cp.get("mcpServer")).isEqualTo("http://localhost:3001/mcp");
+        assertThat(cp.get("selfDescribing")).isEqualTo(Boolean.TRUE);
+    }
+
+    // ── OCG per-instance config plumbing ─────────────────────────────────
+
+    @Test
+    void testBuildEnrichTask_ocgInstanceConfig() {
+        // An OCG tool bound to a specific instance carries its url and a
+        // bearer-credential placeholder into the baked ocgCfg, and the script
+        // merges them into the dispatched task input as __ocg_url/__ocg_auth.
+        ToolConfig tool = ToolConfig.builder()
+                .name("ocg_query")
+                .description("Query the US graph")
+                .toolType("ocg_query")
+                .config(Map.of("url", "https://us.ocg.example.com", "credential", "OCG_US_KEY"))
+                .build();
+
+        Object[] result = new ToolCompiler().buildEnrichTask("agent", "agent_llm", List.of(tool), "");
+        String script = (String) ((WorkflowTask) result[0]).getInputParameters().get("expression");
+
+        assertThat(script).contains("\"url\":\"https://us.ocg.example.com\"");
+        // Standalone mode: ${OCG_US_KEY} is escaped to #{OCG_US_KEY} so
+        // Conductor's parameter binding doesn't consume it.
+        assertThat(script).contains("\"auth\":\"Bearer #{OCG_US_KEY}\"");
+        assertThat(script).contains("__ocg_url");
+        assertThat(script).contains("__ocg_auth");
+    }
+
+    @Test
+    void testBuildEnrichTask_ocgDefaultInstance() {
+        // No url/credential in config → the baked entry carries only the
+        // task type; the system task falls back to the server default.
+        ToolConfig tool = ToolConfig.builder()
+                .name("ocg_query")
+                .description("Query OCG")
+                .toolType("ocg_query")
+                .build();
+
+        Object[] result = new ToolCompiler().buildEnrichTask("agent", "agent_llm", List.of(tool), "");
+        String script = (String) ((WorkflowTask) result[0]).getInputParameters().get("expression");
+
+        assertThat(script).contains("\"ocg_query\":{\"taskType\":\"OCG_QUERY\"}");
+    }
 }

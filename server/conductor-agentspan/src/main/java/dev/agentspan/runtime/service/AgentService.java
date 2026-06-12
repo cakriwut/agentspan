@@ -48,6 +48,8 @@ import dev.agentspan.runtime.context.RequestContextHolder;
 import dev.agentspan.runtime.credentials.ExecutionTokenService;
 import dev.agentspan.runtime.model.*;
 import dev.agentspan.runtime.normalizer.NormalizerRegistry;
+import dev.agentspan.runtime.ocg.OcgProperties;
+import dev.agentspan.runtime.ocg.OcgToolValidator;
 import dev.agentspan.runtime.util.ModelParser;
 import dev.agentspan.runtime.util.ProviderValidator;
 
@@ -95,6 +97,14 @@ public class AgentService {
      */
     @Autowired(required = false)
     private MetadataService metadataService;
+
+    /**
+     * OCG execution-layer config. Null when {@code agentspan.ocg.enabled=false}
+     * (the bean only exists while {@code OcgRequestTaskConfig} is active), which
+     * {@link OcgToolValidator} treats as "OCG tools are unavailable".
+     */
+    @Autowired(required = false)
+    private OcgProperties ocgProperties;
 
     /** Package-private constructor for testing with ExecutionTokenService */
     AgentService(
@@ -255,6 +265,12 @@ public class AgentService {
     public StartResponse start(StartRequest request) {
         validateStartInput(request);
         AgentConfig config = resolveConfig(request);
+
+        // Fail fast on OCG tools with no instance to run against — otherwise
+        // this surfaces as a task failure mid-conversation.
+        OcgToolValidator.validate(config, ocgProperties).ifPresent(err -> {
+            throw new IllegalArgumentException(err);
+        });
 
         // Apply per-call timeout override from StartRequest
         if (request.getTimeoutSeconds() != null && request.getTimeoutSeconds() > 0) {

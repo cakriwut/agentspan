@@ -24,9 +24,8 @@ import com.netflix.conductor.service.MetadataService;
  * Generic registrar that writes every {@link RegisteredTaskDefs}-contributed
  * {@link TaskDef} into Conductor's metadata store on startup.
  *
- * <p>{@link RegisteredAgentRegistrar} declares an explicit dependency on
- * this bean via {@code @DependsOn} so task defs are written before any
- * agent workflow compiles — agent configs frequently reference task
+ * <p>Runs at {@code @PostConstruct} time so task defs are written before
+ * any agent workflow compiles — agent configs frequently reference task
  * names whose defs must already exist.</p>
  */
 @Component
@@ -56,9 +55,7 @@ public class RegisteredTaskDefsRegistrar {
         // updateTaskDef semantics (OSS DAO upserts; orkes' service throws NOT_FOUND
         // for unknown names), so check existence against the full list first.
         Set<String> existing =
-                metadataService.getTaskDefs().stream()
-                        .map(TaskDef::getName)
-                        .collect(Collectors.toSet());
+                metadataService.getTaskDefs().stream().map(TaskDef::getName).collect(Collectors.toSet());
         List<TaskDef> toCreate = new ArrayList<>();
         int updated = 0;
         for (RegisteredTaskDefs supplier : suppliers) {

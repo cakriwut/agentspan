@@ -644,12 +644,15 @@ public class JavaScriptBuilder {
                 + "      t.inputParameters = merged;"
                 + "    } else if (ocgCfg[n]) {"
                 // OCG tools dispatch to per-operation OCG_* system tasks. The
-                // OCG URL is resolved server-side from OcgProperties, so the
-                // script only needs to set the task type and forward the
-                // LLM-supplied arguments verbatim as inputParameters.
+                // LLM-supplied arguments are forwarded verbatim; a per-tool
+                // instance binding (url + auth placeholder) rides along as
+                // reserved __ocg_* inputs. Tools without one fall back to the
+                // server default (OcgProperties) inside OcgRequestTask.
                 + "      t.type = ocgCfg[n].taskType;"
                 + "      t.name = ocgCfg[n].taskType.toLowerCase();"
                 + "      t.inputParameters = tc.inputParameters || {};"
+                + "      if (ocgCfg[n].url) { t.inputParameters.__ocg_url = ocgCfg[n].url; }"
+                + "      if (ocgCfg[n].auth) { t.inputParameters.__ocg_auth = ocgCfg[n].auth; }"
                 + "      if ($.agentspanCtx) { t.inputParameters.__agentspan_ctx__ = $.agentspanCtx; }"
                 + "    } else if (humanCfg[n]) {"
                 + "      t.type = 'HUMAN';"
@@ -1281,6 +1284,8 @@ public class JavaScriptBuilder {
                 + "      t.type = ocgCfg[n].taskType;"
                 + "      t.name = ocgCfg[n].taskType.toLowerCase();"
                 + "      t.inputParameters = tc.inputParameters || {};"
+                + "      if (ocgCfg[n].url) { t.inputParameters.__ocg_url = ocgCfg[n].url; }"
+                + "      if (ocgCfg[n].auth) { t.inputParameters.__ocg_auth = ocgCfg[n].auth; }"
                 + "      if ($.agentspanCtx) { t.inputParameters.__agentspan_ctx__ = $.agentspanCtx; }"
                 + "    } else if (humanCfg[n]) {"
                 + "      t.type = 'HUMAN';"

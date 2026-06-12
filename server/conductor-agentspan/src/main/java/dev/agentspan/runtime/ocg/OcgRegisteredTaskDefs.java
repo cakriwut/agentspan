@@ -7,7 +7,7 @@ package dev.agentspan.runtime.ocg;
 
 import java.util.List;
 
-import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
 import com.netflix.conductor.common.metadata.tasks.TaskDef;
@@ -31,21 +31,28 @@ import dev.agentspan.runtime.registry.RegisteredTaskDefs;
  * {@code OcgRequestTask} and the parent LLM loop owns retry decisions.</p>
  */
 @Component
-@ConditionalOnExpression("'${agentspan.ocg.url:}'.length() > 0")
+@ConditionalOnProperty(prefix = "agentspan.ocg", name = "enabled", havingValue = "true", matchIfMissing = true)
 public class OcgRegisteredTaskDefs implements RegisteredTaskDefs {
 
     private static final int OCG_TASK_TIMEOUT_SECONDS = 60;
     private static final int OCG_TASK_RETRY_COUNT = 0;
     private static final String OCG_TASK_OWNER_EMAIL = "ocg@agentspan.dev";
 
+    /**
+     * TaskDef names must equal {@code taskType.toLowerCase()} — that is the
+     * name the tool-dispatch script assigns to each scheduled OCG task, and
+     * Conductor resolves dynamic-fork tasks by name. The operation NAME
+     * constants ("query", "memory_set", …) are log/output labels, not task
+     * names — registering those leaves "ocg_query" unresolvable at dispatch.
+     */
     private static final List<String> TASK_NAMES = List.of(
-            OcgQueryOperation.NAME,
-            OcgGetEntityOperation.NAME,
-            OcgNeighborhoodOperation.NAME,
-            OcgCodeHistoryOperation.NAME,
-            OcgMemorySetOperation.NAME,
-            OcgMemoryReinforceOperation.NAME,
-            OcgMemoryDeleteOperation.NAME);
+            OcgQueryOperation.TASK_TYPE.toLowerCase(),
+            OcgGetEntityOperation.TASK_TYPE.toLowerCase(),
+            OcgNeighborhoodOperation.TASK_TYPE.toLowerCase(),
+            OcgCodeHistoryOperation.TASK_TYPE.toLowerCase(),
+            OcgMemorySetOperation.TASK_TYPE.toLowerCase(),
+            OcgMemoryReinforceOperation.TASK_TYPE.toLowerCase(),
+            OcgMemoryDeleteOperation.TASK_TYPE.toLowerCase());
 
     @Override
     public List<TaskDef> taskDefs() {

@@ -9,8 +9,6 @@ import java.net.URI;
 import java.net.http.HttpRequest;
 import java.util.Map;
 
-import dev.agentspan.runtime.ocg.OcgProperties;
-
 /** {@code GET /api/v1/graph/neighborhood/{entity_id}?depth=N&limit=M} — graph traversal. */
 public final class OcgNeighborhoodOperation implements OcgOperation {
 
@@ -31,15 +29,15 @@ public final class OcgNeighborhoodOperation implements OcgOperation {
     }
 
     @Override
-    public HttpRequest build(OcgProperties properties, Map<String, Object> input) {
+    public HttpRequest build(OcgTarget target, Map<String, Object> input) {
         String entityId = OcgInputs.required(input, "entity_id");
-        URI uri = OcgUri.forApi(properties)
+        URI uri = OcgUri.forApi(target)
                 .pathSegment("graph", "neighborhood", entityId)
                 .queryParam("depth", OcgInputs.intOrDefault(input.get("depth"), DEFAULT_DEPTH))
                 .queryParam("limit", OcgInputs.intOrDefault(input.get("limit"), DEFAULT_LIMIT))
                 .build()
                 .toUri();
-        return OcgRequest.get(properties, uri);
+        return OcgRequest.get(target, uri);
     }
 
     @Override

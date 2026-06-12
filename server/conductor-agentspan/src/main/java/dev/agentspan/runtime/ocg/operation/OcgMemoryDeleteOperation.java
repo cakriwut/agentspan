@@ -11,8 +11,6 @@ import java.util.Map;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.web.util.UriComponentsBuilder;
 
-import dev.agentspan.runtime.ocg.OcgProperties;
-
 /** {@code DELETE /api/v1/memories/{key}?agent=...&user=...} — remove a memory by key. */
 public final class OcgMemoryDeleteOperation implements OcgOperation {
 
@@ -30,12 +28,12 @@ public final class OcgMemoryDeleteOperation implements OcgOperation {
     }
 
     @Override
-    public HttpRequest build(OcgProperties properties, Map<String, Object> input) {
+    public HttpRequest build(OcgTarget target, Map<String, Object> input) {
         String key = OcgInputs.required(input, "key");
-        UriComponentsBuilder uri = OcgUri.forApi(properties).pathSegment("memories", key);
+        UriComponentsBuilder uri = OcgUri.forApi(target).pathSegment("memories", key);
         addQueryParamIfPresent(uri, "agent", input.get("agent"));
         addQueryParamIfPresent(uri, "user", input.get("user"));
-        return OcgRequest.delete(properties, uri.build().toUri());
+        return OcgRequest.delete(target, uri.build().toUri());
     }
 
     private static void addQueryParamIfPresent(UriComponentsBuilder uri, String name, Object value) {

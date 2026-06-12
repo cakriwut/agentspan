@@ -9,8 +9,6 @@ import java.io.IOException;
 import java.net.http.HttpRequest;
 import java.util.Map;
 
-import dev.agentspan.runtime.ocg.OcgProperties;
-
 /**
  * Strategy for a single OCG endpoint. One implementation per {@code OCG_*}
  * task type; each owns the URL/method/body for its endpoint plus the
@@ -38,7 +36,7 @@ public interface OcgOperation {
      * implementations may throw — request building is purely an I/O-shape
      * concern and should not surface arbitrary checked exceptions.</p>
      */
-    HttpRequest build(OcgProperties properties, Map<String, Object> input) throws IOException;
+    HttpRequest build(OcgTarget target, Map<String, Object> input) throws IOException;
 
     /**
      * Project the parsed JSON response down to the fields the LLM needs.

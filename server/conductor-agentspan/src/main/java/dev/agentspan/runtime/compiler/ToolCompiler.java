@@ -110,7 +110,7 @@ public class ToolCompiler {
      * same as RAG/media: the tool name keys into ``ocgConfig`` at runtime, and
      * the enrich script sets ``t.type`` to the configured task type.
      */
-    static final Set<String> OCG_TOOL_TYPES = Set.of(
+    public static final Set<String> OCG_TOOL_TYPES = Set.of(
             "ocg_query",
             "ocg_get_entity",
             "ocg_neighborhood",
@@ -165,6 +165,17 @@ public class ToolCompiler {
             spec.put("name", tool.getName());
             spec.put("type", conductorType);
             spec.put("description", tool.getDescription());
+            // Every AgentSpan spec is complete as compiled (name + description
+            // + inputSchema inline). The marker tells spec consumers — notably
+            // orkes-conductor's OrkesLLM — to hand it to the LLM as-is and
+            // never resolve/replace it by name against integration stores.
+            // Kept top-level for a future first-class ToolSpec field, and
+            // duplicated into configParams at the end of this loop — that
+            // copy is the one that survives today: conductor-ai's ToolSpec
+            // has no selfDescribing field, so this top-level key is dropped
+            // at deserialization, while configParams (Map<String,Object>)
+            // rides through intact.
+            spec.put("selfDescribing", true);
 
             if (tool.getInputSchema() != null) {
                 spec.put("inputSchema", tool.getInputSchema());
@@ -199,6 +210,18 @@ public class ToolCompiler {
                 }
                 spec.put("configParams", configParams);
             }
+
+            // Merge (never clobber — the MCP/API blocks above populate it
+            // first) the selfDescribing marker into configParams; see the
+            // top-level marker comment for why this copy is the one that
+            // survives deserialization.
+            @SuppressWarnings("unchecked")
+            Map<String, Object> markerParams = (Map<String, Object>) spec.get("configParams");
+            if (markerParams == null) {
+                markerParams = new LinkedHashMap<>();
+                spec.put("configParams", markerParams);
+            }
+            markerParams.put("selfDescribing", true);
 
             specs.add(spec);
         }
@@ -395,11 +418,22 @@ public class ToolCompiler {
                     wmqConfig.put(tool.getName(), wmqEntry);
                 } else if (OCG_TOOL_TYPES.contains(toolType)) {
                     // OCG tools map to per-operation system tasks registered by
-                    // OcgRequestTaskConfig. No defaults to carry — the OCG URL
-                    // is resolved server-side from OcgProperties at bean
-                    // construction time, so the script just needs ``taskType``.
+                    // OcgRequestTaskConfig. A tool may bind its own OCG instance
+                    // (url + credential-store name); tools without one fall back
+                    // to the server default in OcgProperties at execution time.
                     Map<String, Object> ocgEntry = new LinkedHashMap<>();
                     ocgEntry.put("taskType", TYPE_MAP.getOrDefault(toolType, toolType.toUpperCase()));
+                    Object ocgUrl = cfg.get("url");
+                    if (ocgUrl != null && !ocgUrl.toString().isBlank()) {
+                        ocgEntry.put("url", ocgUrl.toString());
+                    }
+                    Object ocgCredential = cfg.get("credential");
+                    if (ocgCredential != null && !ocgCredential.toString().isBlank()) {
+                        // Same escaping path as HTTP/MCP headers: the secret name
+                        // becomes a placeholder resolved at execution time, never
+                        // a value baked into the workflow definition.
+                        ocgEntry.put("auth", rewriteCredentialPlaceholders("Bearer ${" + ocgCredential + "}"));
+                    }
                     ocgConfig.put(tool.getName(), ocgEntry);
                 }
             }
