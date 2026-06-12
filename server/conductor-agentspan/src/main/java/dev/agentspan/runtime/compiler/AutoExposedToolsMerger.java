@@ -7,6 +7,7 @@ package dev.agentspan.runtime.compiler;
 
 import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -122,10 +123,28 @@ public class AutoExposedToolsMerger {
     }
 
     private static ToolConfig buildAgentTool(String workflowName, ExposeAsTool expose) {
+        // Same schema OpenAINormalizer builds for user-declared agent tools — every
+        // agentspan tool is self-describing on the wire, so any host executor
+        // (standalone or embedded) can hand it to the LLM without type knowledge.
+        Map<String, Object> inputSchema = new LinkedHashMap<>();
+        inputSchema.put("type", "object");
+        inputSchema.put(
+                "properties",
+                Map.of(
+                        "request",
+                        Map.of(
+                                "type",
+                                "string",
+                                "description",
+                                "The request or question to send to this agent")));
+        inputSchema.put("required", List.of("request"));
+        inputSchema.put("additionalProperties", false);
+
         return ToolConfig.builder()
                 .name(expose.toolName())
                 .toolType("agent_tool")
                 .description(expose.toolDescription() != null ? expose.toolDescription() : "")
+                .inputSchema(inputSchema)
                 .config(Map.of("workflowName", workflowName))
                 .build();
     }
