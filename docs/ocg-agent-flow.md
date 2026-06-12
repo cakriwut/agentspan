@@ -247,5 +247,4 @@ orkes-conductor on 8080) as above.
 ## API reference
 
 See [Python SDK API Reference → ocg_agent() / ocg_tools()](python-sdk/api-reference.md)
-for the full parameter tables. Design history lives under
-[`docs/design/`](design/2026-06-12-ocg-sdk-subagent-design.md).
+for the full parameter tables.
