@@ -295,7 +295,7 @@ router = Agent(name="na_support", model="openai/gpt-4o",
 | `credential` | str | None | Credential-store entry holding the OCG bearer token. Resolved server-side at execution — the secret never appears in Python code or serialized configs. Requires `url` |
 | `instructions` | str | canned `OCG_SYSTEM_PROMPT` | Override the retrieval prompt |
 | `max_turns` | int | 10 | Retrieval loop budget |
-| `query` / `entities` / `code_history` / `memory` | bool | True | Tool subset switches |
+| `query` / `entities` / `memory` | bool | True | Tool subset switches |
 
 For a fully custom retrieval agent, take the raw tools instead:
 

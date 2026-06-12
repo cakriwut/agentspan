@@ -9,8 +9,8 @@ canned retrieval prompt and all seven ``ocg_*`` tools; wrapping it with
 ``agent_tool()`` exposes it to the main agent's LLM as a single tool.
 
 When the main agent calls it, the sub-agent runs its *own* LLM loop —
-it can issue several OCG queries, walk entity neighborhoods, pull code
-history — and returns one synthesized, cited answer. The main agent's
+it can issue several OCG queries and walk entity neighborhoods — and
+returns one synthesized, cited answer. The main agent's
 context only ever sees that final answer, not the raw graph payloads.
 
 Choose this shape when retrieval takes judgment (multi-step lookups,
@@ -48,9 +48,7 @@ MODEL = os.environ.get("AGENTSPAN_LLM_MODEL", "openai/gpt-4o-mini")
 OCG_INSTANCE_URL = os.environ.get("OCG_INSTANCE_URL") or ""
 OCG_CREDENTIAL = os.environ.get("OCG_CREDENTIAL")  # credential-store name, never the key
 if not OCG_INSTANCE_URL:
-    raise SystemExit(
-        "Set OCG_INSTANCE_URL to your OCG instance, e.g. https://test.contextgraph.io"
-    )
+    raise SystemExit("Set OCG_INSTANCE_URL to your OCG instance, e.g. https://test.contextgraph.io")
 
 PROMPT = (
     "Catch me up on 'Improvements to Python SDK -- performance, Feature "
@@ -71,12 +69,15 @@ def main() -> None:
         name="jira_ocg_subagent",
         model=MODEL,
         instructions=(
-            "You answer questions about the team's work. Delegate every "
-            "lookup to your retrieval tool — messages, Jira tickets, and "
-            "code history all live behind it. Synthesize what it returns "
-            "into a concise brief and keep its citations."
+            "You answer questions about the team's work. Call your "
+            "retrieval tool exactly once, passing the user's full "
+            "question — messages and Jira tickets all live "
+            "behind it. Its answer is complete: when it returns, write "
+            "your final response as a concise brief of what it found, "
+            "keeping its citations."
         ),
         tools=[agent_tool(retriever)],
+        max_turns=4,
     )
 
     with AgentRuntime() as runtime:

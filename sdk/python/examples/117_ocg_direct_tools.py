@@ -21,7 +21,7 @@ Compared to ``116_ocg_subagent.py``:
   ``instructions`` here.
 
 This example exposes only ``ocg_query`` (the subset switches turn off
-entity/code/memory tools) — the narrowest possible OCG surface.
+entity/memory tools) — the narrowest possible OCG surface.
 
 Instance binding works exactly as in 116: ``OCG_INSTANCE_URL`` (required) /
 ``OCG_CREDENTIAL`` env vars.
@@ -46,9 +46,7 @@ MODEL = os.environ.get("AGENTSPAN_LLM_MODEL", "openai/gpt-4o-mini")
 OCG_INSTANCE_URL = os.environ.get("OCG_INSTANCE_URL") or ""
 OCG_CREDENTIAL = os.environ.get("OCG_CREDENTIAL")  # credential-store name, never the key
 if not OCG_INSTANCE_URL:
-    raise SystemExit(
-        "Set OCG_INSTANCE_URL to your OCG instance, e.g. https://test.contextgraph.io"
-    )
+    raise SystemExit("Set OCG_INSTANCE_URL to your OCG instance, e.g. https://test.contextgraph.io")
 
 PROMPT = (
     "Catch me up on 'Improvements to Python SDK -- performance, Feature "
@@ -63,18 +61,20 @@ def main() -> None:
         model=MODEL,
         instructions=(
             "You answer questions about the team's work using ocg_query, "
-            "a retrieval tool over a knowledge graph of messages, Jira "
-            "tickets, and code. Query with specific keywords (ticket "
-            "titles, component names) — under ~15 content words. If the "
-            "question spans topics, issue one query per topic, then "
-            "synthesize the citations into a concise brief."
+            "a keyword/embedding retrieval tool (NOT an LLM) over a "
+            "knowledge graph of messages and Jira tickets. Query "
+            "with specific keywords (ticket titles, component names) — "
+            "under ~15 content words, never phrased as a question. At "
+            "most one query per topic, 4 total; never repeat or rephrase "
+            "a query. When the queries are done, write your final "
+            "response: a concise brief synthesized from the citations."
         ),
+        max_turns=6,
         tools=ocg_tools(
             url=OCG_INSTANCE_URL,
             credential=OCG_CREDENTIAL,
             query=True,
             entities=False,
-            code_history=False,
             memory=False,
         ),
     )

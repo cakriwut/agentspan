@@ -4,7 +4,7 @@
 """OCG (Open Context Graph) retrieval sub-agent.
 
 OCG is a retrieval engine over a knowledge graph of entities (messages,
-channels, people, code) linked by claims and relationships. This module is
+channels, people) linked by claims and relationships. This module is
 the canonical — and only — definition of the OCG integration: system
 prompt, tool schemas, endpoint routing, and instance binding all live
 here. The tools compile to plain Conductor HTTP tasks (with path
@@ -69,7 +69,15 @@ month boundary before today; that silently drops the newest data.
 
 You are querying an OCG (Observability Context Graph). It is a RETRIEVAL
 engine over a knowledge graph of entities (messages, channels, people)
-linked by claims and relationships. It is NOT an aggregation engine.
+linked by claims and relationships — embedding/keyword search, NOT an LLM.
+It is NOT an aggregation engine and NOT a conversation partner: rephrasing
+the same intent returns the same results.
+
+RETRIEVAL BUDGET: make at most 3 queries total, each with a genuinely
+DIFFERENT keyword set. Never repeat or lightly rephrase a query. When the
+budget is spent — or results start repeating — STOP querying and answer
+from what you have. Timestamps must be full RFC3339
+(2026-06-04T00:00:00Z); a bare date is rejected.
 
 It can answer:
   - "Find messages in channel X about Y"
@@ -82,13 +90,16 @@ It CANNOT directly answer (you must do it yourself in two steps):
   - "Group these by Y" / "Top N by count"
   - Statistical or comparative questions
 
+RESPONSE SIZE: OCG responses are injected verbatim into your context.
+Keep max_results <= 25 and traversal_level = 0 unless you specifically
+need graph neighbors. A huge result set will destroy your own context —
+narrow the keywords or the time range instead of raising max_results.
+
 For aggregation questions, use a TWO-STEP pattern:
-  1. RETRIEVE: ask OCG for the raw set of relevant entities.
+  1. RETRIEVE: ask OCG for the relevant entities.
      - Use specific terms (cluster names, error codes, channel names).
      - Use start_time (and end_time only for windows closed in the
        past) to bound the range.
-     - Set max_results high (e.g. 500) so you get the full set, not a
-       top-N sample.
      - Avoid hedging words ("frequently", "across", "occurrences") —
        OCG ranks by keyword presence, and these are noise tokens.
   2. AGGREGATE: count, group, rank yourself from the citation list.
@@ -103,7 +114,7 @@ Bad:  "Across all clusters, what alert/notification/error type appears
 
 Good (step 1): {
   "query": "TIMED_OUT health check failure cluster",
-  "max_results": 500,
+  "max_results": 25,
   "start_time": "<today minus 30 days>T00:00:00Z"
 }
 (end_time omitted — the range runs through now.)
@@ -148,12 +159,29 @@ def _query_tool() -> Dict[str, Any]:
         "schema": _object(
             {
                 "query": _prop("string", "Natural-language retrieval query."),
-                "max_results": _prop("integer", "Max citations to return.", 10),
+                "max_results": {
+                    "type": "integer",
+                    "description": "Max citations to return. Responses land verbatim "
+                    "in your context — keep this small; 100 is the hard maximum.",
+                    "default": 10,
+                    "maximum": 100,
+                },
                 "traversal_level": _prop(
-                    "integer", "0 = citations only, 1 = neighborhood, 2-3 = multi-hop.", 1
+                    "integer",
+                    "0 = citations only (recommended), 1 = neighborhood, "
+                    "2-3 = multi-hop. Each level multiplies response size.",
+                    0,
                 ),
-                "start_time": _prop("string", "ISO-8601 lower bound (inclusive). Optional."),
-                "end_time": _prop("string", "ISO-8601 upper bound (exclusive). Optional."),
+                "start_time": _prop(
+                    "string",
+                    "RFC3339 timestamp lower bound (inclusive), e.g. 2026-06-04T00:00:00Z. "
+                    "A bare date like 2026-06-04 is REJECTED. Optional.",
+                ),
+                "end_time": _prop(
+                    "string",
+                    "RFC3339 timestamp upper bound (exclusive), e.g. 2026-06-11T00:00:00Z. "
+                    "A bare date is REJECTED. Optional — omit for ranges that run to now.",
+                ),
             },
             ["query"],
         ),
@@ -193,24 +221,6 @@ def _neighborhood_tool() -> Dict[str, Any]:
                 ),
             },
             ["entity_id"],
-        ),
-    }
-
-
-def _code_history_tool() -> Dict[str, Any]:
-    return {
-        "name": "ocg_code_history",
-        "method": "GET",
-        "path": "/api/v1/code/history/{repo_id}",
-        "query_params": ["path", "limit"],
-        "description": "Last N commits that touched a file in an ingested repo.",
-        "schema": _object(
-            {
-                "repo_id": _prop("string", "Ingested repository id."),
-                "path": _prop("string", "Path within the repo."),
-                "limit": _prop("integer", "Max commits to return.", 20),
-            },
-            ["repo_id", "path"],
         ),
     }
 
@@ -302,7 +312,6 @@ def ocg_tools(
     credential: Optional[str] = None,
     query: bool = True,
     entities: bool = True,
-    code_history: bool = True,
     memory: bool = True,
 ) -> List[ToolDef]:
     """Build the raw OCG :class:`ToolDef` list for a custom retrieval agent.
@@ -320,7 +329,6 @@ def ocg_tools(
             never appears in the serialized config.
         query: Include ``ocg_query``.
         entities: Include ``ocg_get_entity`` + ``ocg_neighborhood``.
-        code_history: Include ``ocg_code_history``.
         memory: Include ``ocg_memory_set`` / ``ocg_memory_reinforce`` /
             ``ocg_memory_delete``.
 
@@ -347,8 +355,6 @@ def ocg_tools(
     if entities:
         selected.append(_get_entity_tool())
         selected.append(_neighborhood_tool())
-    if code_history:
-        selected.append(_code_history_tool())
     if memory:
         selected.append(_memory_set_tool())
         selected.append(_memory_reinforce_tool())
@@ -388,7 +394,6 @@ def ocg_agent(
     max_turns: int = 10,
     query: bool = True,
     entities: bool = True,
-    code_history: bool = True,
     memory: bool = True,
 ) -> "Agent":
     """Build the prebuilt OCG retrieval :class:`Agent`.
@@ -406,8 +411,8 @@ def ocg_agent(
         credential: Credential-store entry for the instance's bearer token.
         instructions: Override the canned :data:`OCG_SYSTEM_PROMPT`.
         max_turns: Retrieval loop budget.
-        query / entities / code_history / memory: Tool subset switches,
-            forwarded to :func:`ocg_tools`.
+        query / entities / memory: Tool subset switches, forwarded to
+            :func:`ocg_tools`.
     """
     from agentspan.agents.agent import Agent
 
@@ -420,7 +425,6 @@ def ocg_agent(
             credential=credential,
             query=query,
             entities=entities,
-            code_history=code_history,
             memory=memory,
         ),
         max_turns=max_turns,

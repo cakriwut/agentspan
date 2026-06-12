@@ -48,9 +48,12 @@ agent = Agent(
     name="jira_ocg_smoke",
     model=MODEL,
     instructions=(
-        "You answer questions about the team's work. Delegate every lookup "
-        "to your retrieval tool and synthesize its cited answer."
+        "You answer questions about the team's work. Call your retrieval "
+        "tool exactly once, passing the user's full question. Its answer "
+        "is complete: when it returns, write your final response as a "
+        "concise cited brief of what it found."
     ),
+    max_turns=4,
     tools=[agent_tool(retriever)],
 )
 

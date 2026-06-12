@@ -196,3 +196,20 @@ already returns LLM-friendly responses, removing the last justification
 (projection/capping) for server-side OCG code. Full server suite + SDK
 tests green; two-stub e2e 3/3 on the HttpTask path; republished to
 mavenLocal.
+
+## Addendum (2026-06-12, post-live-tuning)
+
+Live runs against dev OCG surfaced and fixed:
+- `start_time`/`end_time` must be full RFC3339 — bare dates got 400s and
+  pointless Conductor retries; schemas + prompt now say so explicitly.
+- Uncapped responses: with server-side capping gone, `max_results: 500`
+  guidance produced a 162KB response that blew the retriever's context.
+  `max_results` now carries a schema-level `maximum: 100`, defaults stay
+  small, `traversal_level` defaults 0, and the prompt carries a retrieval
+  budget (≤3 distinct keyword queries, no rephrasing — OCG is embedding
+  search, not a conversation partner). Main-agent examples got explicit
+  one-retrieval instructions + `max_turns`. NOTE: schema maxima are
+  LLM-visible constraints, not enforcement — a generic tool-output cap in
+  agentspan (or an OCG-side response cap) remains the structural fix if
+  this ever needs to be a guarantee.
+- `ocg_code_history` removed from the toolset per user direction.

@@ -12,7 +12,6 @@ ALL_TOOL_NAMES = {
     "ocg_query",
     "ocg_get_entity",
     "ocg_neighborhood",
-    "ocg_code_history",
     "ocg_memory_set",
     "ocg_memory_reinforce",
     "ocg_memory_delete",
@@ -23,9 +22,9 @@ URL = "https://us.ocg.example.com"
 
 
 class TestOcgTools:
-    def test_default_returns_all_seven(self):
+    def test_default_returns_all_six(self):
         tools = ocg_tools(url=URL)
-        assert len(tools) == 7
+        assert len(tools) == 6
         assert {t.name for t in tools} == ALL_TOOL_NAMES
         # OCG tools ARE http tools — they execute as plain Conductor HTTP
         # tasks; there is no OCG-specific server code.
@@ -34,16 +33,15 @@ class TestOcgTools:
 
     def test_memory_false_returns_retrieval_only(self):
         tools = ocg_tools(url=URL, memory=False)
-        assert len(tools) == 4
+        assert len(tools) == 3
         assert {t.name for t in tools} == {
             "ocg_query",
             "ocg_get_entity",
             "ocg_neighborhood",
-            "ocg_code_history",
         }
 
     def test_subset_switches(self):
-        tools = ocg_tools(url=URL, entities=False, code_history=False, memory=False)
+        tools = ocg_tools(url=URL, entities=False, memory=False)
         assert [t.name for t in tools] == ["ocg_query"]
 
     def test_url_is_required(self):
@@ -74,9 +72,6 @@ class TestOcgTools:
         n = by_name["ocg_neighborhood"].config
         assert n["pathTemplate"] == "/api/v1/graph/neighborhood/{entity_id}"
         assert n["queryParams"] == ["depth", "limit"]
-        c = by_name["ocg_code_history"].config
-        assert c["pathTemplate"] == "/api/v1/code/history/{repo_id}"
-        assert c["queryParams"] == ["path", "limit"]
         r = by_name["ocg_memory_reinforce"].config
         assert (r["method"], r["pathTemplate"]) == ("POST", "/api/v1/memories/{key}/reinforce")
         d = by_name["ocg_memory_delete"].config
@@ -102,7 +97,8 @@ class TestOcgTools:
         by_type = {t.name: t for t in ocg_tools(url=URL)}
         assert by_type["ocg_query"].input_schema["required"] == ["query"]
         assert by_type["ocg_get_entity"].input_schema["required"] == ["entity_id"]
-        assert by_type["ocg_code_history"].input_schema["required"] == ["repo_id", "path"]
+        # LLM-visible hard ceiling on result-set size.
+        assert by_type["ocg_query"].input_schema["properties"]["max_results"]["maximum"] == 100
         assert by_type["ocg_memory_set"].input_schema["required"] == [
             "key",
             "agent",
@@ -154,7 +150,7 @@ class TestOcgAgent:
         from agentspan.agents.tool import get_tool_def
 
         tool_defs = [get_tool_def(t) for t in agent.tools]
-        assert len(tool_defs) == 7
+        assert len(tool_defs) == 6
         for td in tool_defs:
             assert td.config["url"] == "https://us.ocg.example.com"
             assert td.config["headers"] == {"Authorization": "Bearer ${OCG_US_KEY}"}
@@ -162,7 +158,7 @@ class TestOcgAgent:
 
     def test_tool_subset_flags_forwarded(self):
         agent = ocg_agent(model="openai/gpt-4o-mini", url=URL, memory=False)
-        assert len(agent.tools) == 4
+        assert len(agent.tools) == 3
 
     def test_exported_from_agents_package(self):
         from agentspan.agents import ocg_agent as exported_agent
