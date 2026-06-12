@@ -1,5 +1,0 @@
-# From this directory:
-#   python -m venv venv
-#   source venv/bin/activate
-#   pip install -e ../../sdk/python
-# No extra deps needed — OCG_QUERY is a server-side system task.
