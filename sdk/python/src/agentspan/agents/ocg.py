@@ -67,7 +67,7 @@ the results then run through now. Only set end_time when the user
 asks about a window that closed in the past. Never end a range at a
 month boundary before today; that silently drops the newest data.
 
-You are querying an OCG (Observability Context Graph). It is a RETRIEVAL
+You are querying an OCG (Open Context Graph). It is a RETRIEVAL
 engine over a knowledge graph of entities (messages, channels, people)
 linked by claims and relationships — embedding/keyword search, NOT an LLM.
 It is NOT an aggregation engine and NOT a conversation partner: rephrasing
@@ -215,7 +215,7 @@ def _neighborhood_tool() -> Dict[str, Any]:
         "schema": _object(
             {
                 "entity_id": _prop("string", "Entity at the center of the neighborhood."),
-                "depth": _prop("integer", "Hop depth (use depth=1 on first call).", 2),
+                "depth": _prop("integer", "Hop depth (use depth=1 on first call).", 1),
                 "limit": _prop(
                     "integer", "Cap on neighbors returned (use <= 10 on first call).", 50
                 ),
