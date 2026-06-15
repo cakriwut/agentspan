@@ -96,6 +96,16 @@
     "format:check": "prettier --check \"src/**/*.ts\" \"tests/**/*.ts\"",
     "typecheck": "tsc --noEmit"
   },
+  "overrides": {
+    "esbuild": "^0.28.1",
+    "ws": "^8.21.0",
+    "@langchain/langgraph": {
+      "uuid": "^11.1.1"
+    },
+    "@langchain/langgraph-checkpoint": {
+      "uuid": "^11.1.1"
+    }
+  },
   "lint-staged": {
     "*.ts": [
       "eslint --fix",
