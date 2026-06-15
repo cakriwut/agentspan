@@ -48,7 +48,7 @@ When `run(agent, prompt)` is called:
 | `src/agentspan/agents/termination.py` | `TerminationCondition` and composable subclasses (`&`, `|` operators) |
 | `src/agentspan/agents/handoff.py` | `HandoffCondition`, `OnToolResult`, `OnTextMention`, `OnCondition` |
 | `src/agentspan/agents/code_executor.py` | `CodeExecutor` — Local, Docker, Jupyter, Serverless |
-| `src/agentspan/agents/ext.py` | `UserProxyAgent`, `GPTAssistantAgent` |
+| `src/agentspan/agents/ext.py` | `GPTAssistantAgent` |
 | `src/agentspan/agents/tracing.py` | Optional OpenTelemetry integration |
 | `src/agentspan/agents/__init__.py` | Public API surface — all exports |
 | `src/agentspan/agents/compiler/agent_compiler.py` | Single agent compilation (DoWhile loops, tool dispatch) |

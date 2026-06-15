@@ -140,7 +140,7 @@ src/main/java/dev/agentspan/
     code/                       // CodeExecutionConfig, CodeExecutor (Local/Docker/Jupyter/Serverless)
     credential/                 // Credentials, CredentialFile
     callback/                   // CallbackHandler
-    ext/                        // UserProxyAgent, GPTAssistantAgent
+    ext/                        // GPTAssistantAgent
     gate/                       // GateCondition, TextGate
     cli/                        // CliConfig
     exception/                  // AgentspanException hierarchy

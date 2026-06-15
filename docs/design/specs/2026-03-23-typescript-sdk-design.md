@@ -177,7 +177,7 @@ sdk/typescript/
     types.ts                    # Shared interfaces, enums, ToolContext, EventType, Status
     serializer.ts               # Agent → AgentConfig JSON (recursive, handles all tool types)
     config.ts                   # AgentConfig env var loading, URL normalization
-    ext.ts                      # UserProxyAgent, GPTAssistantAgent
+    ext.ts                      # GPTAssistantAgent
     discovery.ts                # discoverAgents(path)
     tracing.ts                  # OpenTelemetry integration
     frameworks/
@@ -1463,24 +1463,6 @@ All passthrough normalizers produce the same structure:
 
 ## 15. Extended Types
 
-### 15.1 UserProxyAgent
-
-Human stand-in for multi-agent conversations.
-
-```typescript
-export class UserProxyAgent extends Agent {
-  constructor(options: {
-    name: string;
-    mode: 'ALWAYS' | 'TERMINATE' | 'NEVER';
-    instructions?: string;
-  });
-}
-```
-
-- `ALWAYS` — always pause for human input
-- `TERMINATE` — pause only on termination condition
-- `NEVER` — auto-respond (useful for testing)
-
 ### 15.2 GPTAssistantAgent
 
 Wraps OpenAI Assistants API.
@@ -1790,7 +1772,7 @@ Per base spec §12, with TypeScript-specific additions:
 13. **Termination + Handoffs** — `termination.ts`, `handoff.ts`, composable conditions
 14. **Callbacks** — `callback.ts`, 6-position lifecycle hooks
 15. **Code execution** — `code-execution.ts`, all 4 executors + asTool()
-16. **Extended types** — `ext.ts`, UserProxyAgent + GPTAssistantAgent
+16. **Extended types** — `ext.ts`, GPTAssistantAgent
 17. **Framework integration** — `frameworks/`, detection + 5 worker factories + event push
 18. **Testing framework** — `testing/`, mockRun + expect + assertions + record/replay + eval
 19. **Validation framework** — `validation/`, runner + judge + report

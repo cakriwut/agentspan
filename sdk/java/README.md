@@ -14,7 +14,7 @@ Maven (`pom.xml`):
 
 ```xml
 <dependency>
-    <groupId>ai.agentspan</groupId>
+    <groupId>org.conductoross.conductor.ai</groupId>
     <artifactId>java-sdk</artifactId>
     <version>0.1.0</version>
 </dependency>
@@ -23,7 +23,7 @@ Maven (`pom.xml`):
 Gradle (`build.gradle`):
 
 ```groovy
-implementation 'ai.agentspan:java-sdk:0.1.0'
+implementation 'org.conductoross.conductor.ai:java-sdk:0.1.0'
 ```
 
 ### Spring Boot starter
@@ -32,22 +32,22 @@ For Spring Boot apps, add the auto-configuration starter instead:
 
 ```xml
 <dependency>
-    <groupId>ai.agentspan</groupId>
+    <groupId>org.conductoross.conductor.ai</groupId>
     <artifactId>java-sdk-spring</artifactId>
     <version>0.1.0</version>
 </dependency>
 ```
 
 ```groovy
-implementation 'ai.agentspan:java-sdk-spring:0.1.0'
+implementation 'org.conductoross.conductor.ai:java-sdk-spring:0.1.0'
 ```
 
 ## Quick Start
 
 ```java
-import ai.agentspan.Agent;
-import ai.agentspan.Agentspan;
-import ai.agentspan.model.AgentResult;
+import org.conductoross.conductor.ai.Agent;
+import org.conductoross.conductor.ai.AgentRuntime;
+import org.conductoross.conductor.ai.model.AgentResult;
 
 public class Main {
     public static void main(String[] args) {
@@ -57,12 +57,16 @@ public class Main {
             .instructions("You are a helpful assistant.")
             .build();
 
-        AgentResult result = Agentspan.run(agent, "What is the capital of France?");
-        result.printResult();
-        Agentspan.shutdown();
+        // AgentRuntime is AutoCloseable — try-with-resources shuts down workers cleanly.
+        try (AgentRuntime runtime = new AgentRuntime()) {
+            AgentResult result = runtime.run(agent, "What is the capital of France?");
+            result.printResult();
+        }
     }
 }
 ```
+
+> In Spring, inject the auto-configured `AgentRuntime` bean instead of constructing one.
 
 ## Configuration
 
@@ -78,8 +82,8 @@ export AGENTSPAN_LLM_MODEL=openai/gpt-4o
 Or configure programmatically:
 
 ```java
-import ai.agentspan.AgentConfig;
-import ai.agentspan.Agentspan;
+import org.conductoross.conductor.ai.AgentConfig;
+import org.conductoross.conductor.ai.AgentRuntime;
 
 AgentConfig config = new AgentConfig(
     "http://localhost:6767/api",
@@ -88,7 +92,7 @@ AgentConfig config = new AgentConfig(
     100,  // poll interval ms
     5     // worker threads
 );
-Agentspan.configure(config);
+AgentRuntime runtime = new AgentRuntime(config);
 ```
 
 ## Tools
@@ -96,8 +100,8 @@ Agentspan.configure(config);
 Define tools using the `@Tool` annotation:
 
 ```java
-import ai.agentspan.annotations.Tool;
-import ai.agentspan.internal.ToolRegistry;
+import org.conductoross.conductor.ai.annotations.Tool;
+import org.conductoross.conductor.ai.internal.ToolRegistry;
 
 public class WeatherTools {
     @Tool(name = "get_weather", description = "Get weather for a city")
@@ -125,7 +129,9 @@ Agent writer = Agent.builder().name("writer").model("openai/gpt-4o")
 
 // Sequential pipeline
 Agent pipeline = researcher.then(writer);
-AgentResult result = Agentspan.run(pipeline, "Write about AI trends");
+try (AgentRuntime runtime = new AgentRuntime()) {
+    AgentResult result = runtime.run(pipeline, "Write about AI trends");
+}
 ```
 
 ## Streaming

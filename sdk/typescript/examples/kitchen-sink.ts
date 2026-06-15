@@ -8,7 +8,7 @@
  *   - All 8 multi-agent strategies
  *   - All tool types (worker, http, mcp, api, agent_tool, human, media, RAG)
  *   - All guardrail types (regex, llm, custom, external) with all OnFail modes
- *   - HITL (approve, reject, feedback, UserProxyAgent, human_tool)
+ *   - HITL (approve, reject, feedback, human_tool)
  *   - Memory (conversation + semantic)
  *   - Code execution (local, docker, jupyter, serverless)
  *   - Credentials (all isolation modes, CredentialFile)
@@ -116,7 +116,6 @@ import {
   getCredential,
 
   // Extended
-  UserProxyAgent,
   GPTAssistantAgent,
 
   // Discovery & Tracing
@@ -536,7 +535,7 @@ const reviewAgent = new Agent({
 // ═══════════════════════════════════════════════════════════════════════
 // STAGE 5: Editorial Approval
 // Features: #17 approval_required, #40 approve, #41 reject,
-//   #42 feedback/respond, #14 human_tool, #65 UserProxyAgent
+//   #42 feedback/respond, #14 human_tool
 // ═══════════════════════════════════════════════════════════════════════
 
 const publishArticle = tool(
@@ -569,18 +568,11 @@ const editorialQuestion = humanTool({
   },
 });
 
-const editorialReviewer = new UserProxyAgent({
-  name: 'editorial_reviewer',
-  mode: 'TERMINATE',
-  instructions: 'You are the editorial reviewer. Provide feedback on article quality.',
-});
-
 const editorialAgent = new Agent({
   name: 'editorial_approval',
   model: LLM_MODEL,
   instructions: 'Review the article, ask questions, get approval before publishing.',
   tools: [publishArticle, editorialQuestion],
-  agents: [editorialReviewer],
   strategy: 'handoff',
 });
 
@@ -994,7 +986,6 @@ export {
   editorialAgent,
   publishArticle,
   editorialQuestion,
-  editorialReviewer,
 
   // Stage 6
   toneDebate,

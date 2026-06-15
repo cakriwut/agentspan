@@ -35,7 +35,7 @@
 | `sdk/typescript/src/handoff.ts` | OnToolResult, OnTextMention, OnCondition |
 | `sdk/typescript/src/callback.ts` | CallbackHandler base class (6 positions) |
 | `sdk/typescript/src/code-execution.ts` | CodeExecutor abstract, Local/Docker/Jupyter/Serverless, asTool() |
-| `sdk/typescript/src/ext.ts` | UserProxyAgent, GPTAssistantAgent |
+| `sdk/typescript/src/ext.ts` | GPTAssistantAgent |
 | `sdk/typescript/src/discovery.ts` | discoverAgents(path) |
 | `sdk/typescript/src/tracing.ts` | OpenTelemetry integration |
 | `sdk/typescript/src/frameworks/detect.ts` | detectFramework() duck-typing |
@@ -449,7 +449,7 @@ Test: individual conditions toJSON, composition (and/or nesting), TextGate toJSO
 
 - [ ] **Step 3: Write ext.ts**
 
-`UserProxyAgent` extends Agent (modes: ALWAYS/TERMINATE/NEVER). `GPTAssistantAgent` extends Agent (assistantId, thread support).
+`GPTAssistantAgent` extends Agent (assistantId, thread support).
 
 - [ ] **Step 4: Write discovery.ts**
 

@@ -17,7 +17,7 @@ all execute **server-side**.
 > is **no native OpenAI Agents Java SDK** at the time of this writing —
 > only the raw `com.openai:openai-java` HTTP client, which has zero agent
 > abstractions. The OpenAI examples therefore use Agentspan's own
-> `OpenAIAgent.builder()` (in `ai.agentspan.frameworks`) — that builder
+> `OpenAIAgent.builder()` (in `org.conductoross.conductor.ai.frameworks`) — that builder
 > IS the Java equivalent of the Python `openai-agents` library, not a
 > bridge over something native. The same bug-bounty fixes applied to
 > `AdkBridge` and `LangChain4jAgent` (rich coercion via
@@ -27,7 +27,7 @@ all execute **server-side**.
 ## What "server-side execution" means here
 
 For each example we ran the user code unchanged, captured the
-execution ID returned by `Agentspan.run(...)`, then queried
+execution ID returned by `runtime.run(...)`, then queried
 `GET /api/workflow/{executionId}?includeTasks=true` to count and
 classify the tasks the server actually scheduled. The shapes that
 should appear in those task lists, per pattern:
@@ -56,7 +56,7 @@ java -jar build/libs/agentspan-runtime.jar
 # 2. Run a single example
 cd sdk/java
 AGENTSPAN_LLM_MODEL=openai/gpt-4o-mini \
-  ./gradlew :examples:run -PmainClass=ai.agentspan.examples.adk.Example02FunctionTools
+  ./gradlew :examples:run -PmainClass=org.conductoross.conductor.ai.examples.adk.Example02FunctionTools
 
 # 3. Inspect the workflow
 EXEC=<execution-id from the example's stdout>

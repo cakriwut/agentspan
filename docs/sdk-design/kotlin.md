@@ -979,7 +979,7 @@ val reviewAgent = agent("safety_reviewer") {
 
 // ═══════════════════════════════════════════════════════════════
 // STAGE 5: Editorial Approval
-// Features: HITL, UserProxyAgent, human_tool
+// Features: HITL, human_tool
 // ═══════════════════════════════════════════════════════════════
 
 val publishArticle = tool("publish_article") {
@@ -997,19 +997,11 @@ val editorialQuestion = humanTool(
     },
 )
 
-val editorialReviewer = UserProxyAgent(
-    name = "editorial_reviewer",
-    model = llmModel,
-    instructions = "You are the editorial reviewer. Provide feedback on article quality.",
-    humanInputMode = HumanInputMode.TERMINATE,
-)
-
 val editorialAgent = agent("editorial_approval") {
     model(llmModel)
     instructions("Review the article, ask questions, get approval before publishing.")
     tool(publishArticle)
     tool(editorialQuestion)
-    agent(editorialReviewer)
     strategy = Strategy.HANDOFF
 }
 

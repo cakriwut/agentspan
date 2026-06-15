@@ -1181,7 +1181,6 @@ All runnable examples must execute successfully against a live Conductor server 
 | `09c_hitl_streaming.py` | Requires human interaction |
 | `18_manual_selection.py` | Requires human interaction |
 | `26_opentelemetry_tracing.py` | Requires OTel collector |
-| `27_user_proxy_agent.py` | Requires human interaction |
 | `32_human_guardrail.py` | Requires human review |
 
 ### Run All Autonomous Examples

@@ -856,33 +856,6 @@ for event in runtime.stream(agent, "Hello"):
 
 ## Extended Agent Types
 
-### UserProxyAgent
-
-A human stand-in agent. When it's this agent's turn, the execution pauses with a `HumanTask` and waits for real human input. Useful in multi-agent conversations where a human participates.
-
-```python
-from agentspan.agents import UserProxyAgent, Agent
-
-user = UserProxyAgent(name="human")
-assistant = Agent(name="assistant", model="openai/gpt-4o")
-
-team = Agent(
-    name="chat",
-    model="openai/gpt-4o",
-    agents=[user, assistant],
-    strategy="round_robin",
-    max_turns=6,
-)
-```
-
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| `name` | `str` | `"user"` | Agent name. |
-| `human_input_mode` | `str` | `"ALWAYS"` | When to request human input: `"ALWAYS"`, `"TERMINATE"`, or `"NEVER"`. |
-| `default_response` | `str` | `"Continue."` | Response when `human_input_mode="NEVER"` (pass-through). |
-| `model` | `str` | `"openai/gpt-4o"` | LLM model (only used when generating a fallback response). |
-| `instructions` | `str \| Callable` | auto | System prompt. Defaults to relaying human input exactly. |
-
 ### GPTAssistantAgent
 
 Wraps an OpenAI Assistant (with its own instructions, tools, and file search) as a Conductor Agent.

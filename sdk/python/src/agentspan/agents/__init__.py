@@ -79,7 +79,7 @@ from agentspan.agents.skill import (
 )
 
 # Extended agent types
-from agentspan.agents.ext import GPTAssistantAgent, UserProxyAgent
+from agentspan.agents.ext import GPTAssistantAgent
 
 # Guardrails
 from agentspan.agents.guardrail import (
@@ -247,7 +247,6 @@ __all__ = [
     "VALID_RETRY_POLICIES",
     "AgentConfig",
     # Extended agent types
-    "UserProxyAgent",
     "GPTAssistantAgent",
     # Tools
     "tool",

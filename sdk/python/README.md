@@ -472,7 +472,6 @@ Runnable examples covering every feature:
 | [`24_code_execution.py`](examples/24_code_execution.py) | Code execution sandboxes |
 | [`25_semantic_memory.py`](examples/25_semantic_memory.py) | Long-term memory with retrieval |
 | [`26_opentelemetry_tracing.py`](examples/26_opentelemetry_tracing.py) | OpenTelemetry spans |
-| [`27_user_proxy_agent.py`](examples/27_user_proxy_agent.py) | Interactive conversations |
 | [`28_gpt_assistant_agent.py`](examples/28_gpt_assistant_agent.py) | OpenAI Assistants API wrapper |
 | [`29_agent_introductions.py`](examples/29_agent_introductions.py) | Agents introduce themselves |
 | [`30_multimodal_agent.py`](examples/30_multimodal_agent.py) | Vision model analysis |
