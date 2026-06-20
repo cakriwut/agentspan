@@ -1293,6 +1293,11 @@ public class AgentService {
                 if (task.getInputData() != null) {
                     pendingTool.put("tool_name", task.getInputData().get("tool_name"));
                     pendingTool.put("parameters", task.getInputData().get("parameters"));
+                    List<Map<String, Object>> toolCalls =
+                            AgentHumanTask.extractToolCalls(task.getInputData().get("tool_calls"));
+                    if (toolCalls != null) {
+                        pendingTool.put("toolCalls", toolCalls);
+                    }
                     if (task.getInputData().get("response_schema") != null) {
                         pendingTool.put("response_schema", task.getInputData().get("response_schema"));
                     }

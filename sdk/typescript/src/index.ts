@@ -15,6 +15,8 @@ export type {
   GuardrailDef,
   AgentEvent,
   AgentStatus,
+  PendingTool,
+  PendingToolCall,
   DeploymentInfo,
   PromptTemplate as PromptTemplateInterface,
   CodeExecutionConfig,
