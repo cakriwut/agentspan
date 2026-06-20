@@ -89,7 +89,10 @@ public class AgentCompiler {
     }
 
     /**
-     * Main entry point: compile an AgentConfig into a WorkflowDef.
+     * Public entry point: compile an {@link AgentConfig} into a
+     * {@link WorkflowDef}. An agent's compiled tool list is exactly its
+     * declared tool list — capabilities are opted into explicitly from
+     * the SDK, never injected here.
      */
     public WorkflowDef compile(AgentConfig config) {
         WorkflowDef wf;
@@ -1021,7 +1024,6 @@ public class AgentCompiler {
             task.getSubWorkflowParam().setName(sub.getName());
             task.setInputParameters(inputs);
         } else {
-            // Compile inline
             WorkflowDef subWf = compile(sub);
             task.setType("SUB_WORKFLOW");
             task.setName(sub.getName());
@@ -1823,7 +1825,7 @@ public class AgentCompiler {
         List<WorkflowTask> defaultTasks = new ArrayList<>();
 
         if (subAgent != null) {
-            // Compile the subgraph into a WorkflowDef
+            // Compile the subgraph into a WorkflowDef.
             WorkflowDef subWf = compile(subAgent);
             String subRef = allocRef(usedRefs, "_sg_sub_" + nodeName);
 
