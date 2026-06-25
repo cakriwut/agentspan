@@ -774,6 +774,34 @@ entirely; the published jar gets a point-fact, not a range.
 > take-the-jar + self-certify as the best-effort fallback. No maintained compatibility range, no new
 > abstraction.
 
+### 9.3 Upgrade & adoption
+
+Both paths consume **whole releases, never hand-swapped jars** — so API/ABI is the release
+producer's build-time concern (§9.2 self-certify), and the consuming customer's job is **data + ops
+only**.
+
+**Version upgrade** (existing AgentSpan deployment → newer release) — like any stateful app:
+
+- Two schema lifecycles migrate on startup: Conductor's (engine-owned) **and** AgentSpan's
+  `credentials_store`. Back up both datasources.
+- In-flight workflows must deserialize under the new engine — note **long-paused HITL**
+  (`AgentHumanTask`) makes such executions routine, not rare.
+- Rollback = **restore from backup** (Flyway is forward-only), not redeploy-old-artifact.
+
+**Adoption** (plain Conductor → +AgentSpan) is **additive**: it adds `credentials_store`, custom
+task types, and agent `WorkflowDef`s; existing Conductor data is untouched. Net-new concerns:
+
+- **Engine direction is `>=`, same major** (no downgrade: forward-only Flyway + model
+  serialization); *equal* = pure additive, no migration.
+  - **Mode A:** customer must pick a server release whose bundled engine `>=` theirs; if their
+    engine is ahead of every release, fall back to **Mode B**.
+  - **Mode B (build-from-source):** aligned to the host's own engine by construction.
+  - **Mode C:** `>=` auto-enforced by moving forward along orkes' release line; orkes owns it.
+- Host supplies one impl bean per SPI (no embedded default) — a missing one fails fast at startup.
+
+**Removal asymmetry:** backing AgentSpan out is clean *before* any agent runs (`credentials_store`
+is a harmless orphan); *after* agents exist, their custom `TASK_TYPE`s no longer resolve.
+
 ---
 
 ## 10. Risks & Open Questions (verify before/while coding)
